@@ -4,3 +4,6 @@
 [submodule "video-preview"]
 	path = submodules/video-preview
 	url = https://github.com/poulet-lab/video-preview.git
+[submodule "submodules/matlab-tools"]
+	path = submodules/matlab-tools
+	url = https://github.com/poulet-lab/matlab-tools.git
