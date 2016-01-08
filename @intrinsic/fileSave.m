@@ -16,28 +16,29 @@ hdlg = dialog( ...                                  % create dialog
     'Name',             'Save Dataset');
 movegui(hdlg,'center')                              % center dialog
 
-uicontrol( ...                                      % add some text
+uicontrol( ...                                      % UI text
     'Parent',  	hdlg, ...
     'Style',  	'text',...
     'Position',	[10 65 60 17],...
     'String',  	'Initials:', ...
     'Horizon', 	'left');
 
+% Define JAVA textfield for entering initials
 mask  = javax.swing.text.MaskFormatter('UU');       % define Mask
-jedit = javax.swing.JFormattedTextField(mask);      % create JAVA TextField
-jedit = javacomponent(jedit,[70,66,26,20],hdlg);    % place JAVA TextField
+jedit = javax.swing.JFormattedTextField(mask);      % create JAVA textfield
+jedit = javacomponent(jedit,[70,66,26,20],hdlg);    % place JAVA textfield
 jedit.Text = obj.loadVar('initials','XX');          % load last initials
 jedit.SelectionStart = 0;                           % select string
-jedit.KeyTypedCallback = @validate1;                % callback: any key
+jedit.KeyTypedCallback = @validate;                % callback: any key
 jedit.ActionPerformedCallback = @close;             % callback: enter key
 
-uicontrol( ...                                      % add some text
+uicontrol( ...                                      % UI text
     'Parent',  	hdlg, ...
     'Style',  	'text',...
     'Position',	[10 40 60 17],...
     'String',  	'Comments:', ...
     'Horizon', 	'left');
-hcmnt = uicontrol( ...
+hcmnt = uicontrol( ...                              % textfield: comments
     'Parent',   hdlg, ...
     'Style',    'edit', ...
     'Position', [70,40,170,20], ...
@@ -53,19 +54,21 @@ hok = uicontrol( ...                                % OK button
 hdlg.Visible = 'on';                                % make dialog visible
 drawnow
 
-validate1(jedit,[])                                 % check validity
+validate(jedit,[])                                 % check validity
 jedit.requestFocus()                                % focus TextField
 uiwait(hdlg)                                        % wait for dialog
 
-if ~isempty(comment)
+if ~isempty(comment)                                % format comment string
     comment = ['___' strtrim(comment)];
     comment(~isstrprop(comment,'alphanum')) = '_';
 end
 
 dirname = [datestr(now,'yymmdd_HHMM_') obj.Settings.initials comment];
 disp(dirname)
+% TODO: Implement actual save routine
 
 
+    % Accept values of textfields, close dialog window
     function close(~,~)
         if length(strtrim(char(jedit.getText))) == 2
             obj.Settings.initials = char(jedit.getText);
@@ -76,7 +79,8 @@ disp(dirname)
         end
     end
 
-    function validate1(jObj,~)
+    % Enable/disable OK button, depending on validity of initials
+    function validate(jObj,~)
         if length(strtrim(char(jObj.getText))) == 2
             hok.Enable = 'on';
         else
