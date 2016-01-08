@@ -8,6 +8,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         h               = []        % handles
 
         DirBase         = fileparts(fileparts(mfilename('fullpath')));
+        DirSave
         
         VideoPreview
         VideoInputRed
@@ -88,6 +89,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         greenGUI(obj)                           % Create GREEN GUI
         redGUI(obj)                             % Create RED GUI
         settingsStimulus(obj,~,~)             	% Stimulus Settings
+        fileSave(obj,~,~)
     end
 
     methods %(Access = private)
@@ -431,11 +433,28 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Load variable from file, return defaults if var/file not found
         function out = loadVar(obj,name,default)
             validateattributes(name,{'char'},{'vector'})
-            if ~isempty(whos(obj.Settings,name))
+            if ~isempty(who(obj.Settings,name))
                 out = obj.Settings.(name);
             else
                 out = default;
             end
+        end
+        
+        % Return data directory
+        function out = get.DirSave(obj)
+            
+            % Load from settings file
+            out = obj.loadVar('DirSave',[]);
+            if isdir(out)
+                return
+            end
+            
+            % Let user pick directory
+            out = uigetdir('/','Select Data Directory');
+            if isdir(out)
+                obj.Settings.DirSave = out;
+            end
+            
         end
         
         % Setup the Videoinput
@@ -894,15 +913,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %             tmp = matfile(fullfile(pn,fn));
         end
         
-        function fileSave(obj,~,~)
-%             isdata = squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16');
-%             keyboard
-%             obj.StackStim
-        end
+        
         
         function varargout = generateStimulus(obj,p,fs)
 
             if ~exist('p','var')
+                if ~ismember(who(obj.Settings),'Stimulus');
+                    obj.settingsStimulus
+                end
                 p = obj.Settings.Stimulus;
             end
             if ~exist('fs','var')
