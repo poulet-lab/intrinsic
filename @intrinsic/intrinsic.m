@@ -23,6 +23,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         
         StackStim       % raw data
         Sequence        % relative response (averaged across trials)
+        SequenceVar
         Movie           % relative response (same as obj.Sequence, as movie)
         ImageRedDiff    % relative response (averaged across trials & time)
         ImageRedBase    % 
@@ -613,6 +614,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Update the plots
         function update_plots(obj)
             
+            ntrials = ...
+                sum(squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16'));
+            
             if ~any(obj.StackStim(:)) || any(isnan(obj.Point))
                 obj.h.plot.temporal.XData = NaN;
                 obj.h.plot.temporal.YData = NaN;
@@ -622,7 +626,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             
             % plot temporal response
             y = squeeze(obj.Sequence(obj.Point(2),obj.Point(1),:));
-            x = obj.DAQvec.time(obj.DAQvec.cam);
+            x = obj.DAQvec.time(obj.DAQvec.cam)';
             obj.h.plot.temporal.XData = x;
             obj.h.plot.temporal.YData = y;
             %y = y(2:end);
@@ -638,22 +642,32 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             tmp = obj.DAQvec.time(obj.DAQvec.cam)>0;
             [xi,yi,y] = improfile(...
                 mean(obj.Sequence(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
+            
+            n = ntrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
+            [~,~,var] = improfile(...
+                mean(obj.SequenceVar(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
+            sem = sqrt(var)./sqrt(n);
+            
             x = sqrt((xi-obj.Point(1)).^2+(yi-obj.Point(2)).^2);
             tmp = 1:floor(length(x)/2);
             x(tmp) = -x(tmp);
             cla(obj.h.axes.spatial)
             hold(obj.h.axes.spatial,'on')
 
-            % ... fit ...
-            p0  = [y(x==0) 0 x(end)/2];
-            tmp	= optimset('display','off');
-            fit = fminsearch(@fitfun,p0,tmp);
-            tmp = linspace(min(x),max(x),1000);
-
             % ... plot
-            plot(obj.h.axes.spatial,tmp,gauss(tmp,fit), ...
-                'color',        ones(1,3)*0.85, ...
-                'linewidth',    6);
+            tmp = ~isnan(y);
+            fill([x(tmp); flipud(x(tmp))],...
+                [y(tmp)+sem(tmp); flipud(y(tmp)-sem(tmp))],ones(1,3)*.9,...
+                'parent',obj.h.axes.spatial,'linestyle','none')
+            
+%             % ... fit ...
+%             p0  = [y(x==0) 0 x(end)/2];
+%             tmp	= optimset('display','off');
+%             fit = fminsearch(@fitfun,p0,tmp);
+%             tmp = linspace(min(x),max(x),1000);
+%             plot(obj.h.axes.spatial,tmp,gauss(tmp,fit), ...
+%                 'color',        ones(1,3)*0.5, ...
+%                 'linewidth',    6);
             plot(obj.h.axes.spatial,x,y,'k','linewidth',2)
             plot(obj.h.axes.spatial,x,zeros(size(x)),':k')
             xlim(obj.h.axes.spatial,x([1 end]))
@@ -681,7 +695,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             val_mean    = 2^11;
             n_frames    = nnz(obj.DAQvec.cam);
             n_trials    = 10;
-            amp_noise   = 200;
+            amp_noise   = 50;
 
             sigma   = 20; 
             s       = sigma / imSize(1); 
@@ -696,7 +710,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             Y0      = ((1:imSize(2)*2)/ imSize(2)*2)-.5;  
             [Xm,Ym] = meshgrid(X0, Y0); 
             gauss2  = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
-            gauss2  = gauss2(1:imSize(1),(1:imSize(2))+round(imSize(2)/5)).*-.25;
+            gauss2  = gauss2(1:imSize(1),(1:imSize(2))+round(imSize(2)/5))./4;
 
             %data_nostim = uint16(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
             tmp = ceil(gcd(imSize(1),imSize(2))/2);
@@ -706,7 +720,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             noise_stim  = int32(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
             noise_stim  = noise_stim + repmat(tmp,1,1,n_frames,n_trials);
             
-            data_stim = repmat(-gauss-gauss2,1,1,n_frames);
+            data_stim = repmat((gauss-gauss2)./3,1,1,n_frames);
             lambda    = 3;
             mu        = 3;
             tmp       = obj.DAQvec.time(obj.DAQvec.cam);
@@ -757,14 +771,24 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             idxstim = obj.DAQvec.time(obj.DAQvec.cam)>0;
             nframes	= size(obj.StackStim,3);
             
-            base  	= mean(obj.StackStim(:,:,idxbase,isdata),3);
-            stim    = mean(obj.StackStim(:,:,idxstim,isdata),3);
-                        
-            obj.Sequence = mean(double(obj.StackStim(:,:,:,isdata)) - ...
-                repmat(base,[1 1 nframes 1]),4);
+            % averaging baseline across, both, time and trials
+            base	= mean(reshape(obj.StackStim(:,:,idxbase,isdata), ...
+                size(obj.StackStim,1), size(obj.StackStim,2), []),3);
+            varbase	= var(double(reshape(obj.StackStim(:,:,idxbase,isdata), ...
+                size(obj.StackStim,1), size(obj.StackStim,2), [])),[],3);
             
-            %base_std = std(double(obj.StackStim(:,:,idxbase,isdata)),[],3);     % across time
+            % average response
+            obj.Sequence = ...
+                mean(bsxfun(@minus,double(obj.StackStim(:,:,:,isdata)), ...
+                base),4);
             
+            % variance of average response
+            tmp = var(double(obj.StackStim(:,:,:,isdata)),[],4);
+            obj.SequenceVar = bsxfun(@plus,tmp,varbase);
+            
+            
+            stim    = mean(reshape(obj.StackStim(:,:,idxstim,isdata), ...
+                size(obj.StackStim,1), size(obj.StackStim,2), []),3);
             
             
 %             keyboard
@@ -775,15 +799,16 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             
             % spatial filtering
             if sigma > 0;
-                obj.Sequence = imgaussfilt3(obj.Sequence,sigma);
+                obj.Sequence    = imgaussfilt3(obj.Sequence,sigma);
+                obj.SequenceVar = imgaussfilt3(obj.SequenceVar,sigma);
                  %[Nx,Ny,Nz]   = size(obj.Sequence);
                  %obj.Sequence = sg3d(Nx,Ny,Nz,obj.Sequence,9,9,9,3);
             end
             
             % average across time
             obj.ImageRedDiff = mean(obj.Sequence(:,:,idxstim,:),3);
-            obj.ImageRedBase = mean(base,4);
-            obj.ImageRedStim = mean(stim,4);
+            obj.ImageRedBase = base;
+            obj.ImageRedStim = mean(stim,3);
             %obj.ImageRedDiff = min(obj.Sequence(:,:,idxstim,:),[],3);
             %obj.ImageRedDiff = obj.ImageRedDiff.*(obj.ImageRedDiff<=0);
             
