@@ -251,7 +251,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             modus = hdrop.String{hdrop.Value};
             ptile = str2double(obj.h.edit.redRange.String)/100;
             
-            if regexpi(modus,'diff')
+            if regexpi(modus,'difference')
                 obj.h.edit.redSigma.Enable = 'on';
                 obj.h.edit.redRange.Enable = 'on';
                 cmap = flipud(brewermap(2^8,'PuOr'));
@@ -259,11 +259,28 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 tmp  = sort(abs(obj.ImageRedDiff(:)));
                 scal = tmp(ceil(length(tmp)*ptile));
                 tmp  = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7);
-
+                
 %                 tmp2 = wiener2(obj.ImageRedDiff,[20 20],20);
 %                 tmp  = sort(abs(tmp2(:)));
 %                 scal = tmp(ceil(length(tmp)*ptile));
 %                 tmp  = floor(tmp2 ./ scal .* 2^7 + 2^7);
+            elseif regexpi(modus,'sem')
+                obj.h.edit.redSigma.Enable = 'on';
+                obj.h.edit.redRange.Enable = 'on';
+                cmap = flipud(brewermap(2^8,'PuOr'));
+
+                ntrials = ...
+                    sum(squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16'));
+                n    = ntrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
+                tmp  = obj.DAQvec.time(obj.DAQvec.cam)>0;
+                var  = mean(obj.SequenceVar(:,:,tmp),3);
+                sem  = sqrt(var)/sqrt(n);
+                sem  = (abs(mean(obj.Sequence(:,:,tmp),3)) ./ sem) >= 1;
+                
+                tmp  = sort(abs(obj.ImageRedDiff(:)));
+                scal = tmp(ceil(length(tmp)*ptile));
+                tmp  = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7) .* sem;
+                tmp(sem<1) = 2^7;
             elseif regexpi(modus,'base')
                 obj.h.edit.redSigma.Enable = 'off';
                 obj.h.edit.redRange.Enable = 'off';
