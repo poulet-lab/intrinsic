@@ -2,9 +2,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     
     properties
         DAQ             = [] %daq.createSession('ni');
-    end
-    
-    properties (Access = private)
         h               = []        % handles
 
         DirBase         = fileparts(fileparts(mfilename('fullpath')));
@@ -36,7 +33,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         DAQvec
     end
     
-    properties (Dependent = true, Access = private)
+    properties (Dependent = true)
+        nTrials
         Figure
         ROISize
         Point
@@ -237,14 +235,18 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.Settings.redRange = value;      % update settings
         end
         
-        function redSigma(obj,hedit,~)          % Gaussian smoothing
+        function redSigma(obj,hedit,~)                  % Gaussian smoothing
             value = str2double(hedit.String);
             if isempty(value) || value<0
                 hedit.String = '0';
             end
             obj.processStack
             
-            obj.Settings.redSigma = value;      % update settings
+            if regexpi(hedit.TooltipString,'spatial')   % update settings
+                obj.Settings.redSigmaSpatial = value;
+            elseif regexpi(hedit.TooltipString,'temporal')
+                obj.Settings.redSigmaTemporal = value;      
+            end
         end
         
         function redView(obj,hdrop,~)           % Gaussian smoothing
@@ -252,26 +254,22 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             ptile = str2double(obj.h.edit.redRange.String)/100;
             
             if regexpi(modus,'difference')
-                obj.h.edit.redSigma.Enable = 'on';
-                obj.h.edit.redRange.Enable = 'on';
+                obj.h.edit.redSigmaSpatial.Enable  = 'on';
+                obj.h.edit.redSigmaTemporal.Enable = 'on';
+                obj.h.edit.redRange.Enable         = 'on';
                 cmap = flipud(brewermap(2^8,'PuOr'));
 
                 tmp  = sort(abs(obj.ImageRedDiff(:)));
                 scal = tmp(ceil(length(tmp)*ptile));
                 tmp  = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7);
                 
-%                 tmp2 = wiener2(obj.ImageRedDiff,[20 20],20);
-%                 tmp  = sort(abs(tmp2(:)));
-%                 scal = tmp(ceil(length(tmp)*ptile));
-%                 tmp  = floor(tmp2 ./ scal .* 2^7 + 2^7);
             elseif regexpi(modus,'sem')
-                obj.h.edit.redSigma.Enable = 'on';
-                obj.h.edit.redRange.Enable = 'on';
+                obj.h.edit.redSigmaSpatial.Enable  = 'on';
+                obj.h.edit.redSigmaTemporal.Enable = 'on';
+                obj.h.edit.redRange.Enable         = 'on';
                 cmap = flipud(brewermap(2^8,'PuOr'));
 
-                ntrials = ...
-                    sum(squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16'));
-                n    = ntrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
+                n    = obj.nTrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
                 tmp  = obj.DAQvec.time(obj.DAQvec.cam)>0;
                 var  = mean(obj.SequenceVar(:,:,tmp),3);
                 sem  = sqrt(var)/sqrt(n);
@@ -281,17 +279,21 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 scal = tmp(ceil(length(tmp)*ptile));
                 tmp  = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7) .* sem;
                 tmp(sem<1) = 2^7;
+                
             elseif regexpi(modus,'base')
-                obj.h.edit.redSigma.Enable = 'off';
-                obj.h.edit.redRange.Enable = 'off';
+                obj.h.edit.redSigmaSpatial.Enable  = 'off';
+                obj.h.edit.redSigmaTemporal.Enable = 'off';
+                obj.h.edit.redRange.Enable         = 'off';
                 cmap = gray(2^8);
                 base = abs([obj.ImageRedBase(:); obj.ImageRedStim(:)]);
                 tmp1 = abs(obj.ImageRedBase) - min(base);
                 tmp2 = abs(obj.ImageRedStim) - min(base);
                 tmp  = floor(tmp1 ./ max(tmp2(:)) .* 2^8);
+                
             elseif regexpi(modus,'stim')
-                obj.h.edit.redSigma.Enable = 'off';
-                obj.h.edit.redRange.Enable = 'off';
+                obj.h.edit.redSigmaSpatial.Enable  = 'off';
+                obj.h.edit.redSigmaTemporal.Enable = 'off';
+                obj.h.edit.redRange.Enable         = 'off';
                 cmap = gray(2^8);
                 base = abs([obj.ImageRedBase(:); obj.ImageRedStim(:)]);
                 tmp  = abs(obj.ImageRedStim) - min(base);
@@ -455,6 +457,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 out = obj.Settings.(name);
             else
                 out = default;
+            end
+        end
+        
+        function out = get.nTrials(obj)
+            if ndims(obj.StackStim)>3
+                out = sum(squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16'));
+            else
+                out = 0;
             end
         end
         
@@ -631,9 +641,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Update the plots
         function update_plots(obj)
             
-            ntrials = ...
-                sum(squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16'));
-            
             if ~any(obj.StackStim(:)) || any(isnan(obj.Point))
                 obj.h.plot.temporal.XData = NaN;
                 obj.h.plot.temporal.YData = NaN;
@@ -660,7 +667,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             [xi,yi,y] = improfile(...
                 mean(obj.Sequence(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
             
-            n = ntrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
+            n = obj.nTrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
             [~,~,var] = improfile(...
                 mean(obj.SequenceVar(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
             sem = sqrt(var)./sqrt(n);
@@ -780,13 +787,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             if ~isfield(obj.h.fig,'red')
                 obj.redGUI
             end
-            sigma   = str2double(obj.h.edit.redSigma.String);
+            sigmaSpatial   = str2double(obj.h.edit.redSigmaSpatial.String);
+            sigmaTemporal  = str2double(obj.h.edit.redSigmaTemporal.String);
             ptile   = str2double(obj.h.edit.redRange.String)/100;
             
             isdata  = squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16');
             idxbase	= obj.DAQvec.time(obj.DAQvec.cam)<0;
             idxstim = obj.DAQvec.time(obj.DAQvec.cam)>0;
-            nframes	= size(obj.StackStim,3);
             
             % averaging baseline across, both, time and trials
             base	= mean(reshape(obj.StackStim(:,:,idxbase,isdata), ...
@@ -813,13 +820,22 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %             a   = quantile(tmp,[0.25 0.5 0.75],3,'R-5');
 %             iqr = a(:,:,3)-a(:,:,1);
 
-            
+
             % spatial filtering
-            if sigma > 0;
-                obj.Sequence    = imgaussfilt3(obj.Sequence,sigma);
-                obj.SequenceVar = imgaussfilt3(obj.SequenceVar,sigma);
-                 %[Nx,Ny,Nz]   = size(obj.Sequence);
-                 %obj.Sequence = sg3d(Nx,Ny,Nz,obj.Sequence,9,9,9,3);
+            if sigmaSpatial > 0;
+                obj.Sequence    = imgaussfilt(obj.Sequence,sigmaSpatial);
+                obj.SequenceVar = imgaussfilt(obj.SequenceVar,sigmaSpatial);
+            end
+
+            
+            % temporal filtering
+            if sigmaTemporal > 0;
+                sigma = sigmaTemporal * obj.RateCam / 1000;
+                sz    = floor(size(obj.Sequence,3)/3);
+                x     = (0:sz-1)-floor(sz/2);
+                gf    = exp(-x.^2/(2*sigma^2));         % gaussian
+                gf    = gf/sum (gf);                	% normalize to 1
+                obj.Sequence = FiltFiltM(gf,1,obj.Sequence,3);
             end
             
             % average across time

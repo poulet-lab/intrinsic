@@ -1,12 +1,7 @@
 function fileSave(obj,~,~)
 
-if isempty(obj.StackStim)                           % check for data
-    warning('There''s no data to save.')
-    return
-end
-isdata = squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16');
-if ~any(isdata)
-    warning('There''s no data to save.')
+if ~obj.nTrials
+    warndlg('There''s no data to save.','Hold on ...','modal')
     return
 end
 
