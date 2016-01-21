@@ -59,7 +59,26 @@ if ~isempty(comment)                                % format comment string
 end
 
 dirname = [datestr(now,'yymmdd_HHMM_') obj.Settings.initials comment];
-disp(dirname)
+disp(dirname) 
+
+% dirsave = fullfile(obj.DirSave,dirname);
+% mkdir(dirsave)
+% 
+% fullfile(obj.DirSave,dirname)
+
+
+% for ii = 1:obj.nTrials
+%     v = VideoWriter(...
+%         fullfile(dirsave,sprintf('%02d.mj2',ii)),'Archival');
+%     v.MJ2BitDepth = 12;
+%     v.FrameRate = obj.RateCam;
+%     v.LosslessCompression = true;
+%     open(v)
+%     tmp = size(obj.StackStim);
+%     writeVideo(v,reshape(obj.StackStim(:,:,:,ii),tmp(1),tmp(2),1,tmp(3)))
+%     close(v)
+% end
+
 % TODO: Implement actual save routine
 
 
