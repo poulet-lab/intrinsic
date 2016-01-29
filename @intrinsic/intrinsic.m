@@ -315,8 +315,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             f_warm 	 = 5;                       % warm-up framerate [Hz]
             tmp      = round(obj.RateDAQ/f_warm);
             ttl_warm = false(tmp*(n_warm-1)+diff(find(obj.DAQvec.cam,2)),1);
-            ttl_warm(1:tmp:end) = true;
-
+            ttl_warm(1:tmp:n_warm*tmp) = true;
+            
             daq_vec  = full([ ...
                 [ttl_warm(:); obj.DAQvec.cam(:)] ...
                 [zeros(size(ttl_warm(:))); obj.DAQvec.stim(:)]]);
@@ -549,7 +549,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 if regexpi(imaqhwinfo(obj.VideoInputRed,'DeviceName'),'^QICam')
                     tmp = propinfo(obj.VideoInputRed.Source,'NormalizedGain');
                     set(obj.VideoInputRed.Source, ...
-                        'NormalizedGain',   tmp.ConstraintValue(2), ...
+                        'NormalizedGain',   tmp.ConstraintValue(1), ...
                     	'ColorWheel',       'red')
                     set(obj.VideoInputGreen.Source, ...
                         'ColorWheel',       'green')
