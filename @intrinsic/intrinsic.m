@@ -945,6 +945,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             ttl_cam	= false(size(out));
             ttl_cam(1+phase_cam:inter_cam:end) = true;
             
+%             keyboard
+%             oversampl = 9;
+%             inter_cam = round(obj.RateDAQ/obj.RateCam);
+%             phase_cam = 0;
+%             phase_cam = round(mod(phase_cam,360)/360*inter_cam);
+%             ttl_cam	= false(size(out));
+%             ttl_cam(1+phase_cam:inter_cam:end) = true;
+
+            
             if nargout == 0
                 obj.DAQvec.stim = out;
                 obj.DAQvec.time = tax;
