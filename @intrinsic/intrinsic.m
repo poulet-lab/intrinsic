@@ -1,38 +1,38 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
-    
+
     properties
         DAQ             = [] %daq.createSession('ni');
         h               = []        % handles
 
         DirBase         = fileparts(fileparts(mfilename('fullpath')));
         DirSave
-        
+
         VideoPreview
         VideoInputRed
         VideoInputGreen
-        
+
         Scale
         RateCam         = 10
         RateDAQ         = 10000
 
         PointCoords     = nan(1,2)
         LineCoords      = nan(1,2)
-        
+
         StackStim       % raw data
         Sequence        % relative response (averaged across trials)
         SequenceVar
         Movie           % relative response (same as obj.Sequence, as movie)
         ImageRedDiff    % relative response (averaged across trials & time)
-        ImageRedBase    % 
-        ImageRedStim    % 
+        ImageRedBase    %
+        ImageRedStim    %
         ImageGreen      % snapshot of anatomical details
-        
+
         Toolbox
         Settings
-        
+
         DAQvec
     end
-    
+
     properties (Dependent = true)
         nTrials
         Figure
@@ -41,46 +41,46 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Line
         Binning
     end
-    
+
     methods
-        
+
         % Class Constructor
         function obj = intrinsic(varargin)
-            
+
             % Warn if necessary toolboxes are unavailable
             for tmp = struct2cell(obj.Toolbox)'
                 if ~tmp{1}.available
                     warning([tmp{1}.name ' not available'])
                 end
             end
-           
+
             % Manage path
-            addpath(fullfile(obj.DirBase,'submodules','matlab-tools'))
+            addpath(fullfile(obj.DirBase,'submodules','matlab-goodies'))
             addpathr(fullfile(obj.DirBase,'submodules'))
-                        
+
             % Settings are loaded from / saved to disk
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
                 'Writable',true);
-            
+
             % Initialize some variables
             obj.h.image.green = [];
             obj.h.image.red   = [];
-            
+
             % Initialize the Image Acquisition Subsystem
             obj.settingsVideo 	% Set video device
-                       
+
             % Initialize the Data Acquisition Subsystem
             % TODO
-            
+
             % Generate Stimulus
             obj.generateStimulus
-            
+
             obj.mainGUI         % Create main window
             obj.updateEnabled   % Update availability of UI elements
         end
-        
+
     end
-    
+
     % Methods defined in separate files:
     methods (Access = private)
         mainGUI(obj)                            % Create MAIN GUI
@@ -94,18 +94,18 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     methods %(Access = private)
         function updateEnabled(obj)
-            
+
             IAQ = obj.Toolbox.ImageAcquisition.available;
             IP  = obj.Toolbox.ImageProcessing.available;
             DAQ = obj.Toolbox.DataAcquisition.available;
             VID = isa(obj.VideoInputRed,'videoinput');
             tmp = {'off', 'on'};
-            
+
             % UI elements depending on Image Acquisition Toolbox
             elem = obj.h.menu.settingsVideo;
             cond = IAQ;
             set(elem,'Enable',tmp{cond+1});
-            
+
             % UI elements depending on Image Acquisition Toolbox & valid
             % video-input
             elem = [...
@@ -114,7 +114,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 obj.h.push.liveRed];
             cond = IAQ && VID;
             set(elem,'Enable',tmp{cond+1});
-            
+
             % UI elements depending on all Toolboxes
             elem = [obj.h.push.start obj.h.push.stop];
             cond = IAQ && IP && DAQ && VID;
@@ -123,14 +123,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         end
 
         %% all things related to the GREEN image
-        
+
         function greenCapture(obj,~,~)          % Take a snapshot
-            
+
             % Create green window, if its not there already
             if ~isfield(obj.h.fig,'green')
                 obj.greenGUI
             end
-            
+
             % If red preview is running, we need to stop it temporarily
             if isa(obj.VideoPreview,'video_preview')
                 preview_was_running = obj.VideoPreview.Preview;
@@ -138,21 +138,21 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                     obj.VideoPreview.Preview = false;
                 end
             end
-            
+
             % Capture and process image
             obj.ImageGreen = getsnapshot(obj.VideoInputGreen); % Capture
             obj.h.image.green.CData = obj.ImageGreen;          % Update display
             obj.greenContrast(obj.h.check.greenContrast)       % Enhance Contrast
-            
+
             % Return to former preview state
             if isa(obj.VideoPreview,'video_preview')
                 obj.VideoPreview.Preview = preview_was_running;
             end
-            
+
             % Focus the green window
             figure(obj.h.fig.green)
         end
-        
+
         function greenContrast(obj,hcheck,~)    % Stretch the contrast
             obj.Settings.greenContrast = hcheck.Value;
             if hcheck.Value
@@ -166,10 +166,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 set(obj.h.axes.green,'Clim',[0 2^12-1]);
             end
         end
-        
-        
+
+
         %% all things related to the RED image stack
-        
+
         function redClick(obj,h,~)              % Define point and line
             hfig    = h.Parent.Parent.Parent;
             coord   = round(h.Parent.CurrentPoint(1,1:2));
@@ -188,7 +188,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                     tmp = [tmp(1,1:2) tmp(2,1:2)];
                     tmp = obj.ImageRedDiff(tmp(2):tmp(4),tmp(1):tmp(3));
                     tmp = max(abs(tmp(:)));
-                    
+
                     tmp = sprintf('%0.2f',sum(abs(obj.ImageRedDiff(:))<=tmp) / ...
                         length(obj.ImageRedDiff(:)) * 100);
                     obj.h.edit.redRange.String = tmp;
@@ -197,63 +197,63 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                     return
             end
         end
-        
+
         function redPeak(obj,~,~)               % Peak intensity of stack
             [~,I] = max(abs(obj.ImageRedDiff(:)));
             [y,x] = ind2sub(size(obj.ImageRedDiff),I);
             obj.Point = [x y];
         end
-        
+
         function redPlayback(obj,~,~)           % Play stack as movie
 
             % disable UI controls
             tmpobj = struct2cell(obj.h.fig);
             tmpobj = findobj([tmpobj{:}],'Enable','on');
             set(tmpobj,'Enable','off')
-            
+
             % create temporary axes for movie
             tmpax = axes(...
                 'Parent',   obj.h.panel.red, ...
                 'Position', obj.h.axes.red.Position, ...
                 'Visible',  'off');
-            
+
             % play movie
             movie(tmpax,obj.Movie,1,obj.RateCam,[2 2 0 0])
-            
+
             % delete temporary axes, enable UI controls
             delete(tmpax)
             set(tmpobj,'Enable','on')
-            
+
         end
-        
+
         function redRange(obj,hedit,~)          % Range of colormap
             value = str2double(hedit.String);
             if isempty(value) || value<=0 || value>100
                 hedit.String = '100';
             end
             obj.processStack
-            
+
             obj.Settings.redRange = value;      % update settings
         end
-        
+
         function redSigma(obj,hedit,~)                  % Gaussian smoothing
             value = str2double(hedit.String);
             if isempty(value) || value<0
                 hedit.String = '0';
             end
             obj.processStack
-            
+
             if regexpi(hedit.TooltipString,'spatial')   % update settings
                 obj.Settings.redSigmaSpatial = value;
             elseif regexpi(hedit.TooltipString,'temporal')
-                obj.Settings.redSigmaTemporal = value;      
+                obj.Settings.redSigmaTemporal = value;
             end
         end
-        
+
         function redView(obj,hdrop,~)           % Gaussian smoothing
             modus = hdrop.String{hdrop.Value};
             ptile = str2double(obj.h.edit.redRange.String)/100;
-            
+
             if regexpi(modus,'difference')
                 obj.h.edit.redSigmaSpatial.Enable  = 'on';
                 obj.h.edit.redSigmaTemporal.Enable = 'on';
@@ -263,7 +263,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 tmp  = sort(abs(obj.ImageRedDiff(:)));
                 scal = tmp(ceil(length(tmp)*ptile));
                 tmp  = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7);
-                
+
             elseif regexpi(modus,'sem')
                 obj.h.edit.redSigmaSpatial.Enable  = 'on';
                 obj.h.edit.redSigmaTemporal.Enable = 'on';
@@ -275,12 +275,12 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 var  = mean(obj.SequenceVar(:,:,tmp),3);
                 sem  = sqrt(var)/sqrt(n);
                 sem  = (abs(mean(obj.Sequence(:,:,tmp),3)) ./ sem) >= 1;
-                
+
                 tmp  = sort(abs(obj.ImageRedDiff(:)));
                 scal = tmp(ceil(length(tmp)*ptile));
                 tmp  = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7) .* sem;
                 tmp(sem<1) = 2^7;
-                
+
             elseif regexpi(modus,'base')
                 obj.h.edit.redSigmaSpatial.Enable  = 'off';
                 obj.h.edit.redSigmaTemporal.Enable = 'off';
@@ -290,7 +290,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 tmp1 = abs(obj.ImageRedBase) - min(base);
                 tmp2 = abs(obj.ImageRedStim) - min(base);
                 tmp  = floor(tmp1 ./ max(tmp2(:)) .* 2^8);
-                
+
             elseif regexpi(modus,'stim')
                 obj.h.edit.redSigmaSpatial.Enable  = 'off';
                 obj.h.edit.redSigmaTemporal.Enable = 'off';
@@ -302,22 +302,22 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
             obj.h.image.red.CData = ind2rgb(tmp,cmap);
         end
-        
+
         function redStart(obj,~,~)
-            
+
             fignam = obj.h.fig.main.Name;
             nruns  = 10;
-            
+
             obj.clearData
             obj.preallocateStack
-            
+
             % camera warm-up
             n_warm 	 = 5;                       % number of warm-up frames
             f_warm 	 = 5;                       % warm-up framerate [Hz]
             tmp      = round(obj.RateDAQ/f_warm);
             ttl_warm = false(tmp*(n_warm-1)+diff(find(obj.DAQvec.cam,2)),1);
             ttl_warm(1:tmp:n_warm*tmp) = true;
-            
+
             daq_vec  = full([ ...
                 [ttl_warm(:); obj.DAQvec.cam(:)] ...
                 [zeros(size(ttl_warm(:))); obj.DAQvec.stim(:)]]);
@@ -328,14 +328,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.VideoInputRed.TriggerRepeat    = sum(daq_vec(:,1))-1;
             obj.VideoInputRed.FramesAcquiredFcn = @count_frames;
             obj.VideoInputRed.FramesAcquiredFcnCount = 1;
-            
+
 %             obj.VideoInputRed.LoggingMode = 'Disk&Memory';
 %             logfile = VideoWriter('logfile.mj2','Archival');
 %             logfile.FrameRate   = obj.RateCam;
 %             logfile.MJ2BitDepth = 12;
 %             logfile.LosslessCompression = true;
 %             obj.VideoInputRed.DiskLogger = logfile;
-            
+
             % configure DAQ session
             device  = daq.getDevices;
             obj.DAQ = daq.createSession('ni');
@@ -348,12 +348,12 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             tmp    = obj.Settings.Stimulus;
             dpause = round(tmp.inter-tmp.pre-tmp.post);
-            
-            
+
+
             for ii = 1:nruns
                 start(obj.VideoInputRed)
                 queueOutputData(obj.DAQ,daq_vec)
-                obj.DAQ.startForeground;            % 
+                obj.DAQ.startForeground;            %
 
                 if ~isrunning(obj.VideoInputRed) && ...
                         obj.VideoInputRed.FramesAvailable ~= ...
@@ -361,7 +361,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                     obj.h.fig.main.Name = fignam;
                     break
                 end
-                
+
                 data = getdata(obj.VideoInputRed,sum(daq_vec(:,1)),'uint16');
                 stop(obj.VideoInputRed)
                 obj.StackStim(:,:,:,ii) = squeeze(data(:,:,1,n_warm+1:end));
@@ -383,7 +383,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 end
             end
             obj.h.fig.main.Name = fignam;
-            
+
             function count_frames(~,~,~)
                 asd = sprintf(...
                     ' - Acquiring Data (run %d/%d, frame %d/%d)',...
@@ -393,19 +393,19 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
 
         end
-        
 
-        
+
+
         function redStop(obj,~,~)
             stop(obj.VideoInputRed)
             obj.DAQ.stop
         end
-        
-        
-        
+
+
+
         % Shared code for creation of Red/Green Figure
         function createGeneric(obj,name,margin,bottom)
-            
+
             imsize  = obj.ROISize*obj.Scale;        % image size [px]
             psize   = imsize+4;                     % panel size [px]
             if bottom > 0                           % figure size [px]
@@ -415,7 +415,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 fsize   = psize+2*margin;
                 ppos    = [margin+1 margin psize];
             end
-            
+
             obj.h.fig.(lower(name)) = figure( ...
                 'Visible',          'off', ...
                 'Toolbar',          'none', ...
@@ -440,7 +440,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 'DataAspectRatio',  [1 1 1], ...
                 'CLimMode',         'manual', ...
                 'Clim',             [0 2^12-1]);
-            
+
             if strcmpi(name,'green')
                 tmp = obj.ROISize * obj.Binning;
             else
@@ -450,7 +450,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 'DisplayRange',     [0 2^12-1], ...
                 'Parent',           obj.h.axes.(lower(name)));
         end
-                
+
         % Load variable from file, return defaults if var/file not found
         function out = loadVar(obj,name,default)
             validateattributes(name,{'char'},{'vector'})
@@ -460,7 +460,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 out = default;
             end
         end
-        
+
         function out = get.nTrials(obj)
             if ndims(obj.StackStim)>3
                 out = sum(squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16'));
@@ -468,24 +468,24 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 out = 0;
             end
         end
-        
+
         % Return data directory
         function out = get.DirSave(obj)
-            
+
             % Load from settings file
             out = obj.loadVar('DirSave',[]);
             if isdir(out)
                 return
             end
-            
+
             % Let user pick directory
             out = uigetdir('/','Select Data Directory');
             if isdir(out)
                 obj.Settings.DirSave = out;
             end
-            
+
         end
-                
+
         % Update checkmarks in the VIEW menu
         function updateMenuView(obj,h,~)
             delete(h.Children)
@@ -509,7 +509,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 end
             end
         end
-        
+
         % Toggle checkmarks in the VIEW menu
         function toggleMenuView(~,h,~)
             if strcmp(h.UserData.Visible,'on')
@@ -518,7 +518,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 h.UserData.Visible = 'on';
             end
         end
-        
+
         % Save window positions
         function saveWindowPositions(obj,~,~)
             for fn = fieldnames(obj.h.fig)'
@@ -528,7 +528,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         % Restore window positions
         function restoreWindowPositions(obj,varargin)
-            
+
             % Get available window positions
             if ~isempty(varargin)
                 tmp = cellfun(@(x) ['WinPos_' x],varargin,'uni',0);
@@ -537,11 +537,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 fns = whos(obj.Settings,'WinPos_*');
             end
             fns = cellfun(@(x) x(8:end),{fns.name},'uni',0);
-            
+
             % Limit list of windows to restore positions for
             fns = intersect(fns,fieldnames(obj.h.fig));
             fns = fns(cellfun(@(x) ishandle(obj.h.fig.(x)),fns));
-            
+
             % Restore positions
             for ii = 1:length(fns)
                 if strcmp(fns{ii},'main')
@@ -563,17 +563,17 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             pause(.1)
             structfun(@delete,obj.h.fig)
         end
-        
+
         % Update the plots
         function update_plots(obj)
-            
+
             if ~any(obj.StackStim(:)) || any(isnan(obj.Point))
                 obj.h.plot.temporal.XData = NaN;
                 obj.h.plot.temporal.YData = NaN;
                 cla(obj.h.axes.spatial)
                 return
             end
-            
+
             % plot temporal response
             y = squeeze(obj.Sequence(obj.Point(2),obj.Point(1),:));
             x = obj.DAQvec.time(obj.DAQvec.cam)';
@@ -587,17 +587,17 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 obj.h.plot.spatial.YData = NaN;
                 return
             end
-            
+
             % spatial response ...
             tmp = obj.DAQvec.time(obj.DAQvec.cam)>0;
             [xi,yi,y] = improfile(...
                 mean(obj.Sequence(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
-            
+
             n = obj.nTrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
             [~,~,var] = improfile(...
                 mean(obj.SequenceVar(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
             sem = sqrt(var)./sqrt(n);
-            
+
             x = sqrt((xi-obj.Point(1)).^2+(yi-obj.Point(2)).^2);
             tmp = 1:floor(length(x)/2);
             x(tmp) = -x(tmp);
@@ -609,7 +609,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             fill([x(tmp); flipud(x(tmp))],...
                 [y(tmp)+sem(tmp); flipud(y(tmp)-sem(tmp))],ones(1,3)*.9,...
                 'parent',obj.h.axes.spatial,'linestyle','none')
-            
+
 %             % ... fit ...
 %             p0  = [y(x==0) 0 x(end)/2];
 %             tmp	= optimset('display','off');
@@ -626,15 +626,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 fit	= gauss(x,params);
                 sse = sum((fit-y) .^ 2);
             end
-            
+
             function y = gauss(x,p)
                 y = p(1) * exp(-(x-p(2)).^2/(2*p(3)^2));
-            end            
+            end
         end
-        
+
         % Generate Test Data
         function test_data(obj,~,~)
-                        
+
             obj.clearData
             obj.preallocateStack
 
@@ -647,18 +647,18 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             n_trials    = 10;
             amp_noise   = 50;
 
-            sigma   = 20; 
-            s       = sigma / imSize(1); 
+            sigma   = 20;
+            s       = sigma / imSize(1);
             X0      = ((1:imSize(2))/ imSize(1))-.5;
-            Y0      = ((1:imSize(1))/ imSize(1))-.5;  
-            [Xm,Ym] = meshgrid(X0, Y0); 
+            Y0      = ((1:imSize(1))/ imSize(1))-.5;
+            [Xm,Ym] = meshgrid(X0, Y0);
             gauss   = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
-            
-            sigma   = 40; 
-            s       = sigma / imSize(1)*2; 
+
+            sigma   = 40;
+            s       = sigma / imSize(1)*2;
             X0      = ((1:imSize(1)*2)/ imSize(1)*2)-.5;
-            Y0      = ((1:imSize(2)*2)/ imSize(2)*2)-.5;  
-            [Xm,Ym] = meshgrid(X0, Y0); 
+            Y0      = ((1:imSize(2)*2)/ imSize(2)*2)-.5;
+            [Xm,Ym] = meshgrid(X0, Y0);
             gauss2  = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
             gauss2  = gauss2(1:imSize(1),(1:imSize(2))+round(imSize(2)/5))./4;
 
@@ -669,7 +669,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             noise_stim  = int32(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
             noise_stim  = noise_stim + repmat(tmp,1,1,n_frames,n_trials);
-            
+
             data_stim = repmat((gauss-gauss2)./3,1,1,n_frames);
             lambda    = 3;
             mu        = 3;
@@ -681,33 +681,33 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 data_stim(:,:,ii) = data_stim(:,:,ii) * amp_stim(ii);
             end
             data_stim = int32(data_stim * 3);
-            
+
             data_stim = repmat(data_stim,1,1,1,n_trials);
             data_stim = uint16(data_stim + noise_stim);
             clear noise_stim
-            
+
             tmp = size(data_stim)+[0 0 0 1];
             %obj.StackBase   = ones(tmp,'uint16')*intmax('uint16');
             obj.StackStim   = ones(tmp,'uint16')*intmax('uint16');
-            
+
             %obj.StackBase(:,:,:,1:size(data_nostim,4))  = data_nostim;
             obj.StackStim(:,:,:,1:size(data_stim,4))    = data_stim;
-            
+
             obj.processStack
-            
+
         end
-        
+
         % Preallocation of image stack
         function preallocateStack(obj)
             % Define stack dimensions (Width * Height * nFrames * nTrials)
             dims = [fliplr(obj.ROISize) nnz(obj.DAQvec.cam) 10];
-            
+
             % Use intmax('uint16') for preallocation
             % (NaN is not available with the uint16 class)
             %obj.StackBase = ones(dims,'uint16')*intmax('uint16');
             obj.StackStim = ones(dims,'uint16')*intmax('uint16');
         end
-        
+
         % Process image stack (averaging, spatial filtering)
         function processStack(obj)
             if ~isfield(obj.h.fig,'red')
@@ -716,31 +716,31 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             sigmaSpatial   = str2double(obj.h.edit.redSigmaSpatial.String);
             sigmaTemporal  = str2double(obj.h.edit.redSigmaTemporal.String);
             ptile   = str2double(obj.h.edit.redRange.String)/100;
-            
+
             isdata  = squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16');
             idxbase	= obj.DAQvec.time(obj.DAQvec.cam)<0;
             idxstim = obj.DAQvec.time(obj.DAQvec.cam)>0;
-            
+
             % averaging baseline across, both, time and trials
             base	= mean(reshape(obj.StackStim(:,:,idxbase,isdata), ...
                 size(obj.StackStim,1), size(obj.StackStim,2), []),3);
             varbase	= var(double(reshape(obj.StackStim(:,:,idxbase,isdata), ...
                 size(obj.StackStim,1), size(obj.StackStim,2), [])),[],3);
-            
+
             % average response
             obj.Sequence = ...
                 mean(bsxfun(@minus,double(obj.StackStim(:,:,:,isdata)), ...
                 base),4);
-            
+
             % variance of average response
             tmp = var(double(obj.StackStim(:,:,:,isdata)),[],4);
             obj.SequenceVar = bsxfun(@plus,tmp,varbase);
-            
-            
+
+
             stim    = mean(reshape(obj.StackStim(:,:,idxstim,isdata), ...
                 size(obj.StackStim,1), size(obj.StackStim,2), []),3);
-            
-            
+
+
 %             keyboard
 %             tmp = squeeze(mean(obj.StackStim(:,:,:,isdata),3));
 %             a   = quantile(tmp,[0.25 0.5 0.75],3,'R-5');
@@ -753,7 +753,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 obj.SequenceVar = imgaussfilt(obj.SequenceVar,sigmaSpatial);
             end
 
-            
+
             % temporal filtering
             if sigmaTemporal > 0;
                 sigma = sigmaTemporal * obj.RateCam / 1000;
@@ -763,14 +763,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 gf    = gf/sum (gf);                	% normalize to 1
                 obj.Sequence = FiltFiltM(gf,1,obj.Sequence,3);
             end
-            
+
             % average across time
             obj.ImageRedDiff = mean(obj.Sequence(:,:,idxstim,:),3);
             obj.ImageRedBase = base;
             obj.ImageRedStim = mean(stim,3);
             %obj.ImageRedDiff = min(obj.Sequence(:,:,idxstim,:),[],3);
             %obj.ImageRedDiff = obj.ImageRedDiff.*(obj.ImageRedDiff<=0);
-            
+
             % process movie
             cmap = flipud(brewermap(2^8,'PuOr'));
             tmp  = sort(abs(obj.Sequence(:)));
@@ -785,15 +785,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 mov(ii) = im2frame(tmp(:,:,ii),cmap);
             end
             obj.Movie = mov;
-            
+
             % scale and display as image
             obj.redView(obj.h.popup.redView);
             obj.update_plots
-            
+
             % Focus the red window
             figure(obj.h.fig.red)
         end
-        
+
         % Load icon for toolbar
         function img = icon(obj,filename)
             validateattributes(filename,{'char'},{'vector'})
@@ -810,40 +810,40 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 img(alpha) = NaN;
             end
         end
-        
+
         %% Dependent Properties (GET)
         function binning = get.Binning(obj)
             % The QImaging QiCam can average neighboring pixels into bins. This
             % yields an increase in both RateCam and SNR at the expense of
             % image resolution. The binning factor reflects the amount of
             % binning (1: no binning, 4: 4x4 binning)
-            
+
             % Binning is only defined given a valid videoinput
             if ~isa(obj.VideoInputRed,'videoinput')
                 binning = NaN;
                 return
             end
-            
+
             % Currently, this function only works with the QiCam
             if ~regexpi(imaqhwinfo(obj.VideoInputRed,'DeviceName'),'^QICam')
                 binning = 1;
                 return
             end
-            
+
             % Current video mode / resolution
             current = obj.VideoInputRed.VideoFormat;
             current = textscan(current,'%s%n%n','Delimiter',{'_','x'});
-            
+
             % Highest supported resolution
             tmp   	= imaqhwinfo('qimaging','DeviceInfo');
             tmp   	= tmp.SupportedFormats;
             tmp     = regexp(tmp,['(?<=^' current{1}{:} '_)\d*'],'match');
             highest = max(str2double([tmp{:}]));
-            
+
             % Binning factor
             binning	= highest/current{2};
         end
-        
+
         function out = get.Line(obj)
             if ~any(obj.LineCoords)
                 out.x = [NaN NaN];
@@ -853,11 +853,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 out.y = obj.LineCoords(2)*[1 -1]+obj.Point(2);
             end
         end
-        
+
         function out = get.Point(obj)
             out = obj.PointCoords;
         end
-        
+
         function out = get.ROISize(obj)
             if isa(obj.VideoInputRed,'videoinput')
                 tmp	= obj.VideoInputRed.ROIPosition;
@@ -866,7 +866,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 out = [];
             end
         end
-        
+
         function fileOpen(obj,~,~)
 %             %% temp
 %             tmp = ['intrinsic_' datestr(now,'yymmdd_HHMM') '.mat'];
@@ -875,30 +875,30 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %                 return
 %             end
 %             fid = matfile(fullfile(pn,fn),'Writable',true);
-%             
+%
 %             isdata = squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16');
 %             fid.StackStim  = obj.StackStim(:,:,:,isdata);
 %             fid.ImageGreen = obj.ImageGreen;
 %             %%
-% % %             
+% % %
 %             [fn,pn,~] = uigetfile({'intrinsic_*.mat','Intrinsic Data'},'Load File ...');
 %             if fn==0
 %                 return
 %             end
 %             fn = fullfile(pn,fn);
 %             obj.clearData
-%             
+%
 %             obj.StackStim  = load(fn,'StackStim');
-%             
+%
 %             obj.ImageGreen = load(fn,'ImageGreen');
 %             obj.greenGUI
 %             obj.h.image.green.CData = obj.ImageGreen;
             %keyboard
 %             tmp = matfile(fullfile(pn,fn));
         end
-        
-        
-        
+
+
+
         function varargout = generateStimulus(obj,p,fs)
 
             if ~exist('p','var')
@@ -910,41 +910,41 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             if ~exist('fs','var')
                 fs = 10000;
             end
-            
+
             switch p.type
                 case 'Sine'
-                    
+
                     d   = round(p.d*p.freq)/p.freq;     	% round periods
                     t   = (1:d*fs)/fs;                      % time axis
                     out = (sin(2*pi*p.freq*t-.5*pi)/2+.5);  % generate sine
-                
+
                 otherwise
-                    
+
                     % generate square wave
                     per	= [ones(1,ceil(1/p.freq*fs*p.dc/100)) ...
                            zeros(1,floor((1/p.freq*fs)*(1-p.dc/100)))];
                     out	= repmat(per,1,round(p.d*p.freq));
-                    
+
                     % add ramp by means of convolution
                     if p.ramp > 0
                         ramp = ones(1,ceil(1/p.freq*fs*p.ramp/100*p.dc/100));
                         out  = conv(out,ramp/100)/length(ramp/100);
                     end
             end
-            
+
             out = out(1:find(out,1,'last')); 	% remove trailing zeros
             out = out * p.amp;                  % set amplitude
             out = [zeros(1,round(p.pre*fs)) ... % add pre- and post-stim
                 out zeros(1,round(p.post*fs))];
-            
+
             tax = (0:length(out)-1)/fs-p.pre;   % time axis
-            
+
             inter_cam = round(obj.RateDAQ/obj.RateCam);
             phase_cam = 0;
             phase_cam = round(mod(phase_cam,360)/360*inter_cam);
             ttl_cam	= false(size(out));
             ttl_cam(1+phase_cam:inter_cam:end) = true;
-            
+
 %             keyboard
 %             oversampl = 9;
 %             inter_cam = round(obj.RateDAQ/obj.RateCam);
@@ -953,7 +953,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %             ttl_cam	= false(size(out));
 %             ttl_cam(1+phase_cam:inter_cam:end) = true;
 
-            
+
             if nargout == 0
                 obj.DAQvec.stim = out;
                 obj.DAQvec.time = tax;
@@ -1004,10 +1004,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 'Image_Toolbox'};
             fns = matlab.lang.makeValidName(check1);  % generate fieldnames
             fns = strrep(fns,'Toolbox','');
-            
+
             installed = cellfun(@(x) any(strcmp({v.Name},x)),check1);
             licensed  = cellfun(@(x) license('test',x),check2);
-            
+
             for ii = 1:length(fns)
                 out.(fns{ii}).name      = check1{ii};
                 out.(fns{ii}).installed = installed(ii);
@@ -1015,7 +1015,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 out.(fns{ii}).available = installed(ii) & licensed(ii);
             end
         end
-        
+
         %% Dependent Properties (SET)
         function set.Point(obj,value)
             % Process and validate input
@@ -1041,7 +1041,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                         'YData',    value(2) * tmp);
                 end
             end
-            
+
             % Update Position of Line (red image)
             if isfield(obj.h,'line')
                 if ishandle(obj.h.line)
@@ -1050,18 +1050,18 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                         'YData',    obj.Line.y);
                 end
             end
-            
+
             % Update Position of Point (live preview)
             if isa(obj.VideoPreview,'video_preview')
                 tmp = ~isempty(regexpi(obj.VideoPreview.Figure.Name,...
                     'green','once')) * (obj.Binning-1) + 1;
                 obj.VideoPreview.Point = obj.Point * tmp;
             end
-            
+
             % Update Images
             obj.update_plots
         end
-        
+
         function set.Line(obj,value)
             obj.LineCoords = value-obj.Point;
             if isfield(obj.h,'line')
@@ -1073,9 +1073,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
             obj.update_plots
         end
-        
-        
-        
+
+
+
     end
-    
+
 end
