@@ -37,7 +37,8 @@ hcmnt = uicontrol( ...                              % textfield: comments
     'Parent',   hdlg, ...
     'Style',    'edit', ...
     'Position', [70,40,170,20], ...
-    'Horizon',  'left');
+    'Horizon',  'left', ...
+    'Callback', @close);
 comment = '';
 
 hok = uicontrol( ...                                % OK button
@@ -52,11 +53,6 @@ drawnow
 validate(jedit,[])                                  % check validity
 jedit.requestFocus()                                % focus TextField
 uiwait(hdlg)                                        % wait for dialog
-
-if ~isempty(comment)                                % format comment string
-    comment = ['___' strtrim(comment)];
-    comment(~isstrprop(comment,'alphanum')) = '_';
-end
 
 
 % for ii = 1:obj.nTrials
@@ -73,26 +69,57 @@ end
 
     function saveData()
         
-        dirname = [datestr(now,'yymmdd_HHMMSS_') obj.Settings.initials comment];
-        dirsave = fullfile(obj.DirSave,dirname);
-        mkdir(dirsave)
+        % format comment string
+        if ~isempty(comment)
+            comment = ['___' strtrim(comment)];
+            comment(~isstrprop(comment,'alphanum')) = '_';
+        end
 
-        % save variables to data.mat
-        saveFile = matfile(fullfile(dirsave,'data.mat'),'Writable',true);
-        saveFile.ImageGreen  = obj.ImageGreen;
-        saveFile.PointCoords = obj.PointCoords;
-        saveFile.LineCoords  = obj.LineCoords;
-        saveFile.StackStim   = obj.StackStim;
-        saveFile.Sequence    = obj.Sequence;
-        saveFile.Version     = .5;
+        % generate directory name
+        ts_form = 'yymmdd_HHMMSS_';                 % format for timestamp
+        dirname = [datestr(obj.TimeStamp,ts_form) ...
+            obj.Settings.initials comment];
+
+        % check for existing directory, rename if necessary
+        tmp = dir(fullfile(obj.DirSave,datestr(obj.TimeStamp,[ts_form '*'])));
+        if isempty(tmp)
+            mkdir(fullfile(obj.DirSave,dirname))
+        elseif ~strcmp(tmp(1).name,dirname)
+            movefile(fullfile(obj.DirSave,tmp(1).name) ,...
+                fullfile(obj.DirSave,dirname))
+        end
+        dirsave = fullfile(obj.DirSave,dirname);
         
-        % save images as PNG
+        % exclude some variables from saving
+        exc = {'h','VideoPreview','Settings','State'};
+        tmp = ?intrinsic;
+        tmp = {tmp.PropertyList.Name};
+        exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'VideoInput')))];
+        exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'Image')))];
+        tmp = ?intrinsic;
+        tmp = {tmp.PropertyList([tmp.PropertyList.Dependent]).Name};
+        exc = unique([exc tmp]);
+        
+        % save remaining variables to data.mat
+        saveFile = matfile(fullfile(dirsave,'data.mat'),'Writable',true);
+        for fn = setxor(fieldnames(obj),exc)'
+            saveFile.(fn{:}) = obj.(fn{:});
+        end
+        
+        % copy settings.mat
+        copyfile(obj.Settings.Properties.Source,dirsave)
+        
+        % save images
         if ~isempty(obj.h.image.red)
             imwrite(obj.h.image.red.CData,fullfile(dirsave,'red.png'),'PNG')
+            imwrite(imresize(obj.h.image.red.CData,obj.Binning,'nearest'),...
+                fullfile(dirsave,'red_scaled.png'),'PNG')
         end
         if ~isempty(obj.h.image.green)
-            imwrite(obj.h.image.green.CData,fullfile(dirsave,'red.png'),'PNG')
+            imwrite(obj.h.image.green.CData,fullfile(dirsave,'green.png'),'PNG')
         end
+        
+        obj.State.Saved = true;
     end
 
     % Accept values of textfields, close dialog window

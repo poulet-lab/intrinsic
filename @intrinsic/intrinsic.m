@@ -1,6 +1,10 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     properties
+        Version         = .5
+        
+        State
+        
         DAQ             = [] %daq.createSession('ni');
         h               = []        % handles
 
@@ -26,6 +30,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         ImageRedBase    %
         ImageRedStim    %
         ImageGreen      % snapshot of anatomical details
+        TimeStamp       = NaN;
 
         Toolbox
         Settings
@@ -66,6 +71,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.h.image.green = [];
             obj.h.image.red   = [];
 
+            obj.State.Running = false;
+            obj.State.Saved   = false;
+            obj.State.Loaded  = false;
+            obj.State.FakeDat = false;
+            
             % Initialize the Image Acquisition Subsystem
             obj.settingsVideo 	% Set video device
 
@@ -309,6 +319,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             nruns  = 10;
 
             obj.clearData
+            obj.TimeStamp = now;
             obj.preallocateStack
 
             % camera warm-up
@@ -349,7 +360,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             tmp    = obj.Settings.Stimulus;
             dpause = round(tmp.inter-tmp.pre-tmp.post);
 
-
+            obj.State.Running = true;
             for ii = 1:nruns
                 start(obj.VideoInputRed)
                 queueOutputData(obj.DAQ,daq_vec)
@@ -377,11 +388,17 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %                 %%
 
                 for pp = 1:dpause
-                    tmp = sprintf(' - Waiting (%ds)',dpause-pp);
-                    obj.h.fig.main.Name = [fignam tmp];
-                    pause(1)
+                    if ~obj.State.Running
+                        obj.h.fig.main.Name = fignam;
+                        return
+                    else
+                        tmp = sprintf(' - Waiting (%ds)',dpause-pp);
+                        obj.h.fig.main.Name = [fignam tmp];
+                        pause(1)
+                    end
                 end
             end
+            obj.State.Running   = false;
             obj.h.fig.main.Name = fignam;
 
             function count_frames(~,~,~)
@@ -397,6 +414,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
 
         function redStop(obj,~,~)
+            obj.State.Running = false;
             stop(obj.VideoInputRed)
             obj.DAQ.stop
         end
@@ -622,14 +640,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             plot(obj.h.axes.spatial,x,zeros(size(x)),':k')
             xlim(obj.h.axes.spatial,x([1 end]))
 
-            function [sse, fit] = fitfun(params)
-                fit	= gauss(x,params);
-                sse = sum((fit-y) .^ 2);
-            end
+%             function [sse, fit] = fitfun(params)
+%                 fit	= gauss(x,params);
+%                 sse = sum((fit-y) .^ 2);
+%             end
 
-            function y = gauss(x,p)
-                y = p(1) * exp(-(x-p(2)).^2/(2*p(3)^2));
-            end
+%             function y = gauss(x,p)
+%                 y = p(1) * exp(-(x-p(2)).^2/(2*p(3)^2));
+%             end
         end
 
         % Generate Test Data
@@ -694,7 +712,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.StackStim(:,:,:,1:size(data_stim,4))    = data_stim;
 
             obj.processStack
-
+            obj.TimeStamp = now;
+            
         end
 
         % Preallocation of image stack
