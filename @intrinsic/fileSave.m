@@ -5,13 +5,13 @@ if ~obj.nTrials
     return
 end
 
-hdlg = dialog( ...                                  % create dialog
+hdlg = dialog( ...                                  % create dialog window
     'Position',         [200 200 250 96], ...
     'Visible',          'off', ...
     'Name',             'Save Dataset');
-movegui(hdlg,'center')                              % center dialog
+movegui(hdlg,'center')                              % center dialog window
 
-uicontrol( ...                                      % UI text
+uicontrol( ...                                      % UI text "Initials:"
     'Parent',  	hdlg, ...
     'Style',  	'text',...
     'Position',	[10 65 60 17],...
@@ -24,10 +24,10 @@ jedit = javax.swing.JFormattedTextField(mask);      % create JAVA textfield
 jedit = javacomponent(jedit,[70,66,26,20],hdlg);    % place JAVA textfield
 jedit.Text = obj.loadVar('initials','XX');          % load last initials
 jedit.SelectionStart = 0;                           % select string
-jedit.KeyTypedCallback = @validate;                % callback: any key
+jedit.KeyTypedCallback = @validate;                 % callback: any key
 jedit.ActionPerformedCallback = @close;             % callback: enter key
 
-uicontrol( ...                                      % UI text
+uicontrol( ...                                      % UI text "Comments:"
     'Parent',  	hdlg, ...
     'Style',  	'text',...
     'Position',	[10 40 60 17],...
@@ -54,19 +54,7 @@ validate(jedit,[])                                  % check validity
 jedit.requestFocus()                                % focus TextField
 uiwait(hdlg)                                        % wait for dialog
 
-
-% for ii = 1:obj.nTrials
-%     v = VideoWriter(...
-%         fullfile(dirsave,sprintf('%02d.mj2',ii)),'Archival');
-%     v.MJ2BitDepth = 12;
-%     v.FrameRate = obj.RateCam;
-%     v.LosslessCompression = true;
-%     open(v)
-%     tmp = size(obj.StackStim);
-%     writeVideo(v,reshape(obj.StackStim(:,:,:,ii),tmp(1),tmp(2),1,tmp(3)))
-%     close(v)
-% end
-
+    % Generate directory names, select data to save, save data
     function saveData()
         
         % format comment string
@@ -80,7 +68,7 @@ uiwait(hdlg)                                        % wait for dialog
         dirname = [datestr(obj.TimeStamp,ts_form) ...
             obj.Settings.initials comment];
 
-        % check for existing directory, rename if necessary
+        % check for existing directory, rename if comments changed
         tmp = dir(fullfile(obj.DirSave,datestr(obj.TimeStamp,[ts_form '*'])));
         if isempty(tmp)
             mkdir(fullfile(obj.DirSave,dirname))
@@ -90,17 +78,19 @@ uiwait(hdlg)                                        % wait for dialog
         end
         dirsave = fullfile(obj.DirSave,dirname);
         
-        % exclude some variables from saving
-        exc = {'h','VideoPreview','Settings','State'};
+        % exclude selected properties from saving
+        exc = {'h','VideoPreview','Settings','Flags','Movie'};
         tmp = ?intrinsic;
         tmp = {tmp.PropertyList.Name};
         exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'VideoInput')))];
-        exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'Image')))];
+        exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'ImageRed')))];
+        
+        % exclude dependent properties from saving
         tmp = ?intrinsic;
         tmp = {tmp.PropertyList([tmp.PropertyList.Dependent]).Name};
         exc = unique([exc tmp]);
         
-        % save remaining variables to data.mat
+        % save remaining properties to data.mat
         saveFile = matfile(fullfile(dirsave,'data.mat'),'Writable',true);
         for fn = setxor(fieldnames(obj),exc)'
             saveFile.(fn{:}) = obj.(fn{:});
@@ -116,20 +106,45 @@ uiwait(hdlg)                                        % wait for dialog
                 fullfile(dirsave,'red_scaled.png'),'PNG')
         end
         if ~isempty(obj.h.image.green)
-            imwrite(obj.h.image.green.CData,fullfile(dirsave,'green.png'),'PNG')
+            tmp = obj.h.image.green.CData;
+            tmp = tmp - obj.h.axes.green.CLim(1);
+            tmp = ind2rgb(tmp,gray(obj.h.axes.green.CLim(2)));
+            imwrite(tmp,fullfile(dirsave,'green.png'),'PNG')
+        end
+        if ~isempty(obj.h.image.red) && ~isempty(obj.h.image.green)
+            tmp = obj.h.image.green.CData;
+            tmp = tmp - obj.h.axes.green.CLim(1);
+            tmp = ind2rgb(tmp,gray(obj.h.axes.green.CLim(2)));
+            tmp = imfuse(tmp,...
+                imresize(obj.h.image.red.CData,obj.Binning,'nearest'),...
+                'method','blend','scaling','none');
+            imwrite(tmp,fullfile(dirsave,'fused.png'),'PNG')
         end
         
-        obj.State.Saved = true;
+        % TODO: save PDF
+        % use copyobj to copy axes to invisible figure
+        % header: date + time, initials, comments
+        % image green, image red
+        % temporal plot
+        % spatial plot
+        
+        % set SAVED flag to true
+        obj.Flags.Saved = true;
     end
 
-    % Accept values of textfields, close dialog window
+    % Accept values of textfields, call saveData(), close dialog window
     function close(~,~)
         if length(strtrim(char(jedit.getText))) == 2
+            % get strings from textfields
             obj.Settings.initials = char(jedit.getText);
             comment = hcmnt.String;
+            
+            % disable UI controls while processing the files
             set(findobj('parent',hdlg,'type','uicontrol'),'enable','off')
             jedit.Enabled = 0;
             drawnow
+            
+            % save data, then close dialog
             saveData()
             delete(hdlg)
         else

@@ -2,8 +2,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     properties
         Version         = .5
-        
-        State
+        Flags
         
         DAQ             = [] %daq.createSession('ni');
         h               = []        % handles
@@ -22,7 +21,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         PointCoords     = nan(1,2)
         LineCoords      = nan(1,2)
 
-        StackStim       % raw data
+        Stack           % raw data
         Sequence        % relative response (averaged across trials)
         SequenceVar
         Movie           % relative response (same as obj.Sequence, as movie)
@@ -71,10 +70,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.h.image.green = [];
             obj.h.image.red   = [];
 
-            obj.State.Running = false;
-            obj.State.Saved   = false;
-            obj.State.Loaded  = false;
-            obj.State.FakeDat = false;
+            obj.Flags.Running = false;
+            obj.Flags.Saved   = false;
+            obj.Flags.Loaded  = false;
+            obj.Flags.FakeDat = false;
             
             % Initialize the Image Acquisition Subsystem
             obj.settingsVideo 	% Set video device
@@ -360,7 +359,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             tmp    = obj.Settings.Stimulus;
             dpause = round(tmp.inter-tmp.pre-tmp.post);
 
-            obj.State.Running = true;
+            obj.Flags.Running = true;
             for ii = 1:nruns
                 start(obj.VideoInputRed)
                 queueOutputData(obj.DAQ,daq_vec)
@@ -375,7 +374,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
                 data = getdata(obj.VideoInputRed,sum(daq_vec(:,1)),'uint16');
                 stop(obj.VideoInputRed)
-                obj.StackStim(:,:,:,ii) = squeeze(data(:,:,1,n_warm+1:end));
+                obj.Stack(:,:,:,ii) = squeeze(data(:,:,1,n_warm+1:end));
                 obj.processStack
 
 %                 %%
@@ -388,7 +387,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %                 %%
 
                 for pp = 1:dpause
-                    if ~obj.State.Running
+                    if ~obj.Flags.Running
                         obj.h.fig.main.Name = fignam;
                         return
                     else
@@ -398,7 +397,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                     end
                 end
             end
-            obj.State.Running   = false;
+            obj.Flags.Running   = false;
             obj.h.fig.main.Name = fignam;
 
             function count_frames(~,~,~)
@@ -414,7 +413,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
 
         function redStop(obj,~,~)
-            obj.State.Running = false;
+            obj.Flags.Running = false;
             stop(obj.VideoInputRed)
             obj.DAQ.stop
         end
@@ -480,8 +479,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         end
 
         function out = get.nTrials(obj)
-            if ndims(obj.StackStim)>3
-                out = sum(squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16'));
+            if ndims(obj.Stack)>3
+                out = sum(squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16'));
             else
                 out = 0;
             end
@@ -585,7 +584,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Update the plots
         function update_plots(obj)
 
-            if ~any(obj.StackStim(:)) || any(isnan(obj.Point))
+            if ~any(obj.Stack(:)) || any(isnan(obj.Point))
                 obj.h.plot.temporal.XData = NaN;
                 obj.h.plot.temporal.YData = NaN;
                 cla(obj.h.axes.spatial)
@@ -706,10 +705,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             tmp = size(data_stim)+[0 0 0 1];
             %obj.StackBase   = ones(tmp,'uint16')*intmax('uint16');
-            obj.StackStim   = ones(tmp,'uint16')*intmax('uint16');
+            obj.Stack   = ones(tmp,'uint16')*intmax('uint16');
 
             %obj.StackBase(:,:,:,1:size(data_nostim,4))  = data_nostim;
-            obj.StackStim(:,:,:,1:size(data_stim,4))    = data_stim;
+            obj.Stack(:,:,:,1:size(data_stim,4))    = data_stim;
 
             obj.processStack
             obj.TimeStamp = now;
@@ -724,7 +723,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             % Use intmax('uint16') for preallocation
             % (NaN is not available with the uint16 class)
             %obj.StackBase = ones(dims,'uint16')*intmax('uint16');
-            obj.StackStim = ones(dims,'uint16')*intmax('uint16');
+            obj.Stack = ones(dims,'uint16')*intmax('uint16');
         end
 
         % Process image stack (averaging, spatial filtering)
@@ -736,32 +735,32 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             sigmaTemporal  = str2double(obj.h.edit.redSigmaTemporal.String);
             ptile   = str2double(obj.h.edit.redRange.String)/100;
 
-            isdata  = squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16');
+            isdata  = squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16');
             idxbase	= obj.DAQvec.time(obj.DAQvec.cam)<0;
             idxstim = obj.DAQvec.time(obj.DAQvec.cam)>0;
 
             % averaging baseline across, both, time and trials
-            base	= mean(reshape(obj.StackStim(:,:,idxbase,isdata), ...
-                size(obj.StackStim,1), size(obj.StackStim,2), []),3);
-            varbase	= var(double(reshape(obj.StackStim(:,:,idxbase,isdata), ...
-                size(obj.StackStim,1), size(obj.StackStim,2), [])),[],3);
+            base	= mean(reshape(obj.Stack(:,:,idxbase,isdata), ...
+                size(obj.Stack,1), size(obj.Stack,2), []),3);
+            varbase	= var(double(reshape(obj.Stack(:,:,idxbase,isdata), ...
+                size(obj.Stack,1), size(obj.Stack,2), [])),[],3);
 
             % average response
             obj.Sequence = ...
-                mean(bsxfun(@minus,double(obj.StackStim(:,:,:,isdata)), ...
+                mean(bsxfun(@minus,double(obj.Stack(:,:,:,isdata)), ...
                 base),4);
 
             % variance of average response
-            tmp = var(double(obj.StackStim(:,:,:,isdata)),[],4);
+            tmp = var(double(obj.Stack(:,:,:,isdata)),[],4);
             obj.SequenceVar = bsxfun(@plus,tmp,varbase);
 
 
-            stim    = mean(reshape(obj.StackStim(:,:,idxstim,isdata), ...
-                size(obj.StackStim,1), size(obj.StackStim,2), []),3);
+            stim    = mean(reshape(obj.Stack(:,:,idxstim,isdata), ...
+                size(obj.Stack,1), size(obj.Stack,2), []),3);
 
 
 %             keyboard
-%             tmp = squeeze(mean(obj.StackStim(:,:,:,isdata),3));
+%             tmp = squeeze(mean(obj.Stack(:,:,:,isdata),3));
 %             a   = quantile(tmp,[0.25 0.5 0.75],3,'R-5');
 %             iqr = a(:,:,3)-a(:,:,1);
 
@@ -895,8 +894,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %             end
 %             fid = matfile(fullfile(pn,fn),'Writable',true);
 %
-%             isdata = squeeze(obj.StackStim(1,1,1,:)) ~= intmax('uint16');
-%             fid.StackStim  = obj.StackStim(:,:,:,isdata);
+%             isdata = squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16');
+%             fid.Stack  = obj.Stack(:,:,:,isdata);
 %             fid.ImageGreen = obj.ImageGreen;
 %             %%
 % % %
@@ -907,7 +906,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %             fn = fullfile(pn,fn);
 %             obj.clearData
 %
-%             obj.StackStim  = load(fn,'StackStim');
+%             obj.Stack  = load(fn,'Stack');
 %
 %             obj.ImageGreen = load(fn,'ImageGreen');
 %             obj.greenGUI
@@ -1004,7 +1003,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 %                 obj.h.fig = rmfield(obj.h.fig,'green');
 %             end
             %obj.StackBase     = [];
-            obj.StackStim     = [];
+            obj.Stack         = [];
             obj.Sequence      = [];
            % obj.h.image.green = [];
             obj.h.image.red   = [];
