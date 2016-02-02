@@ -49,7 +49,7 @@ hok = uicontrol( ...                                % OK button
 hdlg.Visible = 'on';                                % make dialog visible
 drawnow
 
-validate(jedit,[])                                 % check validity
+validate(jedit,[])                                  % check validity
 jedit.requestFocus()                                % focus TextField
 uiwait(hdlg)                                        % wait for dialog
 
@@ -57,14 +57,6 @@ if ~isempty(comment)                                % format comment string
     comment = ['___' strtrim(comment)];
     comment(~isstrprop(comment,'alphanum')) = '_';
 end
-
-dirname = [datestr(now,'yymmdd_HHMM_') obj.Settings.initials comment];
-disp(dirname) 
-
-% dirsave = fullfile(obj.DirSave,dirname);
-% mkdir(dirsave)
-% 
-% fullfile(obj.DirSave,dirname)
 
 
 % for ii = 1:obj.nTrials
@@ -79,14 +71,39 @@ disp(dirname)
 %     close(v)
 % end
 
-% TODO: Implement actual save routine
+    function saveData()
+        
+        dirname = [datestr(now,'yymmdd_HHMMSS_') obj.Settings.initials comment];
+        dirsave = fullfile(obj.DirSave,dirname);
+        mkdir(dirsave)
 
+        % save variables to data.mat
+        saveFile = matfile(fullfile(dirsave,'data.mat'),'Writable',true);
+        saveFile.ImageGreen  = obj.ImageGreen;
+        saveFile.PointCoords = obj.PointCoords;
+        saveFile.LineCoords  = obj.LineCoords;
+        saveFile.StackStim   = obj.StackStim;
+        saveFile.Sequence    = obj.Sequence;
+        saveFile.Version     = .5;
+        
+        % save images as PNG
+        if ~isempty(obj.h.image.red)
+            imwrite(obj.h.image.red.CData,fullfile(dirsave,'red.png'),'PNG')
+        end
+        if ~isempty(obj.h.image.green)
+            imwrite(obj.h.image.green.CData,fullfile(dirsave,'red.png'),'PNG')
+        end
+    end
 
     % Accept values of textfields, close dialog window
     function close(~,~)
         if length(strtrim(char(jedit.getText))) == 2
             obj.Settings.initials = char(jedit.getText);
             comment = hcmnt.String;
+            set(findobj('parent',hdlg,'type','uicontrol'),'enable','off')
+            jedit.Enabled = 0;
+            drawnow
+            saveData()
             delete(hdlg)
         else
             beep
