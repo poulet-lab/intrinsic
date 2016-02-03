@@ -196,11 +196,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                     tmp = sort([c1; c2]);
                     tmp = [tmp(1,1:2) tmp(2,1:2)];
                     tmp = obj.ImageRedDiff(tmp(2):tmp(4),tmp(1):tmp(3));
-                    tmp = max(abs(tmp(:)));
+                    tmp = abs(min(tmp(:)));
 
-                    tmp = sprintf('%0.2f',sum(abs(obj.ImageRedDiff(:))<=tmp) / ...
-                        length(obj.ImageRedDiff(:)) * 100);
-                    obj.h.edit.redRange.String = tmp;
+                    obj.h.axes.red.UserData = ...
+                        sum(abs(obj.ImageRedDiff(:))<=tmp) / ...
+                        length(obj.ImageRedDiff(:));
                     obj.processStack
                 otherwise
                     return
@@ -208,7 +208,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         end
 
         function redPeak(obj,~,~)               % Peak intensity of stack
-            [~,I] = max(abs(obj.ImageRedDiff(:)));
+            [~,I] = min(obj.ImageRedDiff(:));
             [y,x] = ind2sub(size(obj.ImageRedDiff),I);
             obj.Point = [x y];
         end
@@ -235,15 +235,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         end
 
-        function redRange(obj,hedit,~)          % Range of colormap
-            value = str2double(hedit.String);
-            if isempty(value) || value<=0 || value>100
-                hedit.String = '100';
-            end
-            obj.processStack
-
-            obj.Settings.redRange = value;      % update settings
-        end
+%         function redRange(obj,hedit,~)          % Range of colormap
+%             value = str2double(obj.h.axes.red.UserData);
+%             if isempty(value) || value<=0 || value>100
+%                 hedit.String = '100';
+%             end
+%             obj.processStack
+% 
+%             obj.Settings.redRange = value;      % update settings
+%         end
 
         function redSigma(obj,hedit,~)                  % Gaussian smoothing
             value = str2double(hedit.String);
@@ -261,55 +261,44 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         function redView(obj,hdrop,~)           % Gaussian smoothing
             modus = hdrop.String{hdrop.Value};
-            ptile = str2double(obj.h.edit.redRange.String)/100;
+            ptile = obj.h.axes.red.UserData;
 
-            if regexpi(modus,'difference')
+            if regexpi(modus,'diff')
                 obj.h.edit.redSigmaSpatial.Enable  = 'on';
                 obj.h.edit.redSigmaTemporal.Enable = 'on';
                 obj.h.edit.redRange.Enable         = 'on';
                 cmap = flipud(brewermap(2^8,'PuOr'));
-
                 tmp  = sort(abs(obj.ImageRedDiff(:)));
                 scal = tmp(ceil(length(tmp)*ptile));
-                tmp  = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7);
-
-            elseif regexpi(modus,'sem')
-                obj.h.edit.redSigmaSpatial.Enable  = 'on';
-                obj.h.edit.redSigmaTemporal.Enable = 'on';
-                obj.h.edit.redRange.Enable         = 'on';
-                cmap = flipud(brewermap(2^8,'PuOr'));
-
+                im   = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7);
+            else
+                obj.h.edit.redSigmaSpatial.Enable  = 'off';
+                obj.h.edit.redSigmaTemporal.Enable = 'off';
+                obj.h.edit.redRange.Enable         = 'off';
+                cmap = gray(2^8);
+            end
+            
+            if regexpi(modus,'neg')   % negative deflections
+                im(im>2^7) = 2^7;
+            elseif regexpi(modus,'sem')   % negative deflections (signif.)
                 n    = obj.nTrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
                 tmp  = obj.DAQvec.time(obj.DAQvec.cam)>0;
                 var  = mean(obj.SequenceVar(:,:,tmp),3);
                 sem  = sqrt(var)/sqrt(n);
-                sem  = (abs(mean(obj.Sequence(:,:,tmp),3)) ./ sem) >= 1;
-
-                tmp  = sort(abs(obj.ImageRedDiff(:)));
-                scal = tmp(ceil(length(tmp)*ptile));
-                tmp  = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7) .* sem;
-                tmp(sem<1) = 2^7;
-
-            elseif regexpi(modus,'base')
-                obj.h.edit.redSigmaSpatial.Enable  = 'off';
-                obj.h.edit.redSigmaTemporal.Enable = 'off';
-                obj.h.edit.redRange.Enable         = 'off';
-                cmap = gray(2^8);
+                sem  = mean(obj.Sequence(:,:,tmp),3) + sem <= 0;
+                im(~sem) = 2^7;
+            elseif regexpi(modus,'base')  % baseline
                 base = abs([obj.ImageRedBase(:); obj.ImageRedStim(:)]);
                 tmp1 = abs(obj.ImageRedBase) - min(base);
                 tmp2 = abs(obj.ImageRedStim) - min(base);
-                tmp  = floor(tmp1 ./ max(tmp2(:)) .* 2^8);
-
-            elseif regexpi(modus,'stim')
-                obj.h.edit.redSigmaSpatial.Enable  = 'off';
-                obj.h.edit.redSigmaTemporal.Enable = 'off';
-                obj.h.edit.redRange.Enable         = 'off';
-                cmap = gray(2^8);
+                im   = floor(tmp1 ./ max(tmp2(:)) .* 2^8);
+            elseif regexpi(modus,'stim')  % stimulus
                 base = abs([obj.ImageRedBase(:); obj.ImageRedStim(:)]);
                 tmp  = abs(obj.ImageRedStim) - min(base);
-                tmp  = floor(tmp ./ max(tmp(:)) .* 2^8);
+                im   = floor(tmp ./ max(tmp(:)) .* 2^8);
             end
-            obj.h.image.red.CData = ind2rgb(tmp,cmap);
+            
+            obj.h.image.red.CData = ind2rgb(im,cmap);
         end
 
         function redStart(obj,~,~)
@@ -471,11 +460,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Load variable from file, return defaults if var/file not found
         function out = loadVar(obj,name,default)
             validateattributes(name,{'char'},{'vector'})
-            if ~isempty(who(obj.Settings,name))
-                out = obj.Settings.(name);
-            else
-                out = default;
+            if isempty(who(obj.Settings,name))
+                obj.Settings.(name) = default;
             end
+            out = obj.Settings.(name);
         end
 
         function out = get.nTrials(obj)
@@ -733,7 +721,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
             sigmaSpatial   = str2double(obj.h.edit.redSigmaSpatial.String);
             sigmaTemporal  = str2double(obj.h.edit.redSigmaTemporal.String);
-            ptile   = str2double(obj.h.edit.redRange.String)/100;
+            ptile          = obj.h.axes.red.UserData;
 
             isdata  = squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16');
             idxbase	= obj.DAQvec.time(obj.DAQvec.cam)<0;
@@ -771,7 +759,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 obj.SequenceVar = imgaussfilt(obj.SequenceVar,sigmaSpatial);
             end
 
-
             % temporal filtering
             if sigmaTemporal > 0;
                 sigma = sigmaTemporal * obj.RateCam / 1000;
@@ -779,7 +766,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 x     = (0:sz-1)-floor(sz/2);
                 gf    = exp(-x.^2/(2*sigma^2));         % gaussian
                 gf    = gf/sum (gf);                	% normalize to 1
-                obj.Sequence = FiltFiltM(gf,1,obj.Sequence,3);
+                obj.Sequence    = FiltFiltM(gf,1,obj.Sequence,3);
+                obj.SequenceVar = FiltFiltM(gf,1,obj.SequenceVar,3);
             end
 
             % average across time
@@ -886,6 +874,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         end
 
         function fileOpen(obj,~,~)
+            obj.clearData
+            keyboard
 %             %% temp
 %             tmp = ['intrinsic_' datestr(now,'yymmdd_HHMM') '.mat'];
 %             [fn,pn,~] = uiputfile({'intrinsic_*.mat','Intrinsic Data'},'Save File ...',tmp);

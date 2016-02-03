@@ -79,7 +79,7 @@ uiwait(hdlg)                                        % wait for dialog
         dirsave = fullfile(obj.DirSave,dirname);
         
         % exclude selected properties from saving
-        exc = {'h','VideoPreview','Settings','Flags','Movie'};
+        exc = {'h','VideoPreview','Settings','Flags','Movie','Stack'};
         tmp = ?intrinsic;
         tmp = {tmp.PropertyList.Name};
         exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'VideoInput')))];
@@ -92,6 +92,7 @@ uiwait(hdlg)                                        % wait for dialog
         
         % save remaining properties to data.mat
         saveFile = matfile(fullfile(dirsave,'data.mat'),'Writable',true);
+        saveFile.Stack = obj.Stack(:,:,:,1:obj.nTrials);
         for fn = setxor(fieldnames(obj),exc)'
             saveFile.(fn{:}) = obj.(fn{:});
         end
@@ -99,7 +100,7 @@ uiwait(hdlg)                                        % wait for dialog
         % copy settings.mat
         copyfile(obj.Settings.Properties.Source,dirsave)
         
-        % save images
+        % save images (red, green, composite)
         if ~isempty(obj.h.image.red)
             imwrite(obj.h.image.red.CData,fullfile(dirsave,'red.png'),'PNG')
             imwrite(imresize(obj.h.image.red.CData,obj.Binning,'nearest'),...
@@ -119,12 +120,14 @@ uiwait(hdlg)                                        % wait for dialog
                 imresize(obj.h.image.red.CData,obj.Binning,'nearest'),...
                 'method','blend','scaling','none');
             imwrite(tmp,fullfile(dirsave,'fused.png'),'PNG')
+            % TODO: try with immultiply, or better yet: hard light
+            %       see FileExchange "image blending functions" by DGM
         end
         
         % TODO: save PDF
         % use copyobj to copy axes to invisible figure
         % header: date + time, initials, comments
-        % image green, image red
+        % image green, image red, fused image
         % temporal plot
         % spatial plot
         
