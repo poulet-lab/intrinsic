@@ -17,6 +17,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Scale
         RateCam         = 10
         RateDAQ         = 10000
+        Oversampling    = 25
 
         PointCoords     = nan(1,2)
         LineCoords      = nan(1,2)
@@ -305,7 +306,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             fignam = obj.h.fig.main.Name;
             nruns  = 10;
-
+            oversampl = obj.Oversampling;
+            
             obj.clearData
             obj.TimeStamp = now;
             obj.preallocateStack
@@ -324,7 +326,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             % configure camera triggers
             triggerconfig(obj.VideoInputRed,'hardware','risingEdge','TTL')
             obj.VideoInputRed.FramesPerTrigger = 1;
-            obj.VideoInputRed.TriggerRepeat    = sum(daq_vec(:,1))-1;
+            obj.VideoInputRed.TriggerRepeat    = nnz(daq_vec(:,1))-1;
             obj.VideoInputRed.FramesAcquiredFcn = @count_frames;
             obj.VideoInputRed.FramesAcquiredFcnCount = 1;
 
@@ -343,7 +345,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.DAQ.Channels(1).Name = 'Camera clock';
             obj.DAQ.Channels(2).Name = 'Stimulus';
             obj.DAQ.Rate = obj.RateDAQ;
-            disp(obj.DAQ)
 
             tmp    = obj.Settings.Stimulus;
             dpause = round(tmp.inter-tmp.pre-tmp.post);
@@ -361,10 +362,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                     break
                 end
 
-                data = getdata(obj.VideoInputRed,sum(daq_vec(:,1)),'uint16');
+                
+                data = getdata(obj.VideoInputRed,nnz(daq_vec(:,1)),'uint16');
                 stop(obj.VideoInputRed)
                 
-                obj.Stack(:,:,:,ii) = squeeze(data(:,:,1,n_warm+1:end));
+                data = squeeze(data(:,:,1,n_warm+1:end));
+                data = reshape(data,[size(data,1) size(data,2) oversampl size(data,3)/oversampl]);
+                obj.Stack(:,:,:,ii) = uint16(squeeze(mean(data,3)));
+                
+                %obj.Stack(:,:,:,ii) = squeeze(data(:,:,1,n_warm+1:end));
                 obj.processStack
 
 %                 %%
@@ -580,9 +586,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 return
             end
 
+            cam2 = false(size(obj.DAQvec.cam));
+            tmp  = find(obj.DAQvec.cam);
+            cam2(tmp(floor(obj.Oversampling/2):obj.Oversampling:end)) = true;
+            
             % plot temporal response
             y = squeeze(obj.Sequence(obj.Point(2),obj.Point(1),:));
-            x = obj.DAQvec.time(obj.DAQvec.cam)';
+            x = obj.DAQvec.time(cam2)';
             obj.h.plot.temporal.XData = x;
             obj.h.plot.temporal.YData = y;
             %y = y(2:end);
@@ -595,11 +605,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
 
             % spatial response ...
-            tmp = obj.DAQvec.time(obj.DAQvec.cam)>0;
+            tmp = obj.DAQvec.time(cam2)>0;
             [xi,yi,y] = improfile(...
                 mean(obj.Sequence(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
 
-            n = obj.nTrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
+            n = obj.nTrials * length(obj.DAQvec.time(cam2)>0);
             [~,~,var] = improfile(...
                 mean(obj.SequenceVar(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
             sem = sqrt(var)./sqrt(n);
@@ -707,7 +717,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Preallocation of image stack
         function preallocateStack(obj)
             % Define stack dimensions (Width * Height * nFrames * nTrials)
-            dims = [fliplr(obj.ROISize) nnz(obj.DAQvec.cam) 10];
+            dims = [fliplr(obj.ROISize) nnz(obj.DAQvec.cam)/obj.Oversampling 10];
 
             % Use intmax('uint16') for preallocation
             % (NaN is not available with the uint16 class)
@@ -724,9 +734,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             sigmaTemporal  = str2double(obj.h.edit.redSigmaTemporal.String);
             ptile          = obj.h.axes.red.UserData;
 
+            cam2 = false(size(obj.DAQvec.cam));
+            tmp  = find(obj.DAQvec.cam);
+            cam2(tmp(floor(obj.Oversampling/2):obj.Oversampling:end)) = true;
+            
             isdata  = squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16');
-            idxbase	= obj.DAQvec.time(obj.DAQvec.cam)<0;
-            idxstim = obj.DAQvec.time(obj.DAQvec.cam)>0;
+            idxbase	= obj.DAQvec.time(cam2)<0;
+            idxstim = obj.DAQvec.time(cam2)>0;
 
             % averaging baseline across, both, time and trials
             base	= mean(reshape(obj.Stack(:,:,idxbase,isdata), ...
@@ -762,7 +776,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             % temporal filtering
             if sigmaTemporal > 0;
-                sigma = sigmaTemporal * obj.RateCam / 1000;
+                sigma = sigmaTemporal * obj.RateCam / obj.Oversampling / 1000;
                 sz    = floor(size(obj.Sequence,3)/3);
                 x     = (0:sz-1)-floor(sz/2);
                 gf    = exp(-x.^2/(2*sigma^2));         % gaussian
@@ -920,7 +934,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 fs = 10000;
             end
             
-            oversampl   = 1;
+            oversampl    = obj.Oversampling;
 
             sPerCam      = round(fs/obj.RateCam);
             sPerView     = sPerCam * oversampl;
@@ -928,7 +942,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             nPerViewPost = ceil((p.d+p.post)*fs/sPerView);
             nPerCam      = (nPerViewPre+nPerViewPost)*oversampl+oversampl-1;
             
-            ttl_cam = false(1,sPerCam*nPerCam+1);
+            ttl_cam = false(1,sPerCam*nPerCam+round(.01*fs));
             ttl_cam(1:sPerCam:end) = true;
 
             sPre = (nPerViewPre*oversampl+floor(oversampl/2))*sPerCam;
