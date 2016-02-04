@@ -320,7 +320,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             daq_vec  = full([ ...
                 [ttl_warm(:); obj.DAQvec.cam(:)] ...
                 [zeros(size(ttl_warm(:))); obj.DAQvec.stim(:)]]);
-
+            
             % configure camera triggers
             triggerconfig(obj.VideoInputRed,'hardware','risingEdge','TTL')
             obj.VideoInputRed.FramesPerTrigger = 1;
@@ -363,6 +363,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
                 data = getdata(obj.VideoInputRed,sum(daq_vec(:,1)),'uint16');
                 stop(obj.VideoInputRed)
+                
                 obj.Stack(:,:,:,ii) = squeeze(data(:,:,1,n_warm+1:end));
                 obj.processStack
 
@@ -918,50 +919,53 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             if ~exist('fs','var')
                 fs = 10000;
             end
+            
+            oversampl   = 1;
 
+            sPerCam      = round(fs/obj.RateCam);
+            sPerView     = sPerCam * oversampl;
+            nPerViewPre  = ceil(p.pre*fs/sPerView);
+            nPerViewPost = ceil((p.d+p.post)*fs/sPerView);
+            nPerCam      = (nPerViewPre+nPerViewPost)*oversampl+oversampl-1;
+            
+            ttl_cam = false(1,sPerCam*nPerCam+1);
+            ttl_cam(1:sPerCam:end) = true;
+
+            sPre = (nPerViewPre*oversampl+floor(oversampl/2))*sPerCam;
+            tax  = ((0:length(ttl_cam)-1)./fs) - sPre/fs;
+            
+            
             switch p.type
                 case 'Sine'
-
                     d   = round(p.d*p.freq)/p.freq;     	% round periods
                     t   = (1:d*fs)/fs;                      % time axis
-                    out = (sin(2*pi*p.freq*t-.5*pi)/2+.5);  % generate sine
+                    tmp = (sin(2*pi*p.freq*t-.5*pi)/2+.5);  % generate sine
 
                 otherwise
-
                     % generate square wave
                     per	= [ones(1,ceil(1/p.freq*fs*p.dc/100)) ...
                            zeros(1,floor((1/p.freq*fs)*(1-p.dc/100)))];
-                    out	= repmat(per,1,round(p.d*p.freq));
+                    tmp	= repmat(per,1,round(p.d*p.freq));
 
                     % add ramp by means of convolution
                     if p.ramp > 0
                         ramp = ones(1,ceil(1/p.freq*fs*p.ramp/100*p.dc/100));
-                        out  = conv(out,ramp/100)/length(ramp/100);
+                        tmp  = conv(tmp,ramp)/length(ramp);
                     end
             end
+            tmp = tmp(1:find(tmp,1,'last')); 	% remove trailing zeros
+            tmp = tmp * p.amp;                  % set amplitude
+            out = zeros(size(tax));
+            out(sPre+1:sPre+length(tmp)) = tmp;
 
-            out = out(1:find(out,1,'last')); 	% remove trailing zeros
-            out = out * p.amp;                  % set amplitude
-            out = [zeros(1,round(p.pre*fs)) ... % add pre- and post-stim
-                out zeros(1,round(p.post*fs))];
-
-            tax = (0:length(out)-1)/fs-p.pre;   % time axis
-
-            inter_cam = round(obj.RateDAQ/obj.RateCam);
-            phase_cam = 0;
-            phase_cam = round(mod(phase_cam,360)/360*inter_cam);
-            ttl_cam	= false(size(out));
-            ttl_cam(1+phase_cam:inter_cam:end) = true;
-
-%             keyboard
-%             oversampl = 9;
-%             inter_cam = round(obj.RateDAQ/obj.RateCam);
-%             phase_cam = 0;
-%             phase_cam = round(mod(phase_cam,360)/360*inter_cam);
-%             ttl_cam	= false(size(out));
-%             ttl_cam(1+phase_cam:inter_cam:end) = true;
-
-
+%             
+%             %%
+%             figure
+%             hold on
+%             plot(tax,out)
+%             plot(tax,ttl_cam*-1)
+%             %%
+            
             if nargout == 0
                 obj.DAQvec.stim = out;
                 obj.DAQvec.time = tax;
