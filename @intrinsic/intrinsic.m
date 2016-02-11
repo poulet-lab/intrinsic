@@ -17,7 +17,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Scale
         RateCam         = 10
         RateDAQ         = 10000
-        Oversampling    = 25
+        Oversampling    = 13
 
         PointCoords     = nan(1,2)
         LineCoords      = nan(1,2)
@@ -25,6 +25,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Stack           % raw data
         Sequence        % relative response (averaged across trials)
         SequenceVar
+        Time            % time vector
+        IdxStimROI
+        
         Movie           % relative response (same as obj.Sequence, as movie)
         ImageRedDiff    % relative response (averaged across trials & time)
         ImageRedBase    %
@@ -178,6 +181,17 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         end
 
 
+        function temporalClick(obj,~,~)
+            t(1) = obj.h.axes.temporal.CurrentPoint(1,1);
+            rbbox;
+            t(2) = obj.h.axes.temporal.CurrentPoint(1,1);
+            obj.IdxStimROI = obj.Time>=t(1) & obj.Time<=t(2) & obj.Time>=0;
+            if ~any(obj.IdxStimROI)
+                obj.IdxStimROI = obj.Time>=0;
+            end
+            obj.processStack;
+        end
+        
         %% all things related to the RED image stack
 
         function redClick(obj,h,~)              % Define point and line
@@ -228,7 +242,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 'Visible',  'off');
 
             % play movie
-            movie(tmpax,obj.Movie,1,obj.RateCam,[2 2 0 0])
+            movie(tmpax,obj.Movie,1,obj.RateCam/obj.Oversampling,[2 2 0 0])
 
             % delete temporary axes, enable UI controls
             delete(tmpax)
@@ -282,8 +296,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             if regexpi(modus,'neg')   % negative deflections
                 im(im>2^7) = 2^7;
             elseif regexpi(modus,'sem')   % negative deflections (signif.)
-                n    = obj.nTrials * length(obj.DAQvec.time(obj.DAQvec.cam)>0);
-                tmp  = obj.DAQvec.time(obj.DAQvec.cam)>0;
+                n    = obj.nTrials * length(obj.Time>0);
+                tmp  = obj.Time>0;
                 var  = mean(obj.SequenceVar(:,:,tmp),3);
                 sem  = sqrt(var)/sqrt(n);
                 sem  = mean(obj.Sequence(:,:,tmp),3) + sem <= 0;
@@ -368,6 +382,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 
                 data = squeeze(data(:,:,1,n_warm+1:end));
                 data = reshape(data,[size(data,1) size(data,2) oversampl size(data,3)/oversampl]);
+                %obj.Stack(:,:,:,ii) = squeeze(median(data,3));
                 obj.Stack(:,:,:,ii) = uint16(squeeze(mean(data,3)));
                 
                 %obj.Stack(:,:,:,ii) = squeeze(data(:,:,1,n_warm+1:end));
@@ -398,9 +413,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             function count_frames(~,~,~)
                 asd = sprintf(...
-                    ' - Acquiring Data (run %d/%d, frame %d/%d)',...
-                    [ii nruns obj.VideoInputRed.FramesAvailable ...
-                    obj.VideoInputRed.TriggerRepeat+1]);
+                    ' - Acquiring Data (run %d/%d: %d%%)',...
+                    [ii nruns floor(100*obj.VideoInputRed.FramesAvailable/ ...
+                    (obj.VideoInputRed.TriggerRepeat+1))]);
                 obj.h.fig.main.Name = [fignam asd];
             end
 
@@ -582,17 +597,17 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             if ~any(obj.Stack(:)) || any(isnan(obj.Point))
                 obj.h.plot.temporal.XData = NaN;
                 obj.h.plot.temporal.YData = NaN;
+                obj.h.plot.temporalROI.XData = NaN;
+                obj.h.plot.temporalROI.YData = NaN;
                 cla(obj.h.axes.spatial)
                 return
             end
 
-            cam2 = false(size(obj.DAQvec.cam));
-            tmp  = find(obj.DAQvec.cam);
-            cam2(tmp(floor(obj.Oversampling/2):obj.Oversampling:end)) = true;
-            
             % plot temporal response
             y = squeeze(obj.Sequence(obj.Point(2),obj.Point(1),:));
-            x = obj.DAQvec.time(cam2)';
+            x = obj.Time';
+            obj.h.plot.temporalROI.XData = x(obj.IdxStimROI);
+            obj.h.plot.temporalROI.YData = y(obj.IdxStimROI);
             obj.h.plot.temporal.XData = x;
             obj.h.plot.temporal.YData = y;
             %y = y(2:end);
@@ -605,11 +620,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
 
             % spatial response ...
-            tmp = obj.DAQvec.time(cam2)>0;
+            tmp = obj.IdxStimROI;
             [xi,yi,y] = improfile(...
                 mean(obj.Sequence(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
 
-            n = obj.nTrials * length(obj.DAQvec.time(cam2)>0);
+            n = obj.nTrials * length(obj.Time>0);
             [~,~,var] = improfile(...
                 mean(obj.SequenceVar(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
             sem = sqrt(var)./sqrt(n);
@@ -659,7 +674,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 imSize = [200 200];
             end
             val_mean    = 2^11;
-            n_frames    = nnz(obj.DAQvec.cam);
+            n_frames    = length(obj.Time);
             n_trials    = 10;
             amp_noise   = 50;
 
@@ -689,7 +704,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             data_stim = repmat((gauss-gauss2)./3,1,1,n_frames);
             lambda    = 3;
             mu        = 3;
-            tmp       = obj.DAQvec.time(obj.DAQvec.cam);
+            tmp       = obj.Time;
             x         = tmp(tmp>0);
             amp_stim  = (lambda./(2*pi*x.^3)).^.5 .* exp((-lambda*(x-mu).^2)./(2*mu^2*x));
             amp_stim  = -[zeros(size(tmp(tmp<=0))) amp_stim] * 50;
@@ -734,13 +749,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             sigmaTemporal  = str2double(obj.h.edit.redSigmaTemporal.String);
             ptile          = obj.h.axes.red.UserData;
 
-            cam2 = false(size(obj.DAQvec.cam));
-            tmp  = find(obj.DAQvec.cam);
-            cam2(tmp(floor(obj.Oversampling/2):obj.Oversampling:end)) = true;
-            
             isdata  = squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16');
-            idxbase	= obj.DAQvec.time(cam2)<0;
-            idxstim = obj.DAQvec.time(cam2)>0;
+            idxbase	= obj.Time<0;
+            idxstim = obj.IdxStimROI;
 
             % averaging baseline across, both, time and trials
             base	= mean(reshape(obj.Stack(:,:,idxbase,isdata), ...
@@ -944,6 +955,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             
             ttl_cam = false(1,sPerCam*nPerCam+round(.01*fs));
             ttl_cam(1:sPerCam:end) = true;
+            
+            ttl_view = false(size(ttl_cam));
+            tmp = find(ttl_cam);
+            ttl_view(tmp(floor(oversampl/2):oversampl:end)) = true;
 
             sPre = (nPerViewPre*oversampl+floor(oversampl/2))*sPerCam;
             tax  = ((0:length(ttl_cam)-1)./fs) - sPre/fs;
@@ -984,6 +999,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 obj.DAQvec.stim = out;
                 obj.DAQvec.time = tax;
                 obj.DAQvec.cam  = ttl_cam;
+                obj.Time        = obj.DAQvec.time(ttl_view);
+                obj.IdxStimROI  = obj.Time>=0;
                 if isfield(obj.h,'axes')
                     obj.h.plot.stimulus.XData = tax;
                     obj.h.plot.stimulus.YData = out;
