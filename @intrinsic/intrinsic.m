@@ -15,7 +15,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         VideoInputGreen
 
         Scale
-        RateCam         = 10
+        RateCam         = 52
         RateDAQ         = 10000
         Oversampling    = 13
 
@@ -179,18 +179,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 set(obj.h.axes.green,'Clim',[0 2^12-1]);
             end
         end
-
-
-        function temporalClick(obj,~,~)
-            t(1) = obj.h.axes.temporal.CurrentPoint(1,1);
-            rbbox;
-            t(2) = obj.h.axes.temporal.CurrentPoint(1,1);
-            obj.IdxStimROI = obj.Time>=t(1) & obj.Time<=t(2) & obj.Time>=0;
-            if ~any(obj.IdxStimROI)
-                obj.IdxStimROI = obj.Time>=0;
-            end
-            obj.processStack;
-        end
         
         %% all things related to the RED image stack
 
@@ -344,13 +332,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.VideoInputRed.FramesAcquiredFcn = @count_frames;
             obj.VideoInputRed.FramesAcquiredFcnCount = 1;
 
-%             obj.VideoInputRed.LoggingMode = 'Disk&Memory';
-%             logfile = VideoWriter('logfile.mj2','Archival');
-%             logfile.FrameRate   = obj.RateCam;
-%             logfile.MJ2BitDepth = 12;
-%             logfile.LosslessCompression = true;
-%             obj.VideoInputRed.DiskLogger = logfile;
-
             % configure DAQ session
             device  = daq.getDevices;
             obj.DAQ = daq.createSession('ni');
@@ -365,10 +346,17 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             obj.Flags.Running = true;
             for ii = 1:nruns
+                
+                % arm the camera
                 start(obj.VideoInputRed)
+                
+                % start stimulus & camera trigger (with safety margins)
+                pause(1)
                 queueOutputData(obj.DAQ,daq_vec)
-                obj.DAQ.startForeground;            %
-
+                obj.DAQ.startForeground;
+                pause(1)
+                
+                % check for interruption
                 if ~isrunning(obj.VideoInputRed) && ...
                         obj.VideoInputRed.FramesAvailable ~= ...
                         obj.VideoInputRed.TriggerRepeat+1
@@ -376,27 +364,17 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                     break
                 end
 
-                
+                % get data from camera, disarm camera
                 data = getdata(obj.VideoInputRed,nnz(daq_vec(:,1)),'uint16');
                 stop(obj.VideoInputRed)
                 
+                % reshape/save data into obj.Stack, process stack
                 data = squeeze(data(:,:,1,n_warm+1:end));
                 data = reshape(data,[size(data,1) size(data,2) oversampl size(data,3)/oversampl]);
-                %obj.Stack(:,:,:,ii) = squeeze(median(data,3));
                 obj.Stack(:,:,:,ii) = uint16(squeeze(mean(data,3)));
-                
-                %obj.Stack(:,:,:,ii) = squeeze(data(:,:,1,n_warm+1:end));
                 obj.processStack
 
-%                 %%
-%                 vid_read = VideoReader('logfile.mj2');
-%                 n_frames = round(vid_read.Duration*vid_read.FrameRate);
-%                 data     = zeros(vid_read.Height,vid_read.Width,n_frames,'uint16');
-%                 for jj =1:n_frames
-%                     data(:,:,jj) = readFrame(vid_read);
-%                 end
-%                 %%
-
+                % format figure title
                 for pp = 1:dpause
                     if ~obj.Flags.Running
                         obj.h.fig.main.Name = fignam;

@@ -115,7 +115,7 @@ obj.h.axes.temporal = axes(...
     'tickdir',          'out', ...
     'layer',            'top', ...
     'clippingstyle',    'rectangle', ...
-    'ButtonDownFcn',    @obj.temporalClick);
+    'ButtonDownFcn',    @temporalClick);
 title(obj.h.axes.temporal,'Temporal Response')
 xlabel(obj.h.axes.temporal,'Time [s]')
 ylabel(obj.h.axes.temporal,'Intensity')
@@ -139,7 +139,8 @@ obj.h.plot.stimulus = sparsearea(obj.h.axes.stimulus,...
     'linestyle',        'none', ...
     'facecolor',        'k', ...
     'pickableparts',    'none');
-plot(obj.h.axes.stimulus,[0 0],[0 max(obj.DAQvec.stim)*10],':k', ...
+plot(obj.h.axes.stimulus,[0 0],[0 max(obj.DAQvec.stim)*10],...
+    'color',            [.5 .5 .5],...
     'pickableparts',    'none')
 xlim(obj.h.axes.stimulus,obj.DAQvec.time([1 end]))
 ylim(obj.h.axes.stimulus,[0 max(obj.DAQvec.stim)*10])
@@ -159,3 +160,18 @@ hold(obj.h.axes.spatial,'on')
 %% Restore position and make visible
 obj.restoreWindowPositions('main')
 obj.h.fig.main.Visible = 'on';
+
+
+
+    function temporalClick(~,~)
+        t(1) = obj.h.axes.temporal.CurrentPoint(1,1);
+        rbbox;
+        t(2) = obj.h.axes.temporal.CurrentPoint(1,1);
+        t    = sort(t);
+        obj.IdxStimROI = obj.Time>=t(1) & obj.Time<=t(2) & obj.Time>=0;
+        if ~any(obj.IdxStimROI)
+            obj.IdxStimROI = obj.Time>=0;
+        end
+        obj.processStack;
+    end
+end
