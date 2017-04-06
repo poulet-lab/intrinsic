@@ -5,7 +5,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Flags
         
         DAQ             = [] %daq.createSession('ni');
-        h               = []        % handles
+        h               = [] % handles
 
         DirBase         = fileparts(fileparts(mfilename('fullpath')));
         DirSave
@@ -14,7 +14,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         VideoInputRed
         VideoInputGreen
 
-        Scale
+        Scale           = 1
         RateCam         = 52
         RateDAQ         = 10000
         Oversampling    = 13
@@ -830,7 +830,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             % Binning is only defined given a valid videoinput
             if ~isa(obj.VideoInputRed,'videoinput')
-                binning = NaN;
+                binning = 1;
+                return
+            end
+            
+            % Currently, we only support this for QiCam
+            tmp = imaqhwinfo(obj.VideoInputRed);
+            if ~strcmp(tmp.AdaptorName,'qimaging')
+                binning = 1;
                 return
             end
 
