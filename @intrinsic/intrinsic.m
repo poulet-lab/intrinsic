@@ -13,11 +13,12 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         VideoPreview
         VideoInputRed
         VideoInputGreen
-
+        
+        Bits            = 16
         Scale           = 1
-        RateCam         = 52
-        RateDAQ         = 10000
-        Oversampling    = 13
+        RateCam         = 1
+        RateDAQ         = 5000
+        Oversampling    = 10
 
         PointCoords     = nan(1,2)
         LineCoords      = nan(1,2)
@@ -90,6 +91,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             obj.mainGUI         % Create main window
             obj.updateEnabled   % Update availability of UI elements
+            
+            obj.led(false)
+            obj.led(true)
+            obj.led(false)
         end
 
     end
@@ -135,6 +140,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         end
 
+        function led(~,state)
+            d = daq.getDevices;
+            s = daq.createSession('ni');
+            s.addDigitalChannel(d.ID,'Port0/line7','OutputOnly');
+            outputSingleScan(s,state)
+            release(s)
+        end
+        
+        
         %% all things related to the GREEN image
 
         function greenCapture(obj,~,~)          % Take a snapshot
@@ -144,24 +158,39 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 obj.greenGUI
             end
 
-            % If red preview is running, we need to stop it temporarily
             if isa(obj.VideoPreview,'video_preview')
-                preview_was_running = obj.VideoPreview.Preview;
+                % Get the current preview state
+                preview_state = obj.VideoPreview.Preview;
+                
+                % If  red preview is running, stop it temporarily
                 if strcmp(obj.VideoInputRed.preview,'on')
                     obj.VideoPreview.Preview = false;
+                
+                % If neither preview is running, activate the LED
+                elseif ~obj.VideoPreview.Preview
+                    obj.led(true)
                 end
+            else
+                obj.led(true)
             end
 
-            % Capture and process image
+            % Capture image
             obj.ImageGreen = getsnapshot(obj.VideoInputGreen); % Capture
-            obj.h.image.green.CData = obj.ImageGreen;          % Update display
-            obj.greenContrast(obj.h.check.greenContrast)       % Enhance Contrast
-
+            
             % Return to former preview state
             if isa(obj.VideoPreview,'video_preview')
-                obj.VideoPreview.Preview = preview_was_running;
+                obj.VideoPreview.Preview = preview_state;
+                if ~preview_state
+                    obj.led(false)                          % Deactivate LED
+                end
+            else
+                obj.led(false)
             end
-
+            
+            % Process image
+            obj.h.image.green.CData = obj.ImageGreen;       % Update display
+            obj.greenContrast(obj.h.check.greenContrast)	% Enhance Contrast
+            
             % Focus the green window
             figure(obj.h.fig.green)
         end
@@ -176,7 +205,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 end
                 set(obj.h.axes.green,'Clim',tmp);
             else
-                set(obj.h.axes.green,'Clim',[0 2^12-1]);
+                set(obj.h.axes.green,'Clim',[0 2^16-1]);
             end
         end
         
@@ -326,16 +355,30 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 [zeros(size(ttl_warm(:))); obj.DAQvec.stim(:)]]);
             
             % configure camera triggers
-            triggerconfig(obj.VideoInputRed,'hardware','risingEdge','TTL')
+            tmp = imaqhwinfo(obj.VideoInputRed);
+            switch tmp.AdaptorName
+                case 'qimaging'
+                    triggerconfig(obj.VideoInputRed,...
+                        'hardware','risingEdge','TTL')
+                case 'hamamatsu'
+                    triggerconfig(obj.VideoInputRed,...
+                        'hardware','RisingEdge','EdgeTrigger')
+            end
             obj.VideoInputRed.FramesPerTrigger = 1;
-            obj.VideoInputRed.TriggerRepeat    = nnz(daq_vec(:,1))-1;
+            obj.VideoInputRed.TriggerRepeat    = nnz(daq_vec(:,1))-2;
             obj.VideoInputRed.FramesAcquiredFcn = @count_frames;
             obj.VideoInputRed.FramesAcquiredFcnCount = 1;
-
+            
             % configure DAQ session
             device  = daq.getDevices;
             obj.DAQ = daq.createSession('ni');
-            obj.DAQ.addDigitalChannel(device.ID,'Port0/line0','OutputOnly');
+            
+            if strcmp(device.Model,'USB-6001')
+                obj.DAQ.addAnalogOutputChannel(device.ID,1,'Voltage');
+                daq_vec(:,1) = daq_vec(:,1) * 5;
+            else
+                obj.DAQ.addDigitalChannel(device.ID,'Port0/line0','OutputOnly');
+            end
             obj.DAQ.addAnalogOutputChannel(device.ID,0,'Voltage');
             obj.DAQ.Channels(1).Name = 'Camera clock';
             obj.DAQ.Channels(2).Name = 'Stimulus';
@@ -346,6 +389,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             obj.Flags.Running = true;
             for ii = 1:nruns
+                
+                % Enable LED
+                obj.led(true)
                 
                 % arm the camera
                 start(obj.VideoInputRed)
@@ -365,12 +411,17 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 end
 
                 % get data from camera, disarm camera
-                data = getdata(obj.VideoInputRed,nnz(daq_vec(:,1)),'uint16');
+                data = getdata(obj.VideoInputRed,nnz(daq_vec(:,1))-1,'uint16');
                 stop(obj.VideoInputRed)
                 
+                % Disable LED
+                obj.led(false)
+                
                 % reshape/save data into obj.Stack, process stack
-                data = squeeze(data(:,:,1,n_warm+1:end));
-                data = reshape(data,[size(data,1) size(data,2) oversampl size(data,3)/oversampl]);
+                data = squeeze(data(:,:,1,n_warm:end));
+                if oversampl>1
+                    data = reshape(data,[size(data,1) size(data,2) oversampl size(data,3)/oversampl]);
+                end
                 obj.Stack(:,:,:,ii) = uint16(squeeze(mean(data,3)));
                 obj.processStack
 
@@ -388,6 +439,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
             obj.Flags.Running   = false;
             obj.h.fig.main.Name = fignam;
+
+            release(obj.DAQ)
 
             function count_frames(~,~,~)
                 asd = sprintf(...
@@ -445,7 +498,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 'Tag',              name, ...
                 'DataAspectRatio',  [1 1 1], ...
                 'CLimMode',         'manual', ...
-                'Clim',             [0 2^12-1]);
+                'Clim',             [0 obj.Bits-1]);
 
             if strcmpi(name,'green')
                 tmp = obj.ROISize * obj.Binning;
@@ -453,7 +506,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 tmp = obj.ROISize;
             end
             obj.h.image.(lower(name)) = imshow(zeros(fliplr(tmp)),...
-                'DisplayRange',     [0 2^12-1], ...
+                'DisplayRange',     [0 obj.Bits-1], ...
                 'Parent',           obj.h.axes.(lower(name)));
         end
 
@@ -927,7 +980,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 p = obj.Settings.Stimulus;
             end
             if ~exist('fs','var')
-                fs = 10000;
+                fs = obj.RateDAQ;
             end
             
             oversampl    = obj.Oversampling;
@@ -941,9 +994,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             ttl_cam = false(1,sPerCam*nPerCam+round(.01*fs));
             ttl_cam(1:sPerCam:end) = true;
             
-            ttl_view = false(size(ttl_cam));
-            tmp = find(ttl_cam);
-            ttl_view(tmp(floor(oversampl/2):oversampl:end)) = true;
+            if oversampl == 1
+                ttl_view = ttl_cam;
+            else
+                ttl_view = false(size(ttl_cam));
+                tmp      = find(ttl_cam);
+                ttl_view(tmp(floor(oversampl/2):oversampl:end)) = true;
+            end
 
             sPre = (nPerViewPre*oversampl+floor(oversampl/2))*sPerCam;
             tax  = ((0:length(ttl_cam)-1)./fs) - sPre/fs;
@@ -971,14 +1028,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             tmp = tmp * p.amp;                  % set amplitude
             out = zeros(size(tax));
             out(sPre+1:sPre+length(tmp)) = tmp;
-
-%             
-%             %%
-%             figure
-%             hold on
-%             plot(tax,out)
-%             plot(tax,ttl_cam*-1)
-%             %%
             
             if nargout == 0
                 obj.DAQvec.stim = out;

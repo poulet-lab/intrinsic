@@ -67,12 +67,14 @@ if isa(obj.VideoInputRed,'videoinput')
         obj.VideoInputGreen.ROIPosition = VidPref{4};
     end
     
-    if regexpi(imaqhwinfo(obj.VideoInputRed,'DeviceName'),'^QICam')
-        set(obj.VideoInputRed.Source, ...
-            'NormalizedGain',   0.601, ...
-            'ColorWheel',       'red')
-        set(obj.VideoInputGreen.Source, ...
-            'ColorWheel',       'green')
+    switch imaqhwinfo(obj.VideoInputRed,'AdaptorName')
+        case 'qimaging'
+            obj.Bits = 12;
+            set(obj.VideoInputRed.Source, ...
+                'NormalizedGain',   0.601, ...
+                'ColorWheel',       'red')
+            set(obj.VideoInputGreen.Source, ...
+                'ColorWheel',       'green')
     end
     
 else

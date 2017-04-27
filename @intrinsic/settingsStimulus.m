@@ -145,9 +145,7 @@ hfig.Visible = 'on';
                     stim.inter = stim.pre + stim.post;
                     hui.inter.String = stim.inter;
                 end
-
         end
-        
         [Y,X] = obj.generateStimulus(stim,1000);    % Get stimulus vector
         hui.plot.XData = X;                         % Update area plot
         hui.plot.YData = Y;
