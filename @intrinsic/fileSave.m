@@ -79,7 +79,8 @@ uiwait(hdlg)                                        % wait for dialog
         dirsave = fullfile(obj.DirSave,dirname);
         
         % exclude selected properties from saving
-        exc = {'h','VideoPreview','Settings','Flags','Movie','Stack'};
+        exc = {'h','VideoPreview','Settings','Flags','Movie','Stack',...
+            'SequenceRaw','SequenceFilt'};
         tmp = ?intrinsic;
         tmp = {tmp.PropertyList.Name};
         exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'VideoInput')))];
@@ -92,10 +93,22 @@ uiwait(hdlg)                                        % wait for dialog
         
         % save remaining properties to data.mat
         saveFile = matfile(fullfile(dirsave,'data.mat'),'Writable',true);
-        saveFile.Stack = obj.Stack(:,:,:,1:obj.nTrials);
         for fn = setxor(fieldnames(obj),exc)'
             saveFile.(fn{:}) = obj.(fn{:});
         end
+        m.Properties.Writable = false;
+        
+
+        % save stack as tiff
+        tic
+        options         = struct;
+        options.big     = true;
+        options.message = false;
+        for ii = 1:obj.nTrials
+            saveastiff(obj.Stack{ii},...
+                fullfile(dirsave,sprintf('stack%03d.tiff',ii)),options);
+        end
+        toc
         
         % copy settings.mat
         copyfile(obj.Settings.Properties.Source,dirsave)
@@ -106,24 +119,14 @@ uiwait(hdlg)                                        % wait for dialog
             imwrite(imresize(obj.h.image.red.CData,obj.Binning,'nearest'),...
                 fullfile(dirsave,'red_scaled.png'),'PNG')
         end
-        if ~isempty(obj.h.image.green)
-            tmp = obj.h.image.green.CData;
-            tmp = tmp - obj.h.axes.green.CLim(1);
-            tmp = ind2rgb(tmp,gray(obj.h.axes.green.CLim(2)));
+        if ~isempty(obj.ImageGreen)
+            tmp = ind2rgb(obj.ImageGreen,gray(2^obj.VideoBits));
             imwrite(tmp,fullfile(dirsave,'green.png'),'PNG')
-        end
-        if ~isempty(obj.h.image.red) && ~isempty(obj.h.image.green)
-            tmp = obj.h.image.green.CData;
-            tmp = tmp - obj.h.axes.green.CLim(1);
-            tmp = ind2rgb(tmp,gray(obj.h.axes.green.CLim(2)));
-%             tmp = imfuse(tmp,...
-%                 imresize(obj.h.image.red.CData,obj.Binning,'nearest'),...
-%                 'method','blend','scaling','none');
-            tmp = imblend(imresize(obj.h.image.red.CData,obj.Binning,...
-                'nearest'),tmp,1,'hard light');
-            imwrite(tmp,fullfile(dirsave,'fused.png'),'PNG')
-            % TODO: try with immultiply, or better yet: hard light
-            %       see FileExchange "image blending functions" by DGM
+            if ~isempty(obj.h.image.red)
+                tmp = imblend(imresize(obj.h.image.red.CData,obj.Binning,...
+                    'nearest'),tmp,1,'hard light');
+                imwrite(tmp,fullfile(dirsave,'fused.png'),'PNG')
+            end
         end
         
         % TODO: save PDF

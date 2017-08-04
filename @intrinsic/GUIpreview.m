@@ -1,4 +1,4 @@
-function previewGUI(obj,hbutton,~)
+function GUIpreview(obj,hbutton,~)
 
 hbutton.Enable = 'off';
 

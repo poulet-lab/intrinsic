@@ -1,31 +1,38 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
-    properties
-        Version         = .5
+    properties %(Access = private)
+        Version         = .6
         Flags
         
-        DAQ             = [] %daq.createSession('ni');
-        h               = [] % handles
+        h               = [] 	% handles
 
         DirBase         = fileparts(fileparts(mfilename('fullpath')));
         DirSave
+        DirLoad         = [];
 
         VideoPreview
         VideoInputRed
         VideoInputGreen
-        
-        Bits            = 16
+        VideoAdaptorName
+        VideoBits
+
         Scale           = 1
-        RateCam         = 1
-        RateDAQ         = 5000
-        Oversampling    = 10
+        RateCam                 % Rate of camera triggers (Hz)
+        Oversampling    = 1% Oversampling factor
+        
+        % The Q-Cam Needs a little time to deliver a high frame rate.
+        % Therefore, we deliver a couple of "Warmup Triggers" at a lower
+        % rate before switching to the actual trigger rate. These initial
+        % triggers will be skipped during the analysis
+        WarmupN         = 5     % Number of "Warmup Triggers" for Camera
+        WarmupRate      = 5     % Rate of "Warmup Triggers" (Hz)
 
         PointCoords     = nan(1,2)
         LineCoords      = nan(1,2)
 
         Stack           % raw data
-        Sequence        % relative response (averaged across trials)
-        SequenceVar
+        SequenceRaw     % relative response (averaged across trials, raw)
+        SequenceFilt    % relative response (averaged across trials, filtered)
         Time            % time vector
         IdxStimROI
         
@@ -33,6 +40,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         ImageRedDiff    % relative response (averaged across trials & time)
         ImageRedBase    %
         ImageRedStim    %
+        ImageRedDFF
         ImageGreen      % snapshot of anatomical details
         TimeStamp       = NaN;
 
@@ -40,9 +48,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Settings
 
         DAQvec
+        DAQrate         = 5000
+        DAQsession   	= []
+        StimIn
+        
+        ResponseTemporal
     end
 
     properties (Dependent = true)
+        redMode
         nTrials
         Figure
         ROISize
@@ -56,6 +70,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Class Constructor
         function obj = intrinsic(varargin)
 
+            % Clear command window & close all figures
+            clc
+            close all
+            
             % Warn if necessary toolboxes are unavailable
             for tmp = struct2cell(obj.Toolbox)'
                 if ~tmp{1}.available
@@ -72,42 +90,63 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 'Writable',true);
 
             % Initialize some variables
-            obj.h.image.green = [];
-            obj.h.image.red   = [];
+            obj.h.image.green       = [];
+            obj.h.image.red         = [];
+            obj.Flags.Running       = false;
+            obj.Flags.Saved         = false;
+            obj.Flags.Loaded        = false;
+            obj.Flags.FakeDat       = false;
+            obj.ResponseTemporal.x  = [];
+            obj.ResponseTemporal.y  = [];
 
-            obj.Flags.Running = false;
-            obj.Flags.Saved   = false;
-            obj.Flags.Loaded  = false;
-            obj.Flags.FakeDat = false;
-            
-            % Initialize the Image Acquisition Subsystem
+            % Reset IMAQ and DAQ devices
+            disp('Disconnecting and deleting all IMAQ objects ...')
+            imaqreset
+            disp('Resetting Data Acquisition Toolbox ...')
+            daqreset
+            disp('Initializing IMAQ subsystem ...')
             obj.settingsVideo 	% Set video device
-
-            % Initialize the Data Acquisition Subsystem
-            % TODO
-
-            % Generate Stimulus
-            obj.generateStimulus
-
-            obj.mainGUI         % Create main window
-            obj.updateEnabled   % Update availability of UI elements
             
+            % Set Variables related to VideoAdapter
+            obj.VideoAdaptorName = ...
+                imaqhwinfo(obj.VideoInputGreen,'AdaptorName');
+            switch obj.VideoAdaptorName
+                case 'hamamatsu'
+                    obj.VideoBits = 16;
+                case 'qimaging'
+                    obj.VideoBits = 12;
+                otherwise
+                    error('Unknown Video Adapter')
+            end
+            
+            % Reset LED
+            disp('Resetting LED illumination ...')
+            warning('off','daq:Session:onDemandOnlyChannelsAdded')
             obj.led(false)
             obj.led(true)
             obj.led(false)
-        end
+            
+            % Generate Stimulus
+            disp('Generating stimulus ...')
+            obj.generateStimulus
 
+            % Fire up GUI
+            disp('Ready to go!')
+            obj.GUImain             % Create main window
+            obj.updateEnabled       % Update availability of UI elements
+        end
     end
 
     % Methods defined in separate files:
     methods (Access = private)
-        mainGUI(obj)                            % Create MAIN GUI
-        previewGUI(obj,hbutton,~)               % Create PREVIEW GUI
-        greenGUI(obj)                           % Create GREEN GUI
-        redGUI(obj)                             % Create RED GUI
+        GUImain(obj)                            % Create MAIN GUI
+        GUIpreview(obj,hbutton,~)               % Create PREVIEW GUI
+        GUIgreen(obj)                           % Create GREEN GUI
+        GUIred(obj)                             % Create RED GUI
         settingsStimulus(obj,~,~)             	% Stimulus Settings
         settingsVideo(obj,~,~)
         fileSave(obj,~,~)
+        redStart(obj,~,~)
     end
 
     methods %(Access = private)
@@ -143,7 +182,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         function led(~,state)
             d = daq.getDevices;
             s = daq.createSession('ni');
-            s.addDigitalChannel(d.ID,'Port0/line7','OutputOnly');
+            s.addDigitalChannel(d(1).ID,'Port0/line7','OutputOnly');
             outputSingleScan(s,state)
             release(s)
         end
@@ -155,7 +194,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             % Create green window, if its not there already
             if ~isfield(obj.h.fig,'green')
-                obj.greenGUI
+                obj.GUIgreen
             end
 
             if isa(obj.VideoPreview,'video_preview')
@@ -176,6 +215,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             % Capture image
             obj.ImageGreen = getsnapshot(obj.VideoInputGreen); % Capture
+            obj.ImageGreen = obj.ImageGreen(:,:,1);
             
             % Return to former preview state
             if isa(obj.VideoPreview,'video_preview')
@@ -189,23 +229,36 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             
             % Process image
             obj.h.image.green.CData = obj.ImageGreen;       % Update display
-            obj.greenContrast(obj.h.check.greenContrast)	% Enhance Contrast
+            obj.greenContrast()                             % Enhance Contrast
             
             % Focus the green window
             figure(obj.h.fig.green)
         end
 
-        function greenContrast(obj,hcheck,~)    % Stretch the contrast
-            obj.Settings.greenContrast = hcheck.Value;
-            if hcheck.Value
-                %tmp = [min(obj.ImageGreen(:)) max(obj.ImageGreen(:))];
-                tmp = quantile(obj.ImageGreen(:),[.005 .995]);
+        function greenContrast(obj,~,~)    % Stretch the contrast
+            obj.Settings.greenContrast = obj.h.check.greenContrast.Value;
+            obj.Settings.greenLog      = obj.h.check.greenLog.Value;
+            
+            im = obj.ImageGreen(:,:,1);
+            if obj.Settings.greenLog
+                im = log(double(im));
+            end
+            obj.h.image.green.CData = im;
+            
+            if obj.Settings.greenContrast
+                quant = [.01 .99];
+                tmp   = sort(im(:));
+                tmp   = tmp(round(length(tmp)*quant));
                 if tmp(1) == tmp(2)
                     tmp(2) = tmp(1) + 1;
                 end
                 set(obj.h.axes.green,'Clim',tmp);
             else
-                set(obj.h.axes.green,'Clim',[0 2^16-1]);
+                if obj.Settings.greenLog
+                    set(obj.h.axes.green,'Clim',log([1 2^8]));
+                else
+                    set(obj.h.axes.green,'Clim',[0 2^8-1]);
+                end
             end
         end
         
@@ -220,31 +273,30 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 case 'alt'
                     obj.Line  = coord;
                 case 'extend'
-                    % get rectangle
                     c1  = round(obj.h.axes.red.CurrentPoint(1,1:2));
+                    c1(c1<1) = 1;
                     rbbox;
                     c2  = round(obj.h.axes.red.CurrentPoint(1,1:2));
+                    c2(c2<1) = 1;
                     c2  = min([c2; obj.ROISize]);
                     tmp = sort([c1; c2]);
                     tmp = [tmp(1,1:2) tmp(2,1:2)];
-                    tmp = obj.ImageRedDiff(tmp(2):tmp(4),tmp(1):tmp(3));
-                    tmp = abs(min(tmp(:)));
-
+                    if regexpi(obj.redMode,'dF/F')
+                        im  = obj.ImageRedDFF;
+                    else
+                        im  = obj.ImageRedDiff;
+                    end
+                    tmp = im(tmp(2):tmp(4),tmp(1):tmp(3));
+                    tmp = max(abs(tmp(:)));
                     obj.h.axes.red.UserData = ...
-                        sum(abs(obj.ImageRedDiff(:))<=tmp) / ...
-                        length(obj.ImageRedDiff(:));
-                    obj.processStack
+                        sum(abs(im(:))<=tmp) / length(im(:));
+                    redView(obj,obj.h.popup.redView)
+                    figure(obj.h.fig.red)
                 otherwise
                     return
             end
         end
-
-        function redPeak(obj,~,~)               % Peak intensity of stack
-            [~,I] = min(obj.ImageRedDiff(:));
-            [y,x] = ind2sub(size(obj.ImageRedDiff),I);
-            obj.Point = [x y];
-        end
-
+        
         function redPlayback(obj,~,~)           % Play stack as movie
 
             % disable UI controls
@@ -259,6 +311,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 'Visible',  'off');
 
             % play movie
+            obj.processMovie
+            
             movie(tmpax,obj.Movie,1,obj.RateCam/obj.Oversampling,[2 2 0 0])
 
             % delete temporary axes, enable UI controls
@@ -267,247 +321,83 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         end
 
-%         function redRange(obj,hedit,~)          % Range of colormap
-%             value = str2double(obj.h.axes.red.UserData);
-%             if isempty(value) || value<=0 || value>100
-%                 hedit.String = '100';
-%             end
-%             obj.processStack
-% 
-%             obj.Settings.redRange = value;      % update settings
-%         end
-
-        function redSigma(obj,hedit,~)                  % Gaussian smoothing
-            value = str2double(hedit.String);
-            if isempty(value) || value<0
-                hedit.String = '0';
-            end
-            obj.processStack
-
-            if regexpi(hedit.TooltipString,'spatial')   % update settings
-                obj.Settings.redSigmaSpatial = value;
-            elseif regexpi(hedit.TooltipString,'temporal')
-                obj.Settings.redSigmaTemporal = value;
-            end
-        end
-
-        function redView(obj,hdrop,~)           % Gaussian smoothing
-            modus = hdrop.String{hdrop.Value};
-            ptile = obj.h.axes.red.UserData;
-
-            if regexpi(modus,'diff')
+        function redView(obj,~,~)
+            modus = obj.redMode;                % get current image mode
+            ptile = obj.h.axes.red.UserData;    % scaling percentile
+            bit   = 8;                          % bit depth of the image
+            
+            if regexpi(modus,'(diff)|(dF/F)')
                 obj.h.edit.redSigmaSpatial.Enable  = 'on';
                 obj.h.edit.redSigmaTemporal.Enable = 'on';
                 obj.h.edit.redRange.Enable         = 'on';
-                cmap = flipud(brewermap(2^8,'PuOr'));
-                tmp  = sort(abs(obj.ImageRedDiff(:)));
-                scal = tmp(ceil(length(tmp)*ptile));
-                im   = floor(obj.ImageRedDiff ./ scal .* 2^7 + 2^7);
+                cmap = flipud(brewermap(2^bit,'PuOr'));
+                
+                if regexpi(modus,'dF/F')
+                    im = obj.ImageRedDFF;
+                else
+                    im = obj.ImageRedDiff;
+                end
+                tmp  = sort(abs(im(:)));
+                scal = tmp(ceil(length(tmp) * ptile));
+                im   = floor(im ./ scal .* 2^(bit-1) + 2^(bit-1));
+                im(im>2^bit) = 2^bit;
+                im(im<1)     = 1;
             else
                 obj.h.edit.redSigmaSpatial.Enable  = 'off';
                 obj.h.edit.redSigmaTemporal.Enable = 'off';
                 obj.h.edit.redRange.Enable         = 'off';
-                cmap = gray(2^8);
+                cmap = gray(2^bit);
             end
             
-            if regexpi(modus,'neg')   % negative deflections
-                im(im>2^7) = 2^7;
-            elseif regexpi(modus,'sem')   % negative deflections (signif.)
-                n    = obj.nTrials * length(obj.Time>0);
-                tmp  = obj.Time>0;
-                var  = mean(obj.SequenceVar(:,:,tmp),3);
-                sem  = sqrt(var)/sqrt(n);
-                sem  = mean(obj.Sequence(:,:,tmp),3) + sem <= 0;
-                im(~sem) = 2^7;
-            elseif regexpi(modus,'base')  % baseline
-                base = abs([obj.ImageRedBase(:); obj.ImageRedStim(:)]);
-                tmp1 = abs(obj.ImageRedBase) - min(base);
-                tmp2 = abs(obj.ImageRedStim) - min(base);
-                im   = floor(tmp1 ./ max(tmp2(:)) .* 2^8);
-            elseif regexpi(modus,'stim')  % stimulus
-                base = abs([obj.ImageRedBase(:); obj.ImageRedStim(:)]);
-                tmp  = abs(obj.ImageRedStim) - min(base);
-                im   = floor(tmp ./ max(tmp(:)) .* 2^8);
+            if regexpi(modus,'neg')         % negative deflections
+                im(im>2^(bit-1)) = 2^(bit-1);
+            elseif regexpi(modus,'pos')     % positive deflections
+                im(im<2^(bit-1)) = 2^(bit-1);
+            elseif regexpi(modus,'(base)|(stim)')    % baseline
+                
+                if regexpi(modus,'log')
+                    base = log(obj.ImageRedBase);
+                    stim = log(obj.ImageRedStim);
+                    tmp  = [base(:); stim(:)];
+                    tmp1 = min(tmp);
+                    tmp2 = max(tmp-tmp1);
+                    base = floor((base-tmp1)./tmp2*(2^bit-1))+1;
+                    stim = floor((stim-tmp1)./tmp2*(2^bit-1))+1;
+                else
+                    base  = obj.ImageRedBase;
+                    stim  = obj.ImageRedStim;
+                    tmp	  = [base(:); stim(:)];
+                    
+                    quant = [.01 .99];
+                    tmp   = sort(tmp(:));
+                    tmp   = tmp(round(length(tmp)*quant));
+                    
+                    base(base<tmp(1)) = tmp(1);
+                    base(base>tmp(2)) = tmp(2);
+                    stim(stim<tmp(1)) = tmp(1);
+                    stim(stim>tmp(2)) = tmp(2);
+                    
+                    base = round((base-tmp(1)) ./ diff(tmp) * (2^bit-1) + 1);
+                    stim = round((stim-tmp(1)) ./ diff(tmp) * (2^bit-1) + 1);
+                end                
+                
+                if regexpi(modus,'base')
+                    im = base;
+                elseif regexpi(modus,'stim')
+                    im = stim;
+                end
             end
-            
+
+            obj.processSubStack
             obj.h.image.red.CData = ind2rgb(im,cmap);
+            obj.update_plots;
         end
-
-        function redStart(obj,~,~)
-
-            fignam = obj.h.fig.main.Name;
-            nruns  = 10;
-            oversampl = obj.Oversampling;
-            
-            obj.clearData
-            obj.TimeStamp = now;
-            obj.preallocateStack
-
-            % camera warm-up
-            n_warm 	 = 5;                       % number of warm-up frames
-            f_warm 	 = 5;                       % warm-up framerate [Hz]
-            tmp      = round(obj.RateDAQ/f_warm);
-            ttl_warm = false(tmp*(n_warm-1)+diff(find(obj.DAQvec.cam,2)),1);
-            ttl_warm(1:tmp:n_warm*tmp) = true;
-
-            daq_vec  = full([ ...
-                [ttl_warm(:); obj.DAQvec.cam(:)] ...
-                [zeros(size(ttl_warm(:))); obj.DAQvec.stim(:)]]);
-            
-            % configure camera triggers
-            tmp = imaqhwinfo(obj.VideoInputRed);
-            switch tmp.AdaptorName
-                case 'qimaging'
-                    triggerconfig(obj.VideoInputRed,...
-                        'hardware','risingEdge','TTL')
-                case 'hamamatsu'
-                    triggerconfig(obj.VideoInputRed,...
-                        'hardware','RisingEdge','EdgeTrigger')
-            end
-            obj.VideoInputRed.FramesPerTrigger = 1;
-            obj.VideoInputRed.TriggerRepeat    = nnz(daq_vec(:,1))-2;
-            obj.VideoInputRed.FramesAcquiredFcn = @count_frames;
-            obj.VideoInputRed.FramesAcquiredFcnCount = 1;
-            
-            % configure DAQ session
-            device  = daq.getDevices;
-            obj.DAQ = daq.createSession('ni');
-            
-            if strcmp(device.Model,'USB-6001')
-                obj.DAQ.addAnalogOutputChannel(device.ID,1,'Voltage');
-                daq_vec(:,1) = daq_vec(:,1) * 5;
-            else
-                obj.DAQ.addDigitalChannel(device.ID,'Port0/line0','OutputOnly');
-            end
-            obj.DAQ.addAnalogOutputChannel(device.ID,0,'Voltage');
-            obj.DAQ.Channels(1).Name = 'Camera clock';
-            obj.DAQ.Channels(2).Name = 'Stimulus';
-            obj.DAQ.Rate = obj.RateDAQ;
-
-            tmp    = obj.Settings.Stimulus;
-            dpause = round(tmp.inter-tmp.pre-tmp.post);
-
-            obj.Flags.Running = true;
-            for ii = 1:nruns
-                
-                % Enable LED
-                obj.led(true)
-                
-                % arm the camera
-                start(obj.VideoInputRed)
-                
-                % start stimulus & camera trigger (with safety margins)
-                pause(1)
-                queueOutputData(obj.DAQ,daq_vec)
-                obj.DAQ.startForeground;
-                pause(1)
-                
-                % check for interruption
-                if ~isrunning(obj.VideoInputRed) && ...
-                        obj.VideoInputRed.FramesAvailable ~= ...
-                        obj.VideoInputRed.TriggerRepeat+1
-                    obj.h.fig.main.Name = fignam;
-                    break
-                end
-
-                % get data from camera, disarm camera
-                data = getdata(obj.VideoInputRed,nnz(daq_vec(:,1))-1,'uint16');
-                stop(obj.VideoInputRed)
-                
-                % Disable LED
-                obj.led(false)
-                
-                % reshape/save data into obj.Stack, process stack
-                data = squeeze(data(:,:,1,n_warm:end));
-                if oversampl>1
-                    data = reshape(data,[size(data,1) size(data,2) oversampl size(data,3)/oversampl]);
-                end
-                obj.Stack(:,:,:,ii) = uint16(squeeze(mean(data,3)));
-                obj.processStack
-
-                % format figure title
-                for pp = 1:dpause
-                    if ~obj.Flags.Running
-                        obj.h.fig.main.Name = fignam;
-                        return
-                    else
-                        tmp = sprintf(' - Waiting (%ds)',dpause-pp);
-                        obj.h.fig.main.Name = [fignam tmp];
-                        pause(1)
-                    end
-                end
-            end
-            obj.Flags.Running   = false;
-            obj.h.fig.main.Name = fignam;
-
-            release(obj.DAQ)
-
-            function count_frames(~,~,~)
-                asd = sprintf(...
-                    ' - Acquiring Data (run %d/%d: %d%%)',...
-                    [ii nruns floor(100*obj.VideoInputRed.FramesAvailable/ ...
-                    (obj.VideoInputRed.TriggerRepeat+1))]);
-                obj.h.fig.main.Name = [fignam asd];
-            end
-
-        end
-
-
 
         function redStop(obj,~,~)
             obj.Flags.Running = false;
             stop(obj.VideoInputRed)
-            obj.DAQ.stop
-        end
-
-
-
-        % Shared code for creation of Red/Green Figure
-        function createGeneric(obj,name,margin,bottom)
-
-            imsize  = obj.ROISize*obj.Scale;        % image size [px]
-            psize   = imsize+4;                     % panel size [px]
-            if bottom > 0                           % figure size [px]
-                fsize   = psize+[2 3]*margin+[0 bottom];
-                ppos    = [margin+1 2*margin+bottom psize];
-            else
-                fsize   = psize+2*margin;
-                ppos    = [margin+1 margin psize];
-            end
-
-            obj.h.fig.(lower(name)) = figure( ...
-                'Visible',          'off', ...
-                'Toolbar',          'none', ...
-                'Menu',             'none', ...
-                'NumberTitle',      'off', ...
-                'Resize',           'off', ...
-                'DockControls',     'off', ...
-                'Position',         [5 5 fsize], ...
-                'Tag',              name, ...
-                'Name',             [name ' Image'], ...
-                'CloseRequestFcn',  {@(obj,~) set(obj,'visible','off')});
-            obj.h.panel.(lower(name)) = uipanel(obj.h.fig.(lower(name)), ...
-                'Units',            'Pixels', ...
-                'BorderType',       'beveledin', ...
-                'Position',         ppos, ...
-                'Tag',              name, ...
-                'BackgroundColor',  'black');
-            obj.h.axes.(lower(name)) = axes(...
-                'Parent',           obj.h.panel.(lower(name)), ...
-                'Position',         [0 0 1 1], ...
-                'Tag',              name, ...
-                'DataAspectRatio',  [1 1 1], ...
-                'CLimMode',         'manual', ...
-                'Clim',             [0 obj.Bits-1]);
-
-            if strcmpi(name,'green')
-                tmp = obj.ROISize * obj.Binning;
-            else
-                tmp = obj.ROISize;
-            end
-            obj.h.image.(lower(name)) = imshow(zeros(fliplr(tmp)),...
-                'DisplayRange',     [0 obj.Bits-1], ...
-                'Parent',           obj.h.axes.(lower(name)));
+            obj.DAQsession.stop
+            obj.led(false)
         end
 
         % Load variable from file, return defaults if var/file not found
@@ -520,11 +410,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         end
 
         function out = get.nTrials(obj)
-            if ndims(obj.Stack)>3
-                out = sum(squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16'));
-            else
-                out = 0;
-            end
+            out = length(obj.Stack);
         end
 
         % Return data directory
@@ -625,7 +511,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Update the plots
         function update_plots(obj)
 
-            if ~any(obj.Stack(:)) || any(isnan(obj.Point))
+            if isempty(obj.Stack) || any(isnan(obj.Point))
                 obj.h.plot.temporal.XData = NaN;
                 obj.h.plot.temporal.YData = NaN;
                 obj.h.plot.temporalROI.XData = NaN;
@@ -633,90 +519,133 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 cla(obj.h.axes.spatial)
                 return
             end
-
-            % plot temporal response
-            y = squeeze(obj.Sequence(obj.Point(2),obj.Point(1),:));
-            x = obj.Time';
+            
+            % update X and Y values of temporal plot
+            x = obj.ResponseTemporal.x;
+            y = obj.ResponseTemporal.y;
             obj.h.plot.temporalROI.XData = x(obj.IdxStimROI);
             obj.h.plot.temporalROI.YData = y(obj.IdxStimROI);
-            obj.h.plot.temporal.XData = x;
-            obj.h.plot.temporal.YData = y;
-            %y = y(2:end);
-            xlim(obj.h.axes.temporal,x([1 end]))
-            ylim(obj.h.axes.temporal,[min(y)-(max(y)-min(y))*.15 max(y)])
+            obj.h.plot.temporal.XData    = x;
+            obj.h.plot.temporal.YData    = y;
+            
+            % plot indicators for oversampling
+        	obj.h.plot.temporalOVS.XData = x;
+            obj.h.plot.temporalOVS.YData = y;
+            if obj.Oversampling > 1
+                tmp = 1/obj.RateCam*(obj.Oversampling-1)/2;
+                tmp = repmat(tmp,size(x));
+            else
+                tmp = [];
+            end
+            obj.h.plot.temporalOVS.XNegativeDelta = tmp;
+            obj.h.plot.temporalOVS.XPositiveDelta = tmp;
+            
+            % set Y limits
+            tmp = (max(y)-min(y))*.1;
+            tmp = [min(y)-tmp max(y)+tmp];
+            if ~diff(tmp), tmp = [-1 1]; end
+            ylim(obj.h.axes.temporal,tmp)
+            
+            % set Y labels
+            if regexp(obj.redMode,'dF/F')
+                lbl = '\DeltaF/F';
+            else
+                lbl = '\DeltaF';
+            end
+            ylabel(obj.h.axes.temporal,lbl)
+            ylabel(obj.h.axes.spatial,lbl)
+            
             if ~any(obj.Line.x)
                 obj.h.plot.spatial.XData = NaN;
                 obj.h.plot.spatial.YData = NaN;
                 return
             end
 
-            % spatial response ...
-            tmp = obj.IdxStimROI;
-            [xi,yi,y] = improfile(...
-                mean(obj.Sequence(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
-
-            n = obj.nTrials * length(obj.Time>0);
-            [~,~,var] = improfile(...
-                mean(obj.SequenceVar(:,:,tmp),3),obj.Line.x,obj.Line.y,'bilinear');
-            sem = sqrt(var)./sqrt(n);
-
-            x = sqrt((xi-obj.Point(1)).^2+(yi-obj.Point(2)).^2);
-            tmp = 1:floor(length(x)/2);
-            x(tmp) = -x(tmp);
+            %% spatial response ...
+            if regexp(obj.redMode,'dF/F')
+                tmp = obj.ImageRedDFF;
+            else
+                tmp = obj.ImageRedDiff;
+            end
+            [xi,yi,y]   = improfile(tmp,obj.Line.x,obj.Line.y,'bilinear');
+            x           = sqrt((xi-obj.Point(1)).^2+(yi-obj.Point(2)).^2);
+            tmp         = 1:floor(length(x)/2);
+            x(tmp)      = -x(tmp);
             cla(obj.h.axes.spatial)
             hold(obj.h.axes.spatial,'on')
 
             % ... plot
-            tmp = ~isnan(y);
-            fill([x(tmp); flipud(x(tmp))],...
-                [y(tmp)+sem(tmp); flipud(y(tmp)-sem(tmp))],ones(1,3)*.9,...
-                'parent',obj.h.axes.spatial,'linestyle','none')
-
-%             % ... fit ...
-%             p0  = [y(x==0) 0 x(end)/2];
-%             tmp	= optimset('display','off');
-%             fit = fminsearch(@fitfun,p0,tmp);
-%             tmp = linspace(min(x),max(x),1000);
-%             plot(obj.h.axes.spatial,tmp,gauss(tmp,fit), ...
-%                 'color',        ones(1,3)*0.5, ...
-%                 'linewidth',    6);
-            plot(obj.h.axes.spatial,x,y,'k','linewidth',2)
-            plot(obj.h.axes.spatial,x,zeros(size(x)),':k')
+            plot(obj.h.axes.spatial,x,y,'k','linewidth',1)
+            plot(obj.h.axes.spatial,x,zeros(size(x)),'k')
             xlim(obj.h.axes.spatial,x([1 end]))
-
-%             function [sse, fit] = fitfun(params)
-%                 fit	= gauss(x,params);
-%                 sse = sum((fit-y) .^ 2);
-%             end
-
-%             function y = gauss(x,p)
-%                 y = p(1) * exp(-(x-p(2)).^2/(2*p(3)^2));
-%             end
         end
+        
+        
+        function update_redImage(obj,~,~)
+            sigma = struct;
+            for id = {'Spatial','Temporal'}
+                hedit   = obj.h.edit.(['redSigma' id{:}]);
+                value	= str2double(hedit.String);
+                if isempty(value) || value<=0
+                    value        = 0;
+                    hedit.String = value;
+                end
+                sigma.(id{:}) = value;
+            end
+            
+            obj.ImageRedDiff     = mean(obj.SequenceRaw(:,:,obj.IdxStimROI),3);
+            obj.ImageRedDFF 	 = obj.ImageRedDiff ./ obj.ImageRedBase;
+            if sigma.Spatial>0
+                obj.ImageRedDiff = imgaussfilt(obj.ImageRedDiff,sigma.Spatial);
+                obj.ImageRedDFF  = imgaussfilt(obj.ImageRedDFF,sigma.Spatial);
+            end
+            obj.processSubStack
+        end
+        
 
+        function update_stimDisp(obj)
+            if ~isempty(obj.StimIn)
+                tmp = mean(obj.StimIn(:,any(obj.StimIn,1)),2);
+                tmp = detrend(tmp-min(tmp));
+                if max(tmp)-min(tmp) > .5
+                    y = mean(obj.StimIn(:,any(obj.StimIn,1)),2);
+                end
+            end
+            if ~exist('y','var')
+                y = obj.DAQvec.stim;
+            end
+            tmp = obj.h.plot.grid.XData([1 end-2]);
+            idx = obj.DAQvec.time>=tmp(1) & obj.DAQvec.time<=tmp(2);
+            obj.h.plot.stimulus.XData = obj.DAQvec.time(idx);
+            obj.h.plot.stimulus.YData = y(idx);
+
+            range = round([min(y) max(y)]*10)/10;
+            obj.h.axes.stimulus.YLim  = [range(1) range(2)];
+            obj.h.axes.stimulus.YTick = range;
+        end
+        
         % Generate Test Data
         function test_data(obj,~,~)
 
             obj.clearData
-            obj.preallocateStack
 
             imSize      = fliplr(obj.ROISize);
             if isempty(imSize)
                 imSize = [200 200];
             end
-            val_mean    = 2^11;
+            val_mean    = 2^(obj.VideoBits-1);
             n_frames    = length(obj.Time);
-            n_trials    = 10;
+            n_trials    = 2;
             amp_noise   = 50;
 
-            sigma   = 20;
+            sigma   = 150;
             s       = sigma / imSize(1);
             X0      = ((1:imSize(2))/ imSize(1))-.5;
             Y0      = ((1:imSize(1))/ imSize(1))-.5;
             [Xm,Ym] = meshgrid(X0, Y0);
             gauss   = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
 
-            sigma   = 40;
+            sigma   = 300;
             s       = sigma / imSize(1)*2;
             X0      = ((1:imSize(1)*2)/ imSize(1)*2)-.5;
             Y0      = ((1:imSize(2)*2)/ imSize(2)*2)-.5;
@@ -747,116 +676,131 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             data_stim = repmat(data_stim,1,1,1,n_trials);
             data_stim = uint16(data_stim + noise_stim);
             clear noise_stim
-
-            tmp = size(data_stim)+[0 0 0 1];
-            %obj.StackBase   = ones(tmp,'uint16')*intmax('uint16');
-            obj.Stack   = ones(tmp,'uint16')*intmax('uint16');
-
-            %obj.StackBase(:,:,:,1:size(data_nostim,4))  = data_nostim;
-            obj.Stack(:,:,:,1:size(data_stim,4))    = data_stim;
+            
+            for ii = 1:size(data_stim,4)
+                obj.Stack{ii} = data_stim(:,:,:,ii);
+            end
 
             obj.processStack
             obj.TimeStamp = now;
-            
-        end
-
-        % Preallocation of image stack
-        function preallocateStack(obj)
-            % Define stack dimensions (Width * Height * nFrames * nTrials)
-            dims = [fliplr(obj.ROISize) nnz(obj.DAQvec.cam)/obj.Oversampling 10];
-
-            % Use intmax('uint16') for preallocation
-            % (NaN is not available with the uint16 class)
-            %obj.StackBase = ones(dims,'uint16')*intmax('uint16');
-            obj.Stack = ones(dims,'uint16')*intmax('uint16');
         end
 
         % Process image stack (averaging, spatial filtering)
         function processStack(obj)
+            % create red GUI if necessary
             if ~isfield(obj.h.fig,'red')
-                obj.redGUI
-            end
-            sigmaSpatial   = str2double(obj.h.edit.redSigmaSpatial.String);
-            sigmaTemporal  = str2double(obj.h.edit.redSigmaTemporal.String);
-            ptile          = obj.h.axes.red.UserData;
-
-            isdata  = squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16');
-            idxbase	= obj.Time<0;
-            idxstim = obj.IdxStimROI;
-
-            % averaging baseline across, both, time and trials
-            base	= mean(reshape(obj.Stack(:,:,idxbase,isdata), ...
-                size(obj.Stack,1), size(obj.Stack,2), []),3);
-            varbase	= var(double(reshape(obj.Stack(:,:,idxbase,isdata), ...
-                size(obj.Stack,1), size(obj.Stack,2), [])),[],3);
-
-            % average response
-            obj.Sequence = ...
-                mean(bsxfun(@minus,double(obj.Stack(:,:,:,isdata)), ...
-                base),4);
-
-            % variance of average response
-            tmp = var(double(obj.Stack(:,:,:,isdata)),[],4);
-            obj.SequenceVar = bsxfun(@plus,tmp,varbase);
-
-
-            stim    = mean(reshape(obj.Stack(:,:,idxstim,isdata), ...
-                size(obj.Stack,1), size(obj.Stack,2), []),3);
-
-
-%             keyboard
-%             tmp = squeeze(mean(obj.Stack(:,:,:,isdata),3));
-%             a   = quantile(tmp,[0.25 0.5 0.75],3,'R-5');
-%             iqr = a(:,:,3)-a(:,:,1);
-
-
-            % spatial filtering
-            if sigmaSpatial > 0;
-                obj.Sequence    = imgaussfilt(obj.Sequence,sigmaSpatial);
-                obj.SequenceVar = imgaussfilt(obj.SequenceVar,sigmaSpatial);
+                obj.GUIred
             end
 
-            % temporal filtering
-            if sigmaTemporal > 0;
-                sigma = sigmaTemporal * obj.RateCam / obj.Oversampling / 1000;
-                sz    = floor(size(obj.Sequence,3)/3);
-                x     = (0:sz-1)-floor(sz/2);
-                gf    = exp(-x.^2/(2*sigma^2));         % gaussian
-                gf    = gf/sum (gf);                	% normalize to 1
-                obj.Sequence    = FiltFiltM(gf,1,obj.Sequence,3);
-                obj.SequenceVar = FiltFiltM(gf,1,obj.SequenceVar,3);
+            % reduce size of stack to recorded data
+            if obj.nTrials > 1
+                stack = mean(cat(4,obj.Stack{:}),4);
+            else
+                stack = double(obj.Stack{1});
             end
 
-            % average across time
-            obj.ImageRedDiff = mean(obj.Sequence(:,:,idxstim,:),3);
+            % obtain baseline & stimulus
+            base = mean(stack(:,:,obj.Time<0),3);
+            stim = mean(stack(:,:,obj.IdxStimROI),3);
+
+            % obtain the average response (time res., baseline substracted)
+            obj.SequenceRaw  = stack - base;
             obj.ImageRedBase = base;
-            obj.ImageRedStim = mean(stim,3);
-            %obj.ImageRedDiff = min(obj.Sequence(:,:,idxstim,:),[],3);
-            %obj.ImageRedDiff = obj.ImageRedDiff.*(obj.ImageRedDiff<=0);
+            obj.ImageRedStim = stim;
+            
+            % apply temporal/spatial smoothing
+            obj.update_redImage
+            obj.processSubStack
+            obj.update_stimDisp
+            obj.redView(obj.h.popup.redView);
+            figure(obj.h.fig.red)
+        end
+        
+        function processSubStack(obj,~,~)
+            % This function extracts a sub-volume from obj.StackAverage
+            % which is centered on the currently selected XY-position.
+            % Instead of processing the whole image stack, temporal and
+            % spatial filtering will be applied to the sub-volume only.
+            % Doing so significantly reduces processing time.
+            
+            %% we can take a shortcut if no XY-position is selected
+            if any(isnan(obj.Point))
+                obj.ResponseTemporal.x = [];
+                obj.ResponseTemporal.y = [];
+                return
+            end
+            
+            %% get sigma values from text fields
+            sigma = struct;                           	% preallocate
+            for id = {'Spatial','Temporal'}
+                hUI = obj.h.edit.(['redSigma' id{:}]);  % UI handle
+                sigma.(id{:}) = str2double(hUI.String); % set sigma value
+            end
+            
+            %% obtain sub-volume & center coordinates
+            % Perhaps a bit cumbersome, this section ensures correct
+            % sub-volumes even for XY-positions close to the border.
 
-            % process movie
-            cmap = flipud(brewermap(2^8,'PuOr'));
-            tmp  = sort(abs(obj.Sequence(:)));
-            scal = max([1 tmp(ceil(length(tmp)*ptile))]);
-          	tmp  = obj.Sequence ./ scal;
-            tmp  = ceil(tmp .* 2^7 + 2^7);
+            tmp     = ceil(2*sigma.Spatial);
+            c1      = obj.Point(2)+(-tmp:tmp); 	% row indices of sub-volume
+            c2      = obj.Point(1)+(-tmp:tmp); 	% col indices of sub-volume
+
+            sz      = size(obj.SequenceRaw);
+            b1      = ismember(c1,1:sz(1));  	% bool: valid row indices
+            b2      = ismember(c2,1:sz(2));   	% bool: valid col indices
+            
+            mask    = false(2*tmp+1,2*tmp+1);   % preallocate logical mask
+            mask(tmp+1,tmp+1) = true;           % logical: X/Y center
+            mask    = mask(b1,b2);              % trim mask to valid values
+            [c3,c4] = find(mask);               % indices of X/Y center
+            
+            c1      = c1(b1);                 	% keep valid row indices
+            c2      = c2(b2);                 	% keep valid col indices
+            
+            subVol  = obj.SequenceRaw(c1,c2,:);
+            if regexp(obj.redMode,'dF/F')
+                subVol = subVol ./ obj.ImageRedBase(c1,c2,:);
+            end
+            
+            %% spatial filtering
+            % 2D Gaussian filtering of the sub-volume's 1st two dimensions
+            if sigma.Spatial > 0
+                subVol = imgaussfilt(subVol,sigma.Spatial);
+            end
+            
+            %% temporal filtering
+            % Gaussian filtering along the sub-volume's 3rd dimension
+            if sigma.Temporal > 0
+                s       = sigma.Temporal*obj.RateCam/obj.Oversampling/1000;
+                sz      = floor(size(subVol,3)/3);
+                x       = (0:sz-1)-floor(sz/2);
+                gf      = exp(-x.^2/(2*s^2));      	% the Gaussian kernel
+                gf      = gf/sum(gf);              	% normalize Gaussian
+                subVol	= FiltFiltM(gf,1,subVol,3);
+            end
+            
+            %% define X and Y values for temporal plot
+            obj.ResponseTemporal.x = obj.Time';
+            obj.ResponseTemporal.y = squeeze(subVol(c3,c4,:));
+        end
+        
+        function processMovie(obj)
+            ptile = obj.h.axes.red.UserData;
+            cmap  = flipud(brewermap(2^8,'PuOr'));
+            tmp   = sort(abs(obj.SequenceFilt(:)));
+            scal  = max([1 tmp(ceil(length(tmp)*ptile))]);
+          	tmp   = obj.SequenceFilt ./ scal;
+            tmp   = ceil(tmp .* 2^7 + 2^7);
             tmp(tmp<1)	 = 1;
             tmp(tmp>2^8) = 2^8;
             tmp  = imresize(tmp,obj.Scale,'nearest');
-            mov(size(obj.Sequence,3)) = struct('cdata',[],'colormap',[]);
-            for ii = 1:size(obj.Sequence,3)
+            mov(size(obj.SequenceFilt,3)) = struct('cdata',[],'colormap',[]);
+            for ii = 1:size(obj.SequenceFilt,3)
                 mov(ii) = im2frame(tmp(:,:,ii),cmap);
             end
             obj.Movie = mov;
-
-            % scale and display as image
-            obj.redView(obj.h.popup.redView);
-            obj.update_plots
-
-            % Focus the red window
-            figure(obj.h.fig.red)
         end
-
+        
         % Load icon for toolbar
         function img = icon(obj,filename)
             validateattributes(filename,{'char'},{'vector'})
@@ -936,76 +880,123 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 out = [];
             end
         end
-
-        function fileOpen(obj,~,~)
-            obj.clearData
-            keyboard
-%             %% temp
-%             tmp = ['intrinsic_' datestr(now,'yymmdd_HHMM') '.mat'];
-%             [fn,pn,~] = uiputfile({'intrinsic_*.mat','Intrinsic Data'},'Save File ...',tmp);
-%             if fn==0
-%                 return
-%             end
-%             fid = matfile(fullfile(pn,fn),'Writable',true);
-%
-%             isdata = squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16');
-%             fid.Stack  = obj.Stack(:,:,:,isdata);
-%             fid.ImageGreen = obj.ImageGreen;
-%             %%
-% % %
-%             [fn,pn,~] = uigetfile({'intrinsic_*.mat','Intrinsic Data'},'Load File ...');
-%             if fn==0
-%                 return
-%             end
-%             fn = fullfile(pn,fn);
-%             obj.clearData
-%
-%             obj.Stack  = load(fn,'Stack');
-%
-%             obj.ImageGreen = load(fn,'ImageGreen');
-%             obj.greenGUI
-%             obj.h.image.green.CData = obj.ImageGreen;
-            %keyboard
-%             tmp = matfile(fullfile(pn,fn));
+        
+        function out = get.redMode(obj)
+            tmp = obj.h.popup.redView;
+            out = tmp.String{tmp.Value};
         end
 
+        function fileOpen(obj,~,~)
 
+            % Let the user pick a directory to load data from
+            dn_data = uigetdir(obj.DirSave,'Select folder');
+            fn_data = fullfile(dn_data,'data.mat');
+            if isempty(dn_data)
+                return
+            elseif ~exist(fn_data,'file') || isempty(dir(fullfile(dn_data,'stack*.tiff')))
+                errordlg('This doesn''t seem to be a valid data directory!',...
+                    'Hold on!','modal')
+                return
+            else
+                obj.clearData
+                if isfield(obj.h.fig,'green')
+                    delete(obj.h.fig.green)
+                    obj.h.fig = rmfield(obj.h.fig,'green');
+                end
+                obj.DirLoad = dn_data;
+            end
+           
+            % Load the image stack
+            for ii = 1:100
+                % define name of TIFF and check if it exists
+                fn = sprintf('stack%03d.tiff',ii);
+                if ~exist(fullfile(obj.DirLoad,fn),'file')
+                    break
+                end
+                
+                % load TIFF to stack
+                obj.message(sprintf('Loading "%s" ... ',fn))
+                fprintf('Loading "%s" ... ',fn)
+                obj.Stack{ii} = loadtiff(fullfile(obj.DirLoad,fn));
+            end
+            obj.message
+            
+            % Load green image
+            fn = fullfile(obj.DirLoad,'green.png');
+            if exist(fn,'file')
+                obj.GUIgreen
+                obj.ImageGreen          = imread(fn);
+            else
+                warning('Could not find green image')
+            end
+            
+            % Load all remaining vars
+            tmp = load(fn_data);
+            for field = fieldnames(tmp)'
+                if ~isempty(tmp.(field{:}))
+                    obj.(field{:}) = tmp.(field{:});
+                end
+            end
+            obj.DirLoad = dn_data;
+            figure(obj.h.fig.green)
+            obj.greenContrast
+            
+            % Process stack
+            obj.message('Processing ...')
+            obj.processStack
+            obj.updateEnabled
+            obj.message
+        end
 
-        function varargout = generateStimulus(obj,p,fs)
+        function varargout = generateStimulus(obj,varargin)
 
-            if ~exist('p','var')
-                if ~ismember(who(obj.Settings),'Stimulus');
+            % parse input arguments
+            ip  = inputParser;
+            addOptional(ip,'stimParams',struct,@(x) validateattributes(x,...
+                {'struct'},{'scalar'}));
+            addOptional(ip,'fs',obj.DAQrate,@(x) validateattributes(x,...
+                {'numeric'},{'scalar','positive','real'}));
+            parse(ip,varargin{:})
+            p   = ip.Results.stimParams;    % stimulus parameters
+            fs  = ip.Results.fs;            % sampling rate (Hz)
+            ovs	= round(obj.Oversampling);  % oversampling rate (integer)
+            
+            % Load stimulus parameters from disk, if they were not passed
+            % (they are only being passed, if the stimulus is generated for
+            % viewing purposes, i.e., within the stimulus settings window)
+            if isempty(fieldnames(p))
+                if ~ismember('Stimulus',who(obj.Settings))
                     obj.settingsStimulus
                 end
                 p = obj.Settings.Stimulus;
             end
-            if ~exist('fs','var')
-                fs = obj.RateDAQ;
-            end
             
-            oversampl    = obj.Oversampling;
-
-            sPerCam      = round(fs/obj.RateCam);
-            sPerView     = sPerCam * oversampl;
-            nPerViewPre  = ceil(p.pre*fs/sPerView);
-            nPerViewPost = ceil((p.d+p.post)*fs/sPerView);
-            nPerCam      = (nPerViewPre+nPerViewPost)*oversampl+oversampl-1;
+            % Generate times where we send out a ttl to the cam
+            rateOvs = obj.RateCam / ovs;
+            nPerNeg = ceil(rateOvs*p.pre)-.5;
+            nPerPos = ceil(rateOvs*(p.d+p.post))-.5;
+            t_ovs   = (-nPerNeg:nPerPos)/rateOvs;
             
-            ttl_cam = false(1,sPerCam*nPerCam+round(.01*fs));
-            ttl_cam(1:sPerCam:end) = true;
+            % Generate times where we send out a ttl to the cam
+            nPerNeg = nPerNeg*ovs + floor(ovs/2-.5) + (obj.WarmupN > 0);
+            nPerPos = nPerPos*ovs +  ceil(ovs/2-.5);
+            t_trig  = ((-nPerNeg:nPerPos) -(~mod(ovs,2)*.5)) / obj.RateCam;
             
-            if oversampl == 1
-                ttl_view = ttl_cam;
-            else
-                ttl_view = false(size(ttl_cam));
-                tmp      = find(ttl_cam);
-                ttl_view(tmp(floor(oversampl/2):oversampl:end)) = true;
+            % Prepend remaining sample numbers for warmup
+            % (the first warmup trigger has already been added above)
+            if obj.WarmupN > 1
+                t_warm  = t_trig(1) - (obj.WarmupN-1:-1:1)/obj.WarmupRate;
+                t_trig  = [t_warm t_trig];
             end
 
-            sPre = (nPerViewPre*oversampl+floor(oversampl/2))*sPerCam;
-            tax  = ((0:length(ttl_cam)-1)./fs) - sPre/fs;
-            
-            
+            % build ttl + time vectors (append + prepend 100ms of silence)
+            s_trig      = round(t_trig*fs);
+            tax         = (s_trig(1)-.1*fs):(s_trig(end)+.1*fs);
+            ttl_cam     = ismember(tax,s_trig);
+            tax         = tax/fs;
+            ttl_view    = ismember(tax,round(t_ovs*fs)/fs);
+
+            % generate stimulus
             switch p.type
                 case 'Sine'
                     d   = round(p.d*p.freq)/p.freq;     	% round periods
@@ -1027,7 +1018,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             tmp = tmp(1:find(tmp,1,'last')); 	% remove trailing zeros
             tmp = tmp * p.amp;                  % set amplitude
             out = zeros(size(tax));
-            out(sPre+1:sPre+length(tmp)) = tmp;
+            s0  = find(tax==0);
+            out(s0+1:s0+length(tmp)) = tmp;
             
             if nargout == 0
                 obj.DAQvec.stim = out;
@@ -1057,16 +1049,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 delete(obj.h.fig.red)
                 obj.h.fig = rmfield(obj.h.fig,'red');
             end
-%             if isfield(obj.h.fig,'green')
-%                 delete(obj.h.fig.green)
-%                 obj.h.fig = rmfield(obj.h.fig,'green');
-%             end
-            %obj.StackBase     = [];
-            obj.Stack         = [];
-            obj.Sequence      = [];
-           % obj.h.image.green = [];
-            obj.h.image.red   = [];
-            obj.ImageGreen    = [];
+            obj.Stack           = cell(1,0);
+            obj.SequenceRaw     = [];
+            obj.SequenceFilt    = [];
+            obj.h.image.red     = [];
+            obj.StimIn          = [];
+            obj.DirLoad         = [];
+            obj.update_stimDisp
+            obj.update_plots
         end
 
         function out = get.Toolbox(~)
@@ -1136,6 +1126,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
 
             % Update Images
+            obj.processSubStack
             obj.update_plots
         end
 
@@ -1151,6 +1142,16 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.update_plots
         end
 
+        function message(obj,in)
+            basename = 'Intrinsic Imaging';
+            if nargin < 2
+                obj.h.fig.main.Name = basename;
+                drawnow
+            else
+                obj.h.fig.main.Name = sprintf('%s - %s',basename,in);
+                drawnow
+            end
+        end
 
 
     end
