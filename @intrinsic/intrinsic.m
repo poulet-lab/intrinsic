@@ -1,7 +1,7 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     properties %(Access = private)
-        Version         = .6
+        Version         = 0.8
         Flags
         
         h               = [] 	% handles
@@ -53,6 +53,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         StimIn
         
         ResponseTemporal
+        
+        PxPerCm
     end
 
     properties (Dependent = true)
@@ -70,9 +72,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Class Constructor
         function obj = intrinsic(varargin)
 
-            % Clear command window & close all figures
+            % Clear command window, close all figures & say hi
             clc
             close all
+            fprintf('Intrinsic Imaging v%g\n\n',obj.Version)
             
             % Warn if necessary toolboxes are unavailable
             for tmp = struct2cell(obj.Toolbox)'
@@ -101,12 +104,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             % Reset IMAQ and DAQ devices
             disp('Disconnecting and deleting all IMAQ objects ...')
-            imaqreset
+            imaqreset, pause(1)
             disp('Resetting Data Acquisition Toolbox ...')
             daqreset
-            disp('Initializing IMAQ subsystem ...')
-            obj.settingsVideo 	% Set video device
+            fprintf('Initializing IMAQ subsystem ...\n\n')
             
+            % Set video device
+            obj.settingsVideo 
+                        
             % Set Variables related to VideoAdapter
             obj.VideoAdaptorName = ...
                 imaqhwinfo(obj.VideoInputGreen,'AdaptorName');
@@ -118,20 +123,20 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 otherwise
                     error('Unknown Video Adapter')
             end
-            
-            % Reset LED
-            disp('Resetting LED illumination ...')
-            warning('off','daq:Session:onDemandOnlyChannelsAdded')
-            obj.led(false)
-            obj.led(true)
-            obj.led(false)
+                        
+%             % Reset LED
+%             disp('Resetting LED illumination ...')
+%             warning('off','daq:Session:onDemandOnlyChannelsAdded')
+%             obj.led(false)
+%             obj.led(true)
+%             obj.led(false)
             
             % Generate Stimulus
             disp('Generating stimulus ...')
             obj.generateStimulus
 
             % Fire up GUI
-            disp('Ready to go!')
+            fprintf('\nReady to go!\n')
             obj.GUImain             % Create main window
             obj.updateEnabled       % Update availability of UI elements
         end
@@ -139,155 +144,78 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     % Methods defined in separate files:
     methods (Access = private)
-        GUImain(obj)                            % Create MAIN GUI
-        GUIpreview(obj,hbutton,~)               % Create PREVIEW GUI
-        GUIgreen(obj)                           % Create GREEN GUI
-        GUIred(obj)                             % Create RED GUI
-        settingsStimulus(obj,~,~)             	% Stimulus Settings
+        GUImain(obj)                    % Create MAIN GUI
+        GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
+        GUIgreen(obj)                	% Create GREEN GUI
+        GUIred(obj)                    	% Create RED GUI
+        settingsStimulus(obj,~,~)      	% Stimulus Settings
         settingsVideo(obj,~,~)
+        settingsMagnification(obj,~,~)
         fileSave(obj,~,~)
+        
+        greenCapture(obj,~,~)           % Capture reference ("GREEN IMAGE")
+        greenContrast(obj,~,~)          % Modify contrast of "GREEN IMAGE"
         redStart(obj,~,~)
+        updateEnabled(obj)
     end
 
     methods %(Access = private)
-        function updateEnabled(obj)
-
-            IAQ = obj.Toolbox.ImageAcquisition.available;
-            IP  = obj.Toolbox.ImageProcessing.available;
-            DAQ = obj.Toolbox.DataAcquisition.available;
-            VID = isa(obj.VideoInputRed,'videoinput');
-            tmp = {'off', 'on'};
-
-            % UI elements depending on Image Acquisition Toolbox
-            elem = obj.h.menu.settingsVideo;
-            cond = IAQ;
-            set(elem,'Enable',tmp{cond+1});
-
-            % UI elements depending on Image Acquisition Toolbox & valid
-            % video-input
-            elem = [...
-                obj.h.push.capture, ...
-                obj.h.push.liveGreen, ...
-                obj.h.push.liveRed];
-            cond = IAQ && VID;
-            set(elem,'Enable',tmp{cond+1});
-
-            % UI elements depending on all Toolboxes
-            elem = [obj.h.push.start obj.h.push.stop];
-            cond = IAQ && IP && DAQ && VID;
-            set(elem,'Enable',tmp{cond+1});
-
-        end
+        
 
         function led(~,state)
-            d = daq.getDevices;
-            s = daq.createSession('ni');
-            s.addDigitalChannel(d(1).ID,'Port0/line7','OutputOnly');
-            outputSingleScan(s,state)
-            release(s)
+            disp('LED!!')
+%             d = daq.getDevices;
+%             s = daq.createSession('ni');
+%             s.addDigitalChannel(d(1).ID,'Port0/line7','OutputOnly');
+%             outputSingleScan(s,state)
+%             release(s)
         end
         
+
+      
         
-        %% all things related to the GREEN image
-
-        function greenCapture(obj,~,~)          % Take a snapshot
-
-            % Create green window, if its not there already
-            if ~isfield(obj.h.fig,'green')
-                obj.GUIgreen
-            end
-
-            if isa(obj.VideoPreview,'video_preview')
-                % Get the current preview state
-                preview_state = obj.VideoPreview.Preview;
-                
-                % If  red preview is running, stop it temporarily
-                if strcmp(obj.VideoInputRed.preview,'on')
-                    obj.VideoPreview.Preview = false;
-                
-                % If neither preview is running, activate the LED
-                elseif ~obj.VideoPreview.Preview
-                    obj.led(true)
-                end
-            else
-                obj.led(true)
-            end
-
-            % Capture image
-            obj.ImageGreen = getsnapshot(obj.VideoInputGreen); % Capture
-            obj.ImageGreen = obj.ImageGreen(:,:,1);
-            
-            % Return to former preview state
-            if isa(obj.VideoPreview,'video_preview')
-                obj.VideoPreview.Preview = preview_state;
-                if ~preview_state
-                    obj.led(false)                          % Deactivate LED
-                end
-            else
-                obj.led(false)
-            end
-            
-            % Process image
-            obj.h.image.green.CData = obj.ImageGreen;       % Update display
-            obj.greenContrast()                             % Enhance Contrast
-            
-            % Focus the green window
-            figure(obj.h.fig.green)
-        end
-
-        function greenContrast(obj,~,~)    % Stretch the contrast
-            obj.Settings.greenContrast = obj.h.check.greenContrast.Value;
-            obj.Settings.greenLog      = obj.h.check.greenLog.Value;
-            
-            im = obj.ImageGreen(:,:,1);
-            if obj.Settings.greenLog
-                im = log(double(im));
-            end
-            obj.h.image.green.CData = im;
-            
-            if obj.Settings.greenContrast
-                quant = [.01 .99];
-                tmp   = sort(im(:));
-                tmp   = tmp(round(length(tmp)*quant));
-                if tmp(1) == tmp(2)
-                    tmp(2) = tmp(1) + 1;
-                end
-                set(obj.h.axes.green,'Clim',tmp);
-            else
-                if obj.Settings.greenLog
-                    set(obj.h.axes.green,'Clim',log([1 2^8]));
-                else
-                    set(obj.h.axes.green,'Clim',[0 2^8-1]);
-                end
-            end
-        end
+        
         
         %% all things related to the RED image stack
 
-        function redClick(obj,h,~)              % Define point and line
+        function redClick(obj,h,~)
             hfig    = h.Parent.Parent.Parent;
             coord   = round(h.Parent.CurrentPoint(1,1:2));
            	switch get(hfig,'SelectionType')
+                
+                % define point of interest
                 case 'normal'
                     obj.Point = coord;
+                    
+                % define spatial cross/section
                 case 'alt'
                     obj.Line  = coord;
+                    
+                % optimize contrast to region of interest
                 case 'extend'
-                    c1  = round(obj.h.axes.red.CurrentPoint(1,1:2));
-                    c1(c1<1) = 1;
-                    rbbox;
-                    c2  = round(obj.h.axes.red.CurrentPoint(1,1:2));
-                    c2(c2<1) = 1;
-                    c2  = min([c2; obj.ROISize]);
-                    tmp = sort([c1; c2]);
-                    tmp = [tmp(1,1:2) tmp(2,1:2)];
+                    % get coordinates of ROI
+                    c(1,:) = round(obj.h.axes.red.CurrentPoint(1,1:2));
+                    rbbox; pause(.1)
+                    c(2,:) = round(obj.h.axes.red.CurrentPoint(1,1:2));
+                    
+                    % sanitize & sort coordinates
+                    c(c<1) = 1;
+                    c(1,:) = min([c(1,:); obj.ROISize]);
+                    c(2,:) = min([c(2,:); obj.ROISize]);
+                    c      = [sort(c(:,1)) sort(c(:,2))];
+                    
+                    % select image data depending on view mode
                     if regexpi(obj.redMode,'dF/F')
                         im  = obj.ImageRedDFF;
                     else
                         im  = obj.ImageRedDiff;
                     end
-                    tmp = im(tmp(2):tmp(4),tmp(1):tmp(3));
+                    
+                    % find intensity maximum within ROI
+                    tmp = im(c(1,2):c(2,2),c(1,1):c(2,1));
                     tmp = max(abs(tmp(:)));
+                    
+                    % update figure
                     obj.h.axes.red.UserData = ...
                         sum(abs(im(:))<=tmp) / length(im(:));
                     redView(obj,obj.h.popup.redView)
@@ -299,25 +227,26 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         
         function redPlayback(obj,~,~)           % Play stack as movie
 
-            % disable UI controls
-            tmpobj = struct2cell(obj.h.fig);
-            tmpobj = findobj([tmpobj{:}],'Enable','on');
-            set(tmpobj,'Enable','off')
-
-            % create temporary axes for movie
-            tmpax = axes(...
-                'Parent',   obj.h.panel.red, ...
-                'Position', obj.h.axes.red.Position, ...
-                'Visible',  'off');
-
-            % play movie
-            obj.processMovie
-            
-            movie(tmpax,obj.Movie,1,obj.RateCam/obj.Oversampling,[2 2 0 0])
-
-            % delete temporary axes, enable UI controls
-            delete(tmpax)
-            set(tmpobj,'Enable','on')
+            %TODO: THIS IS BROKEN
+%             % disable UI controls
+%             tmpobj = struct2cell(obj.h.fig);
+%             tmpobj = findobj([tmpobj{:}],'Enable','on');
+%             set(tmpobj,'Enable','off')
+% 
+%             % create temporary axes for movie
+%             tmpax = axes(...
+%                 'Parent',   obj.h.panel.red, ...
+%                 'Position', obj.h.axes.red.Position, ...
+%                 'Visible',  'off');
+% 
+%             % play movie
+%             obj.processMovie
+%             
+%             movie(tmpax,obj.Movie,1,obj.RateCam/obj.Oversampling,[2 2 0 0])
+% 
+%             % delete temporary axes, enable UI controls
+%             delete(tmpax)
+%             set(tmpobj,'Enable','on')
 
         end
 
@@ -571,6 +500,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             x           = sqrt((xi-obj.Point(1)).^2+(yi-obj.Point(2)).^2);
             tmp         = 1:floor(length(x)/2);
             x(tmp)      = -x(tmp);
+            x           = x/obj.PxPerCm;
             cla(obj.h.axes.spatial)
             hold(obj.h.axes.spatial,'on')
 
@@ -1059,24 +989,27 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.update_plots
         end
 
+        %% check availability of needed toolboxes
         function out = get.Toolbox(~)
-            v       = ver;
-            check1  = { ...                      	  % necessary toolboxes
-                'Data Acquisition Toolbox', ...
-                'Image Acquisition Toolbox', ...
-                'Image Processing Toolbox'};
-            check2 = { ...
-                'data_acq_toolbox', ...
-                'image_acquisition_toolbox', ...
-                'Image_Toolbox'};
-            fns = matlab.lang.makeValidName(check1);  % generate fieldnames
+            
+            % define names/identifiers of toolboxes
+            str  = { ...
+                'Data Acquisition Toolbox', 'data_acq_toolbox';...
+                'Image Acquisition Toolbox','image_acquisition_toolbox';...
+                'Image Processing Toolbox', 'Image_Toolbox'};
+            
+            % check if toolboxes are available
+            v 	= ver;
+            installed = cellfun(@(x) any(strcmp({v.Name},x)),str(:,1));
+            licensed  = cellfun(@(x) license('test',x),str(:,2));
+
+            % generate fieldnames for output structure
+            fns = matlab.lang.makeValidName(str(:,1));
             fns = strrep(fns,'Toolbox','');
-
-            installed = cellfun(@(x) any(strcmp({v.Name},x)),check1);
-            licensed  = cellfun(@(x) license('test',x),check2);
-
+            
+            % create output structure
             for ii = 1:length(fns)
-                out.(fns{ii}).name      = check1{ii};
+                out.(fns{ii}).name      = str{ii,1};
                 out.(fns{ii}).installed = installed(ii);
                 out.(fns{ii}).licensed  = licensed(ii);
                 out.(fns{ii}).available = installed(ii) & licensed(ii);
@@ -1141,6 +1074,45 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
             obj.update_plots
         end
+        
+        function set.PxPerCm(obj,value)
+            
+             obj.PxPerCm = value;
+            
+            padding  = round(2 / obj.Scale);
+            margin   = round(15 / obj.Scale);
+            wBarPx   = round(5 / obj.Scale);
+            MinBarPx = round(100 / obj.Scale);
+            hBack    = round(18 / obj.Scale);
+            
+            SInames  = {'fm','pm','nm',[char(181) 'm'],'mm','cm','m','km'};
+            SIexp    = [-15 -12 -9 -6 -3 -2 0 3];
+            
+            pxPerUnit = value ./ power(10,-2-SIexp);
+            idxUnit   = find(pxPerUnit<=MinBarPx,1,'last');
+            strUnit   = SInames{idxUnit};
+            
+            % define length of bar (SI and px)
+            tmp       = reshape([1 2 5]'.*10.^(0:3),1,[]);
+            lBarSI    = tmp(find(pxPerUnit(idxUnit).*tmp<MinBarPx,1,'last'));
+            lBarPx    = lBarSI * pxPerUnit(idxUnit);
+                        
+            ha = obj.h.axes.green;
+            hs = obj.h.scalebar.green;
+            set(hs.bar, ...
+                'Position',     [ha.XLim(2)-lBarPx-margin ...
+                    ha.YLim(2)-wBarPx-margin lBarPx wBarPx]);
+            set(hs.background, ...
+                'Position',     hs.bar.Position+[-padding -hBack+padding 2*padding hBack]);
+            set(hs.label, ...
+                'Position',     [hs.bar.Position(1)+hs.bar.Position(3)/2 ...
+                    hs.bar.Position(2)-0 0], ...
+                'Interpreter',  'tex', ...
+                'String',       sprintf('%d %s',lBarSI,strUnit));
+            
+            obj.update_plots
+            
+        end
 
         function message(obj,in)
             basename = 'Intrinsic Imaging';
@@ -1152,8 +1124,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 drawnow
             end
         end
-
-
+    end
+    
+    methods (Access = 'protected')
+        function out = getPropertyGroups(obj)
+            out = matlab.mixin.util.PropertyGroup(struct);
+        end
+        function out = getHeader(obj)
+            out = sprintf('  %s\n',matlab.mixin.CustomDisplay.getClassNameForHeader(obj));
+        end
     end
 
 end

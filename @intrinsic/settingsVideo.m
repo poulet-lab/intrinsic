@@ -5,6 +5,57 @@ if ~obj.Toolbox.ImageAcquisition.available
     return
 end
 
+%% Check for camera ===========================================
+
+% get cell array of available image acquisition adaptors
+adaptors = imaqhwinfo;                                 % PROBLEMATIC!!
+adaptors = adaptors.InstalledAdaptors;
+suppAdap = {'qimaging','hamamatsu'};                   % supported adaptors
+adaptors = intersect(lower(adaptors),lower(suppAdap));
+
+% notify user of missing IMAQ adaptor
+if isempty(adaptors)
+    errorstr = ['You need to install an IMAQ adaptor to use INTRINSIC. '...
+        'Currently, the following IMAQ adaptors are supported: ' 
+        upper(sprintf('%s, ',suppAdap{1:end-1})) upper(sprintf('%s.',...
+        suppAdap{end})) ' Please check the MATLAB documentation for '...
+        'details on how to install the respective support packages.'];
+    errordlg(errorstr,'No IMAQ Adaptor found','modal')
+    error(errorstr)
+end
+
+% get devices for each adaptor
+devices  = struct([]);
+idx      = 0;
+for adaptor = adaptors
+    tmp1 = imaqhwinfo(adaptor{:});
+    for ii = [tmp1.DeviceIDs{:}]
+        idx  = idx + 1;
+        tmp2 = imaqhwinfo(adaptor{:},ii);
+        devices(idx).adaptor    = adaptor{:};
+        devices(idx).deviceID   = ii;
+        devices(idx).name       = tmp2.DeviceName;
+    end
+end
+
+% report choice of camera / possible issues
+switch numel(devices)
+    case 0
+        errorstr = ['Could not find a supported camera. ' ...
+            'Did you forget to switch it on?'];
+        errordlg(errorstr,'No camera found','modal')
+        error(errorstr)
+    case 1
+        fprintf('Using %s (adaptor: %s, ID: %d)\n',...
+            devices(1).name, upper(devices(1).adaptor),devices(1).deviceID)
+    otherwise
+        errorstr = ['More than 1 supported camera found. ' ...
+            'INTRINSIC is overwhelmed.'];
+        errordlg(errorstr,'So many cameras!','modal')
+        error(errorstr)
+end
+
+
 if isa(obj.VideoInputRed,'videoinput')
     % IF there is a valid videoinput present already, assume the user wants
     % to modify its settings
@@ -69,7 +120,7 @@ if isa(obj.VideoInputRed,'videoinput')
     
     switch imaqhwinfo(obj.VideoInputRed,'AdaptorName')
         case 'qimaging'
-            obj.Bits = 12;
+            obj.VideoBits = 12;
             set(obj.VideoInputRed.Source, ...
                 'NormalizedGain',   0.601, ...
                 'ColorWheel',       'red')
