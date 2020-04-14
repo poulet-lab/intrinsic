@@ -84,9 +84,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 end
             end
 
-            % Manage path
-            addpath(fullfile(obj.DirBase,'submodules','matlab-goodies'))
-            addpathr(fullfile(obj.DirBase,'submodules'))
+            % Add submodules to path
+            addpath(genpath(fullfile(obj.DirBase,'submodules')))
 
             % Settings are loaded from / saved to disk
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
