@@ -57,13 +57,11 @@ obj.Flags.Running = true;
 for ii = 1:nruns
 
     start(obj.VideoInputRed)                            % arm the camera
-    obj.led(true)                                       % enable LED
     pause(1)                                            % safety margin
     queueOutputData(obj.DAQsession,daq_vec)             % queue DAQ data
     obj.StimIn(:,ii) = obj.DAQsession.startForeground;  % start DAQ session
     pause(1)                                            % safety margin
     release(obj.DAQsession)                             % release DAQ session
-    obj.led(false)                                      % disable LED
     if ~isrunning(obj.VideoInputRed) && ...             % check for interruption
             obj.VideoInputRed.FramesAvailable ~= ...
             obj.VideoInputRed.TriggerRepeat+1
