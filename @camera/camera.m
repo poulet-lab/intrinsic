@@ -24,7 +24,7 @@ classdef camera < handle
 
     properties (Constant = true, Access = private)
         % is the Image Acquisition Toolbox both installed and licensed?
-        ttolbox = ~isempty(ver('IMAQ')) && ...
+        toolbox = ~isempty(ver('IMAQ')) && ...
             license('test','image_acquisition_toolbox');
         % matfile for storage of settings
         mat     = matfile([mfilename('fullpath') '.mat'],'Writable',true)
