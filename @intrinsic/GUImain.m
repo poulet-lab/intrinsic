@@ -111,6 +111,20 @@ obj.h.menu.debugTestdata = uimenu(obj.h.menu.debug, ...
     'Accelerator',      'T', ...
     'Callback',         {@obj.test_data});
 
+%% Menu Icons
+setIcon = @(h,fn) setMenuIcon(obj.h.menu.(h),fullfile(pwd,'icons',fn));
+setIcon('fileNew',                  'file_new.png')
+setIcon('fileOpen',                 'file_open.png')
+setIcon('fileSave',                 'file_save.png')
+setIcon('filePrint',                'file_print.png')
+setIcon('fileExit',                 'file_exit.png')
+setIcon('settingsVideo',            'settings_video.png')
+setIcon('settingsStimulus',         'settings_stimulus.png')
+setIcon('settingsMagnification',  	'settings_magnification.png')
+setIcon('winPos',                   'settings_windowpos.png')
+setIcon('debugKeyboard',            'debug_keyboard.png')
+setIcon('debugTestdata',            'debug_testdata.png')
+
 %% Axes
 obj.h.axes.stimulus = axes(...
     'parent',           obj.h.fig.main, ...
