@@ -115,7 +115,6 @@ classdef camera < handle
     
     
     methods
-        
         function obj = camera(varargin)
             % CAMERA  handle camera settings for INTRINSIC
                
@@ -162,86 +161,11 @@ classdef camera < handle
                 end
             end
         end
-        
-        function setup(obj)
-            % Open GUI to change camera settings.
-            
-            % some size parameters
-            p   = 7;                     	% padding
-            wF  = 254;                      % width of figure
-            hF  = 370;                    	% height of figure
-            wL  = round((wF-3*p)*.4);      	% width of label
-            wD  = round((wF-3*p)*.6);   	% width of drop
-            wE  = round((wD-p*2)/2);     	% width of mini edit
-            wB  = (wF-3*p)/2;             	% width of button
-            
-            % create figure and controls
-            obj.fig = figure(...
-                'Visible',      'off', ...
-            	'Position',     [100 100 wF hF], ...
-            	'Name',         'Camera Settings', ...
-                'Resize',       'off', ...
-                'ToolBar',      'none', ...
-                'WindowStyle',  'modal', ...
-                'NumberTitle',  'off', ...
-                'Units',        'pixels');
-            h.popAdapt = createDrop(1,@obj.cbAdapt,'Adaptor',[{'none'} obj.adaptors]);
-            h.popDev   = createDrop(2,@obj.cbDev,'Device',{''});
-            h.popMode  = createDrop(3,@obj.cbMode,'Mode',{''});
-            h.edtRes   = createEditXY(4,'','Resolution (px)');
-            h.edtBin   = createEditXY(5,@obj.cbROI,'Hardware Binning');
-            h.edtROI   = createEditXY(6,@obj.cbROI,'ROI (px)');
-            h.edtFPS   = createEdit(7,0,@obj.cbFPS,'Frame Rate (Hz)');
-            h.edtOVS   = createEdit(8,0,@obj.cbOVS,'Oversampling');
-            h.edtScale = createEdit(9,0,'','Scale');
-            h.edtBits  = createEdit(10,0,'','Bit Depth (bit)');
-            h.edtMbps  = createEdit(11,0,'','Bit Rate (Mbit/s)');
-            h.btnOk    = createButton(1,'OK',@obj.cbOk);
-            h.btnAbort = createButton(2,'Cancel',@obj.cbAbort);
-            setappdata(obj.fig,'handles',h);
-            
-            % disable some of the controls
-            set([h.edtRes h.edtBin h.edtBits h.edtMbps],'Enable','Off');
-                                    
-            % load values from file
-            h.popAdapt.Value = max([find(strcmp(h.popAdapt.String,...
-                loadvar(obj,'adaptor',''))) 1]);
-            
-            % run callback functions
-            obj.cbAdapt()
-            obj.cbDev()
-           
-            % initialize
-            movegui(obj.fig,'center')
-            obj.fig.Visible = 'on';
-            
-            % helper functions for creating UI controls
-            function h = createButton(row,string,cb)
-                h = uicontrol(obj.fig,'String',string,'Callback',cb,...
-                    'Position', round([p+(row-1)*(wB+p) p wB 23]));
-            end
-            function h = createLabel(row,string)
-                h = uicontrol(obj.fig,'Style','text','String',string, ...
-                    'Position', [p hF-row*(p+22) wL 18], ...
-                    'HorizontalAlignment', 'right');
-            end
-            function h = createDrop(row,cb,label,string)
-                createLabel(row,label);
-                h = uicontrol(obj.fig,'Style','popupmenu','String',string,...
-                    'Position',	[2*p+wL hF-row*(p+22) wD 23],'Callback',cb);
-            end
-            function h = createEdit(row,col,cb,label)
-                if exist('label','var'), createLabel(row,label); end
-                h = uicontrol(obj.fig,'Style','edit','Callback',cb,...
-                    'Position',[2*p+wL+col*(wE+2*p) hF-row*(p+22) wE 23]);
-            end
-            function h = createEditXY(row,cb,label)
-                h(1) = createEdit(row,0,cb,label);
-                h(2) = createEdit(row,1,cb);
-                uicontrol(obj.fig,'Style','text','String','x',...
-                    'Position',[2*p+wL+wE hF-row*(p+22) 2*p 18]);
-            end
-        end
+    end
+
+    % public methods (defined in separate files)
+    methods
+        setup(obj)
         
         function out = get.adaptors(~)
             % returns a cell of installed IMAQ adaptors
@@ -294,119 +218,22 @@ classdef camera < handle
         end
     end
     
+    % private methods (defined in separate files)
     methods (Access = private)
 
-        function toggleCtrls(obj,state)
-            % toggle controls
-            persistent wasOn
-            if isempty(ishandle(obj.fig))
-                return
-            end
-            h = getappdata(obj.fig,'handles');
-            c = structfun(@(x) x.findobj,h);
-            if strcmp(state,'off')
-                wasOn = strcmp({c.Enable},'on');
-            end
-            set(c(wasOn),'Enable',state);
-        end
-        
-        function obj = cbOk(obj,~,~)
-            obj.toggleCtrls('off')
-            
-            % get values
-            a   = getappdata(obj.fig,'adaptor');
-            id  = getappdata(obj.fig,'deviceID');
-            m   = getappdata(obj.fig,'mode');
-            res = getappdata(obj.fig,'resolution');
-            roi = getappdata(obj.fig,'roi');
-            roi = [floor((res-roi)/2) roi];
-
-            % create videoinput objects
-            if ~isequal({a,id,m,roi(3:4)},{obj.adaptor,obj.deviceID, ...
-                    obj.videoMode,obj.ROI}) && ~strcmp(a,'none')
-                obj.inputR = videoinput(a,id,m,'ROIPosition',roi);
-                obj.inputG = videoinput(a,id,m,'ROIPosition',roi);
-            end
-            
-            % save values to matfile
-            obj.mat.adaptor     = a;
-            obj.mat.deviceID    = id;
-            obj.mat.deviceName  = getappdata(obj.fig,'deviceName');
-            obj.mat.videoMode   = m;
-            obj.mat.ROI         = roi;
-            
-            close(obj.fig)
-        end
+        toggleCtrls(obj,state)
+        cbAdapt(obj,~,~)
+        cbOkay(obj,~,~)
         
         function cbAbort(obj,~,~)
             close(obj.fig)
         end
         
-        function cbAdapt(obj,~,~)
-            % Callback for adaptor UI control
-                        
-            % get currently selected value from UI control
-            h       = getappdata(obj.fig,'handles');
-            hCtrl   = h.popAdapt;
-            value   = hCtrl.String{hCtrl.Value};
-            
-            % compare with previously selected value (return if identical)
-            if isequal(hCtrl.UserData,value)
-                return
-            end
-            hCtrl.UserData = value;
-
-            % skip a bunch of callback if user selects no adaptor ('none')
-            if strcmpi(value,'none')
-                set([h.popDev h.popMode],...
-                    'Value',1,'String',{''},'Enable','off');
-                set([h.edtRes(1) h.edtRes(2) h.edtBin(1) h.edtBin(2) ...
-                    h.edtROI(1) h.edtROI(2) h.edtBits h.edtMbps],...
-                    'String','','Enable','off');
-                h.btnOk.Enable = 'on';
-                return
-            end
-            
-            % run imaqhwinfo (expensive), save results to appdata
-            [~,tmp] = evalc('imaqhwinfo(value)');
-            hw      = tmp.DeviceInfo;
-            setappdata(obj.fig,'deviceInfo',hw);
-            
-            % manage UI control for device selection
-            if isempty(hw)
-                % disable device selection
-                h.popDev.Enable	= 'off';
-                h.popDev.String = {''};
-                h.popDev.Value  = 1;
-            else
-                % enable device selection, fill device IDs and names
-                h.popDev.Enable	= 'on';
-                h.popDev.String = cellfun(@(x,y) ...
-                    {sprintf('Dev %d: %s',x,y)}, ...
-                    {hw.DeviceID},{hw.DeviceName});
-                
-                % select previously used device if adaptor matches
-                if strcmp(value,loadvar(obj,'adaptor',''))
-                    h.popDev.Value = max([find([hw.DeviceID]==...
-                        loadvar(obj,'deviceID',NaN)) 1]);
-                else
-                    h.popDev.Value = 1;
-                end
-            end
-            h.popDev.UserData = 'needs to be processed by obj.cbDev';
-            
-            % run dependent callbacks
-            if isCallback
-                obj.cbDev(h.popDev)
-                %obj.cbOVS(h.edtOVS)
-            end
-        end
-        
         function cbDev(obj,~,~)
             
             % get currently selected value from UI control
-            h       = getappdata(obj.fig,'handles');
-            hCtrl   = h.popDev;
+            h       = getappdata(obj.fig,'controls');
+            hCtrl   = h.device;
             value   = hCtrl.String{hCtrl.Value};
             
             % compare with previously selected value (return if identical)
@@ -418,12 +245,12 @@ classdef camera < handle
             % manage UI control for mode selection
             if isempty(hCtrl.UserData)
                 % disable mode selection
-                h.popMode.Enable = 'off';
-                h.popMode.String = {''};
-                h.popMode.Value  = 1;
+                h.mode.Enable = 'off';
+                h.mode.String = {''};
+                h.mode.Value  = 1;
             else
                 % enable mode selection
-                h.popMode.Enable = 'on';
+                h.mode.Enable = 'on';
                 
                 % get some variables
                 hw      = getappdata(obj.fig,'deviceInfo');
@@ -431,7 +258,7 @@ classdef camera < handle
                 devID   = hw.DeviceID;
                 devName = hw.DeviceName;
                 modes   = hw.SupportedFormats(:);
-                adapt   = h.popAdapt.UserData;
+                adapt   = h.adaptor.UserData;
                                 
                 % restrict modes to 16bit MONO (supported devices only)
                 if ~isempty(regexpi(devName,'^QICam'))
@@ -449,21 +276,21 @@ classdef camera < handle
                 
                 % fill modes, save to appdata for later use
                 setappdata(obj.fig,'modes',modes);
-                h.popMode.String = modes;
+                h.mode.String = modes;
                 
                 % select previously used mode if adaptor & device ID match
                 if strcmp(adapt,obj.adaptor) && devID==obj.deviceID
-                    h.popMode.Value = max([find(strcmp(modes,...
+                    h.mode.Value = max([find(strcmp(modes,...
                         obj.loadvar('videoMode',''))) 1]);
                 elseif ~isempty(devID)
-                    h.popMode.Value = find(strcmp(modes,hw.DefaultFormat));
+                    h.mode.Value = find(strcmp(modes,hw.DefaultFormat));
                 else
-                    h.popMode.Value = 1;
+                    h.mode.Value = 1;
                 end
             end
-            h.popMode.UserData = 'needs to be processed by obj.cbMode';
+            h.mode.UserData = 'needs to be processed by obj.cbMode';
             
-            %obj.cbMode(h.popMode)
+            %obj.cbMode(h.mode)
         end
         
         function cbMode(obj, hCtrl, ~)
@@ -477,12 +304,12 @@ classdef camera < handle
             id  = getappdata(obj.fig,'deviceID');
             
             % fill video resolution and ROI
-            h   = getappdata(obj.fig,'handles');
+            h   = getappdata(obj.fig,'controls');
             if isempty(m)
-                h.edtRes(1).String = '';
-                h.edtRes(2).String = '';
-                h.edtROI(1).String = '';
-                h.edtROI(2).String = '';
+                h.res(1).String = '';
+                h.res(2).String = '';
+                h.ROI(1).String = '';
+                h.ROI(2).String = '';
                 res = [NaN NaN];
             else
                 % Try to get the resolution of the selected mode via regex.
@@ -498,17 +325,17 @@ classdef camera < handle
                     delete(tmp)
                     obj.toggleCtrls('on')
                 end
-                h.edtRes(1).String = num2str(res(1));
-                h.edtRes(2).String = num2str(res(2));
-                h.edtROI(1).String = num2str(res(1));
-                h.edtROI(2).String = num2str(res(2));
+                h.res(1).String = num2str(res(1));
+                h.res(2).String = num2str(res(2));
+                h.ROI(1).String = num2str(res(1));
+                h.ROI(2).String = num2str(res(2));
             end
             setappdata(obj.fig,'resolution',res);
             obj.cbROI()
             
             % fill binning (only on supported cameras)
-            if ~isempty(m) && ismember(a,{'qimaging'})
-                if ismember(d,{'QICam B'})
+            if ~isempty(m)
+                if ismember(a,{'qimaging'}) && ismember(d,{'QICam B'})
                      tmp = getappdata(obj.fig,'modes');
                      tmp = regexpi(tmp,'^\w*_(\d)*x\d*$','tokens','once');
                      bin = max(cellfun(@str2double,[tmp{:}])) / res(1);
@@ -516,19 +343,19 @@ classdef camera < handle
             else
                 bin = [];
             end
-            set([h.edtBin(1) h.edtBin(2)],'String',bin);
+            set([h.binning(1) h.binning(2)],'String',bin);
             
             % toggle OK button
             tmp = {'on','off'};
             h.btnOk.Enable =  tmp{isempty(m)+1};
             
             % check framerate
-            obj.cbFPS(h.edtFPS)
+            obj.cbFPS(h.FPS)
         end
         
         function cbROI(obj, ~, ~)
-            h   = getappdata(obj.fig,'handles');
-            h   = findobj([h.edtROI(1) h.edtROI(2)])';
+            h   = getappdata(obj.fig,'controls');
+            h   = findobj([h.ROI(1) h.ROI(2)])';
             roi = round(str2double({h.String}));
             if isequal(getappdata(obj.fig,'roi'),roi)
                 return
@@ -588,7 +415,7 @@ classdef camera < handle
         function bitrate(obj)
             
             % try to obtain bitdepth from mode name
-            h   = getappdata(obj.fig,'handles');
+            h   = getappdata(obj.fig,'controls');
             m   = getappdata(obj.fig,'mode');
             if ~isempty(regexpi(m,'^MONO(\d+)_.*'))
                 bitdepth = str2double(...
@@ -596,11 +423,11 @@ classdef camera < handle
             elseif ~isempty(regexpi(m,'^YUY2_.*'))
                 bitdepth = 8;
             else
-                h.edtMbps.String = '';
+                h.bitRate.String = '';
                 return
             end
             
-            h.edtBits.String = bitdepth;
+            h.bitDepth.String = bitdepth;
             %bitdepth
             
             a   = getappdata(obj.fig,'adaptor');
@@ -611,7 +438,7 @@ classdef camera < handle
             fps = getappdata(obj.fig,'rate');
             ovs = getappdata(obj.fig,'oversampling');
 
-            h.edtMbps.String = sprintf('%0.1f',...
+            h.bitRate.String = sprintf('%0.1f',...
                 (bitdepth * prod(roi) * fps) / (ovs * 1E6));
         end
         
