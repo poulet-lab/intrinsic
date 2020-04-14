@@ -20,7 +20,7 @@ if obj.Settings.greenContrast               % OPTIMIZE CONTRAST
         clim(2) = clim(1) + 1;              % sanitize clim
     end
     set(obj.h.axes.green,'Clim',clim);      % set clim
-    
+
 else                                        % FULL BIT RANGE
     if obj.Settings.greenLog
         set(obj.h.axes.green,'Clim',[0 log2(2^obj.VideoBits-1)]);

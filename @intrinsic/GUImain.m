@@ -210,7 +210,7 @@ obj.h.fig.main.Visible = 'on';
 
 
     function temporalClick(~,~)
-        
+
         % get two X/Y pairs that define a rectangle
         pos(1,1:2) = obj.h.axes.temporal.CurrentPoint(1,1:2);
         rbbox;
@@ -221,7 +221,7 @@ obj.h.fig.main.Visible = 'on';
         y = sort(pos(:,2));
         inBox = inpolygon(obj.ResponseTemporal.x,obj.ResponseTemporal.y,...
             [x(1) x(1) x(2) x(2)],[y(1) y(2) y(2) y(1)]);
-        
+
         % set the temporal ROI (only positive times are allowed)
         if any(inBox)
             tmp = false(size(obj.Time));
@@ -230,7 +230,7 @@ obj.h.fig.main.Visible = 'on';
         else
             obj.IdxStimROI = obj.Time>=0;
         end
-       
+
         obj.update_redImage
         obj.update_plots
         obj.redView(obj.h.popup.redView);

@@ -89,7 +89,7 @@ for ii = 1:nruns
         errordlg(ME.message)
         ME.rethrow
     end
-    
+
     % save data to obj.Stack, process stack
     if ovs>1
         data = reshape(data,[size(data,1) size(data,2) ovs size(data,3)/ovs]);
@@ -98,7 +98,7 @@ for ii = 1:nruns
         obj.Stack{ii} = uint16(data);
     end
     obj.processStack
-    
+
     % format figure title
     for pp = 1:dpause
         if ~obj.Flags.Running

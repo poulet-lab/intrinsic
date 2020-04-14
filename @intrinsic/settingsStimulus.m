@@ -15,7 +15,7 @@ ui_params = { ...
     'inter'	'Inter-Stimulus / s'	'edit'      20      [0  600]};
 
 %% Load Settings
-try 
+try
     stim = obj.Settings.Stimulus;
     for ii = 1:size(ui_params,1)
         switch ui_params{ii,1}
@@ -125,7 +125,7 @@ hfig.Visible = 'on';
                 hui.dc.String   = stim.dc;
                 hui.ramp.String = stim.ramp;
                 stim.type       = hobj.String{hobj.Value};
-                
+
             otherwise
                 idx = find(strcmp(ui_params(:,1),hobj.Tag));
                 val = str2double(hobj.String);
@@ -140,7 +140,7 @@ hfig.Visible = 'on';
                 stim.(hobj.Tag) = val;
                 hobj.Value      = val;
                 hobj.String     = val;
-                
+
                 if stim.inter < stim.pre + stim.post
                     stim.inter = stim.pre + stim.post;
                     hui.inter.String = stim.inter;

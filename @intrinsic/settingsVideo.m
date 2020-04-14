@@ -16,7 +16,7 @@ adaptors = intersect(lower(adaptors),lower(suppAdap));
 % notify user of missing IMAQ adaptor
 if isempty(adaptors)
     errorstr = ['You need to install an IMAQ adaptor to use INTRINSIC. '...
-        'Currently, the following IMAQ adaptors are supported: ' 
+        'Currently, the following IMAQ adaptors are supported: '
         upper(sprintf('%s, ',suppAdap{1:end-1})) upper(sprintf('%s.',...
         suppAdap{end})) ' Please check the MATLAB documentation for '...
         'details on how to install the respective support packages.'];
@@ -59,7 +59,7 @@ end
 if isa(obj.VideoInputRed,'videoinput')
     % IF there is a valid videoinput present already, assume the user wants
     % to modify its settings
-    
+
     % check with user, if he really wants to change things
     %
     % TODO: This should be moved to a separate function, which is only
@@ -71,17 +71,17 @@ if isa(obj.VideoInputRed,'videoinput')
     if ~strcmp(tmp,'Right on!')
         return
     end
-    
+
     obj.VideoPreview.Preview = false;       % disable video preview ...
     if isfield(obj.VideoPreview,'Figure')
         delete(obj.VideoPreview.Figure)     % delete preview figure
     end
-    
+
     [obj.VideoInputRed, VidPref]   = ...
         video_settings(obj.VideoInputRed,obj.Scale,obj.RateCam);
     %obj.previewGUI
     obj.VideoPreview.Scale = VidPref{5};
-    
+
 else
     % Else, if there is no valid videoinput yet (e.g., right after
     % start-up), try to load the settings from disk. If this fails, prompt
@@ -98,12 +98,12 @@ if isa(obj.VideoInputRed,'videoinput')
     % In case we have a valid videoinput by now, save its current settings
     % to disk and update the corresponding fields of the main object. If
     % anything went wrong, throw an error.
-    
+
     obj.Settings.VidPref          = VidPref;
     obj.VideoInputRed.ROIPosition = VidPref{4};
     obj.Scale                     = VidPref{5};
     obj.RateCam                   = VidPref{6};
-    
+
     if obj.Binning > 1 && regexpi(imaqhwinfo(obj.VideoInputRed,'DeviceName'),'^QICam')
         current = obj.VideoInputRed.VideoFormat;
         current = textscan(current,'%s%n%n','Delimiter',{'_','x'});
@@ -117,7 +117,7 @@ if isa(obj.VideoInputRed,'videoinput')
         obj.VideoInputGreen = videoinput(VidPref{1:3});
         obj.VideoInputGreen.ROIPosition = VidPref{4};
     end
-    
+
     switch imaqhwinfo(obj.VideoInputRed,'AdaptorName')
         case 'qimaging'
             obj.VideoBits = 12;
@@ -127,7 +127,7 @@ if isa(obj.VideoInputRed,'videoinput')
             set(obj.VideoInputGreen.Source, ...
                 'ColorWheel',       'green')
     end
-    
+
 else
     warning('No camera found. Did you switch it on?')
 end
@@ -309,7 +309,7 @@ waitfor(hfig)
         end
         if any(popupidx~=cellfun(@(x) x.Value,popup))                      % if any changes ...
             update_settings                                                % ... update settings
-            
+
             if all(~cellfun(@isempty,settings))                            % if settings valid ...
                 vid_out = videoinput(settings{:});                         % (1) create vid_out
                 tmp = vid_out.VideoResolution;                             % (2) display resolution
@@ -333,7 +333,7 @@ waitfor(hfig)
 %% Callback function for ROI fields
     function edit_ROI_callback(~,~)
         roisize = round(str2double(get([edit_res{2,:}],'String')))';
-        
+
         % correct for NaN / oversize / undersize values
         roisize(isnan(roisize)) = Inf;
         roisize(roisize<1) = 1;
@@ -342,7 +342,7 @@ waitfor(hfig)
         roisize(tmp2) = tmp1(tmp2);
         set([edit_res{2,1}],'String',roisize(1))
         set([edit_res{2,2}],'String',roisize(2))
-        
+
         vid_out.ROIPosition = ...
             [floor((vid_out.VideoResolution-roisize)/2) roisize];
     end
@@ -363,7 +363,7 @@ waitfor(hfig)
             vid_out.ROIPosition ...
             str2double(edit_scale.String) ...
             str2double(edit_fps.String)];
-        
+
         cancelled = false;
         delete(hfig)
     end
@@ -387,7 +387,7 @@ waitfor(hfig)
 
 %% Populate popup elements
     function populatePopups
-        
+
         % show available adaptors
         adaptors = imaqhwinfo;
         adaptors = adaptors.InstalledAdaptors;
@@ -407,7 +407,7 @@ waitfor(hfig)
                 'Value',    1)
             return
         end
-        
+
         % show available device IDs
         adaptor = popup{1}.String{popup{1}.Value};
         hwinfo  = imaqhwinfo(adaptor);
@@ -426,7 +426,7 @@ waitfor(hfig)
                 'String',   {' '}, ...
                 'Value',    1)
         end
-        
+
         % show sorted list of available video modes
         vmodes = [hwinfo.DeviceInfo.SupportedFormats];
         if ~isempty(vmodes)
@@ -453,7 +453,7 @@ waitfor(hfig)
                 'String',   {' '}, ...
                 'Value',    1)
         end
-        
+
     end
 
 %% Update settings structure from popup fields

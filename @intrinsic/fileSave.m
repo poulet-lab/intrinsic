@@ -56,7 +56,7 @@ uiwait(hdlg)                                        % wait for dialog
 
     % Generate directory names, select data to save, save data
     function saveData()
-        
+
         % format comment string
         if ~isempty(comment)
             comment = ['___' strtrim(comment)];
@@ -77,7 +77,7 @@ uiwait(hdlg)                                        % wait for dialog
                 fullfile(obj.DirSave,dirname))
         end
         dirsave = fullfile(obj.DirSave,dirname);
-        
+
         % exclude selected properties from saving
         exc = {'h','VideoPreview','Settings','Flags','Movie','Stack',...
             'SequenceRaw','SequenceFilt'};
@@ -85,19 +85,19 @@ uiwait(hdlg)                                        % wait for dialog
         tmp = {tmp.PropertyList.Name};
         exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'VideoInput')))];
         exc = [exc tmp(~cellfun(@isempty,regexpi(tmp,'ImageRed')))];
-        
+
         % exclude dependent properties from saving
         tmp = ?intrinsic;
         tmp = {tmp.PropertyList([tmp.PropertyList.Dependent]).Name};
         exc = unique([exc tmp]);
-        
+
         % save remaining properties to data.mat
         saveFile = matfile(fullfile(dirsave,'data.mat'),'Writable',true);
         for fn = setxor(fieldnames(obj),exc)'
             saveFile.(fn{:}) = obj.(fn{:});
         end
         m.Properties.Writable = false;
-        
+
 
         % save stack as tiff
         tic
@@ -109,10 +109,10 @@ uiwait(hdlg)                                        % wait for dialog
                 fullfile(dirsave,sprintf('stack%03d.tiff',ii)),options);
         end
         toc
-        
+
         % copy settings.mat
         copyfile(obj.Settings.Properties.Source,dirsave)
-        
+
         % save images (red, green, composite)
         if ~isempty(obj.h.image.red)
             imwrite(obj.h.image.red.CData,fullfile(dirsave,'red.png'),'PNG')
@@ -128,14 +128,14 @@ uiwait(hdlg)                                        % wait for dialog
                 imwrite(tmp,fullfile(dirsave,'fused.png'),'PNG')
             end
         end
-        
+
         % TODO: save PDF
         % use copyobj to copy axes to invisible figure
         % header: date + time, initials, comments
         % image green, image red, fused image
         % temporal plot
         % spatial plot
-        
+
         % set SAVED flag to true
         obj.Flags.Saved = true;
     end
@@ -146,12 +146,12 @@ uiwait(hdlg)                                        % wait for dialog
             % get strings from textfields
             obj.Settings.initials = char(jedit.getText);
             comment = hcmnt.String;
-            
+
             % disable UI controls while processing the files
             set(findobj('parent',hdlg,'type','uicontrol'),'enable','off')
             jedit.Enabled = 0;
             drawnow
-            
+
             % save data, then close dialog
             saveData()
             delete(hdlg)

@@ -1,5 +1,5 @@
 classdef camera < handle
-    
+
     properties (Dependent = true, SetAccess = private)
         adaptor     % Specifies the selected IMAQ adaptor
         deviceID    % Identifies a specific device avaiable through ADAPTOR
@@ -13,7 +13,7 @@ classdef camera < handle
         available   % Is the selected device available?
         supported   % Is the selected device supported?
     end
-    
+
     properties (SetAccess = private)
         inputR  = []            % Video input object (red channel)
         inputG  = []            % Video input object (green channel)
@@ -29,16 +29,16 @@ classdef camera < handle
         % matfile for storage of settings
         mat     = matfile([mfilename('fullpath') '.mat'],'Writable',true)
     end
-    
+
     properties (Access = private)
         fig
     end
-    
+
     properties (Dependent = true, Access = private)
         adaptors
         devices
     end
-    
+
     % good
     methods
      	function out = get.videoMode(obj)
@@ -49,7 +49,7 @@ classdef camera < handle
                 out = '';
             end
         end
-        
+
         function out = get.resolution(obj)
             % return resolution
             if obj.available
@@ -58,7 +58,7 @@ classdef camera < handle
                 out = [NaN NaN];
             end
         end
-        
+
         function out = get.ROI(obj)
             % return ROI
             if obj.available
@@ -68,7 +68,7 @@ classdef camera < handle
                 out = [NaN NaN];
             end
         end
-        
+
         function out = get.binning(obj)
             % return binning factor (only supported devices)
             out = NaN;
@@ -78,7 +78,7 @@ classdef camera < handle
                 out = max(cellfun(@str2double,[tmp{:}]))/obj.resolution(1);
             end
         end
-                
+
         function out = get.dataType(obj)
             % return data type returned from imaging adapter
             if obj.available
@@ -87,24 +87,24 @@ classdef camera < handle
                 out = NaN;
             end
         end
-        
+
         function out = get.videoBits(obj)
             % return bitrate of current video mode setting
             if obj.available
                 tmp  = ones(1,obj.dataType); %#ok<NASGU>
                 out  = whos('tmp').bytes * 8;
-                
+
                 % qimaging QICam delivers 12 bits instead of 16
                 if out == 16 && strcmp(obj.deviceName,'QICam B')
                     out = 12;
                 end
             end
         end
-        
+
         function out = get.available(obj)
             % return availability of configured video device
             out = false;
-            if ~obj.toolbox    
+            if ~obj.toolbox
                 return
             end
             if isa(obj.inputG,'videoinput') && isa(obj.inputR,'videoinput')
@@ -112,33 +112,33 @@ classdef camera < handle
             end
         end
     end
-    
-    
+
+
     methods
         function obj = camera(varargin)
             % CAMERA  handle camera settings for INTRINSIC
-               
+
             % check for IMAQ toolbox
             if ~obj.toolbox
                 warning('Image Acquisition Toolbox is not available.')
                 return
             end
-            
+
             % disconnect and delete all image acquisition objects
             imaqreset
-            
+
             % check for installed adapters
             if isempty(obj.adaptors)
                 warning('No IMAQ adapters available.')
             end
-            
+
             % only proceed if the matfile contains all necessary variables
             doLoad = {'adaptor','deviceID','deviceName','videoMode','ROI'};
             if ~all(cellfun(@(x) any(strcmp(x,who(obj.mat))),doLoad))
                 warning('No camera device has been configured.')
                 return
             end
-            
+
             % if the previously saved adaptor exists and both device ID and
             % device name match up: create the video input objects
             if any(strcmp(obj.adaptor,obj.adaptors))
@@ -166,12 +166,12 @@ classdef camera < handle
     % public methods (defined in separate files)
     methods
         setup(obj)
-        
+
         function out = get.adaptors(~)
             % returns a cell of installed IMAQ adaptors
             out = eval('imaqhwinfo').InstalledAdaptors;
         end
-        
+
         function out = get.devices(obj)
             % returns a struct of available IMAQ devices with the following
             % details: IMAQ adaptor, device name and device ID
@@ -188,13 +188,13 @@ classdef camera < handle
                 end
             end
         end
-        
+
         function out = get.supported(obj)
             % is the combination of adaptor + device tested & "supported"?
             sup = {'qimagingQICam B'};
             out = any(strcmpi(sup,[obj.adaptor obj.deviceName]));
         end
-        
+
         % GET methods related to matfile
         function out = get.adaptor(obj)
             out = loadvar(obj,'adaptor',[]);
@@ -205,7 +205,7 @@ classdef camera < handle
         function out = get.deviceID(obj)
             out = loadvar(obj,'deviceID',[]);
         end
-        
+
         % SET methods related to matfile
         function set.adaptor(obj,val)
             obj.mat.adaptor = val;
@@ -217,31 +217,31 @@ classdef camera < handle
             obj.mat.deviceID = val;
         end
     end
-    
+
     % private methods (defined in separate files)
     methods (Access = private)
 
         toggleCtrls(obj,state)
         cbAdapt(obj,~,~)
         cbOkay(obj,~,~)
-        
+
         function cbAbort(obj,~,~)
             close(obj.fig)
         end
-        
+
         function cbDev(obj,~,~)
-            
+
             % get currently selected value from UI control
             h       = getappdata(obj.fig,'controls');
             hCtrl   = h.device;
             value   = hCtrl.String{hCtrl.Value};
-            
+
             % compare with previously selected value (return if identical)
             if isequal(hCtrl.UserData,value)
                 return
             end
             hCtrl.UserData = value;
-            
+
             % manage UI control for mode selection
             if isempty(hCtrl.UserData)
                 % disable mode selection
@@ -251,7 +251,7 @@ classdef camera < handle
             else
                 % enable mode selection
                 h.mode.Enable = 'on';
-                
+
                 % get some variables
                 hw      = getappdata(obj.fig,'deviceInfo');
                 hw      = hw(hCtrl.Value);
@@ -259,12 +259,12 @@ classdef camera < handle
                 devName = hw.DeviceName;
                 modes   = hw.SupportedFormats(:);
                 adapt   = h.adaptor.UserData;
-                                
+
                 % restrict modes to 16bit MONO (supported devices only)
                 if ~isempty(regexpi(devName,'^QICam'))
                     modes(cellfun(@isempty,regexpi(modes,'^MONO16'))) = [];
                 end
-                
+
                 % sort modes by resolution (if obtainable through regexp)
                 tmp = regexpi(modes,'^(\w*)_(\d)*x(\d)*$','tokens','once');
                 if all(cellfun(@numel,tmp)==3)
@@ -273,11 +273,11 @@ classdef camera < handle
                     [~,idx] = sortrows(tmp);
                     modes = modes(idx);
                 end
-                
+
                 % fill modes, save to appdata for later use
                 setappdata(obj.fig,'modes',modes);
                 h.mode.String = modes;
-                
+
                 % select previously used mode if adaptor & device ID match
                 if strcmp(adapt,obj.adaptor) && devID==obj.deviceID
                     h.mode.Value = max([find(strcmp(modes,...
@@ -289,20 +289,20 @@ classdef camera < handle
                 end
             end
             h.mode.UserData = 'needs to be processed by obj.cbMode';
-            
+
             %obj.cbMode(h.mode)
         end
-        
+
         function cbMode(obj, hCtrl, ~)
             % read value from control
             m   = hCtrl.String{hCtrl.Value};
             setappdata(obj.fig,'mode',m);
-            
+
             % find some more variables
             d   = getappdata(obj.fig,'deviceName');
             a 	= getappdata(obj.fig,'adaptor');
             id  = getappdata(obj.fig,'deviceID');
-            
+
             % fill video resolution and ROI
             h   = getappdata(obj.fig,'controls');
             if isempty(m)
@@ -332,7 +332,7 @@ classdef camera < handle
             end
             setappdata(obj.fig,'resolution',res);
             obj.cbROI()
-            
+
             % fill binning (only on supported cameras)
             if ~isempty(m)
                 if ismember(a,{'qimaging'}) && ismember(d,{'QICam B'})
@@ -344,15 +344,15 @@ classdef camera < handle
                 bin = [];
             end
             set([h.binning(1) h.binning(2)],'String',bin);
-            
+
             % toggle OK button
             tmp = {'on','off'};
             h.btnOk.Enable =  tmp{isempty(m)+1};
-            
+
             % check framerate
             obj.cbFPS(h.FPS)
         end
-        
+
         function cbROI(obj, ~, ~)
             h   = getappdata(obj.fig,'controls');
             h   = findobj([h.ROI(1) h.ROI(2)])';
@@ -360,7 +360,7 @@ classdef camera < handle
             if isequal(getappdata(obj.fig,'roi'),roi)
                 return
             end
-                
+
             res = getappdata(obj.fig,'resolution');
             if isempty(res) || any(isnan(res))
                 roi = [NaN NaN];
@@ -374,12 +374,12 @@ classdef camera < handle
             setappdata(obj.fig,'roi',roi);
             obj.bitrate
         end
-        
+
         function cbFPS(obj, hCtrl, ~)
             fps = round(str2double(hCtrl.String));
             a   = getappdata(obj.fig,'adaptor');
             d   = getappdata(obj.fig,'deviceName');
-            
+
             % limit rates for qimaing QICam B
             if strcmpi([a d],'qimagingQICam B')
                 res = getappdata(obj.fig,'resolution');
@@ -396,24 +396,24 @@ classdef camera < handle
             else
                 lims = [1 60];
             end
-            
+
             fps = max([fps min(lims)]);
             fps = min([fps max(lims)]);
-            
+
             hCtrl.String = num2str(fps);
             setappdata(obj.fig,'rate',fps);
             obj.bitrate
         end
-        
+
         function cbOVS(obj, hCtrl, ~)
             ovs = max([1 real(round(str2double(hCtrl.String)))]);
             hCtrl.String = ovs;
             setappdata(obj.fig,'oversampling',ovs);
             obj.bitrate
         end
-        
+
         function bitrate(obj)
-            
+
             % try to obtain bitdepth from mode name
             h   = getappdata(obj.fig,'controls');
             m   = getappdata(obj.fig,'mode');
@@ -426,14 +426,14 @@ classdef camera < handle
                 h.bitRate.String = '';
                 return
             end
-            
+
             h.bitDepth.String = bitdepth;
             %bitdepth
-            
+
             a   = getappdata(obj.fig,'adaptor');
             id  = getappdata(obj.fig,'deviceID');
             %imaqhwinfo(a,id)
-            
+
             roi = getappdata(obj.fig,'roi');
             fps = getappdata(obj.fig,'rate');
             ovs = getappdata(obj.fig,'oversampling');
@@ -441,7 +441,7 @@ classdef camera < handle
             h.bitRate.String = sprintf('%0.1f',...
                 (bitdepth * prod(roi) * fps) / (ovs * 1E6));
         end
-        
+
         function out = loadvar(obj,var,default)
             % load variable from matfile or return default if non-existant
             out = default;
