@@ -1,7 +1,7 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     properties %(Access = private)
-        Version         = 0.8
+        Version         = '2.0 alpha 1'
         Flags
         
         h               = [] 	% handles
@@ -75,7 +75,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             % Clear command window, close all figures & say hi
             clc
             close all
-            fprintf('Intrinsic Imaging v%g\n\n',obj.Version)
+            fprintf('Intrinsic Imaging, v%s\n\n',obj.Version)
             
             % Warn if necessary toolboxes are unavailable
             for tmp = struct2cell(obj.Toolbox)'
@@ -106,22 +106,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             imaqreset, pause(1)
             disp('Resetting Data Acquisition Toolbox ...')
             daqreset
-            fprintf('Initializing IMAQ subsystem ...\n\n')
             
 %             % Set video device
 %            obj.settingsVideo 
-%                         
-%             % Set Variables related to VideoAdapter
-%             obj.VideoAdaptorName = ...
-%                 imaqhwinfo(obj.VideoInputGreen,'AdaptorName');
-%             switch obj.VideoAdaptorName
-%                 case 'hamamatsu'
-%                     obj.VideoBits = 16;
-%                 case 'qimaging'
-%                     obj.VideoBits = 12;
-%                 otherwise
-%                     error('Unknown Video Adapter')
-%             end
+
             
             % Generate Stimulus
             disp('Generating stimulus ...')

@@ -24,7 +24,7 @@ classdef camera < handle
 
     properties (Constant = true, Access = private)
         % is the Image Acquisition Toolbox both installed and licensed?
-        imaq    = ~isempty(ver('IMAQ')) && ...
+        ttolbox = ~isempty(ver('IMAQ')) && ...
             license('test','image_acquisition_toolbox');
         % matfile for storage of settings
         mat     = matfile([mfilename('fullpath') '.mat'],'Writable',true)
@@ -104,7 +104,7 @@ classdef camera < handle
         function out = get.available(obj)
             % return availability of configured video device
             out = false;
-            if ~obj.imaq    
+            if ~obj.toolbox    
                 return
             end
             if isa(obj.inputG,'videoinput') && isa(obj.inputR,'videoinput')
@@ -119,7 +119,7 @@ classdef camera < handle
             % CAMERA  handle camera settings for INTRINSIC
                
             % check for IMAQ toolbox
-            if ~obj.imaq
+            if ~obj.toolbox
                 warning('Image Acquisition Toolbox is not available.')
                 return
             end
@@ -176,7 +176,7 @@ classdef camera < handle
             % returns a struct of available IMAQ devices with the following
             % details: IMAQ adaptor, device name and device ID
             out = struct([]);
-            if ~obj.imaq
+            if ~obj.toolbox
                 return
             end
             for a = obj.adaptors
