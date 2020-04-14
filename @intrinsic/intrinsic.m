@@ -734,18 +734,23 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Load icon for toolbar
         function img = icon(obj,filename)
             validateattributes(filename,{'char'},{'vector'})
+            
+            % read image, convert to double
             iconpath = fullfile(obj.DirBase,'icons');
-            [img,map,alpha]	= imread(fullfile(iconpath,filename));
-            if ~isempty(map)
-                img = ind2rgb(img,map);
-            else
-                img = double(img);
-                img = img./max(img(:));
-            end
-            if ~isempty(alpha)
-                alpha = ~repmat(alpha>(max(alpha(:))/2),1,1,3);
-                img(alpha) = NaN;
-            end
+            [img,~,alpha] = imread(fullfile(iconpath,filename));
+            img     = double(img) / 255;
+            alpha   = repmat(double(alpha) / 255,[1 1 3]);
+                        
+            % create background, multiply with alpha
+            bg      = repmat(240/255,size(img));
+            img     = immultiply(img,alpha);
+            bg      = immultiply(bg,1-alpha);
+            
+            % merge background and image
+            img     = imadd(img,bg);
+            
+            % remove completely transparent areas
+            img(~alpha) = NaN;
         end
 
         %% Dependent Properties (GET)
