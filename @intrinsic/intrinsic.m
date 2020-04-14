@@ -1,7 +1,7 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     properties %(Access = private)
-        Version         = '2.0 alpha 1'
+        Version         = '1.0 alpha 1'
         Flags
         
         h               = [] 	% handles
@@ -72,6 +72,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Class Constructor
         function obj = intrinsic(varargin)
 
+            % Check MATLAB version
+            if verLessThan('matlab','9.8')
+                error('This program requires MATLAB Version R2020a or newer.')
+            end
+            
             % Clear command window, close all figures & say hi
             clc
             close all
