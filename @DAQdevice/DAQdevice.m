@@ -5,13 +5,18 @@ classdef DAQdevice < handle
     end
     
     properties (Constant = true, Access = private)
+        
         % is the Data Acquisition Toolbox both installed and licensed?
         toolbox = ~isempty(ver('DAQ')) && license('test','data_acq_toolbox');
+        
         % matfile for storage of settings
         mat     = matfile([mfilename('fullpath') '.mat'],'Writable',true)
+        
+        % list of supported vendors
+        supportedVendors = {'ni'};
     end
     
-    properties %(Dependent = true, Access = private)
+    properties (SetAccess = immutable, GetAccess = private)
         devices
         vendors
     end
@@ -29,9 +34,9 @@ classdef DAQdevice < handle
             disp('Resetting Data Acquisition Toolbox ...')
             daqreset
             
-            % check for supported DAQ vendors
+            % check for supported & operational DAQ vendors
             if isempty(obj.vendors)
-                warning(['No supported DAQ vendors available. Use ' ...
+                warning(['No operational DAQ vendors available. Use ' ...
                     'MATLAB''s Add-On Explorer to install the ' ...
                     'respective support packages.'])
                 return
@@ -46,29 +51,31 @@ classdef DAQdevice < handle
         end        
         
         function out = get.devices(obj)
+            % get list of devices
             disableVendorDiagnostics
-            tmp = daqlist;
-            
-            if isempty(obj.vendors)
-                out = {};
-                return
-            end
-            out = eval('daqlist');
+            tmp = daqlist('all');
             enableVendorDiagnostics
+            
+            % limit to supported vendors
+            if isempty(tmp)
+                out = table('Size',[0 0]);
+            else
+                out = tmp(tmp.VendorID.matches(obj.supportedVendors),:);
+            end
         end
         
-        function out = get.vendors(~)
+        function out = get.vendors(obj)
             % get list of vendors
-            vendorlist  = daq.getVendors;
+            [~,vendorlist] = daqvendorlist;
             if isempty(vendorlist)
                 out = {};
                 return
             end
             
             % limit to supported and operational vendors
-            tmp         = vendorlist.IsOperational;
-            [~,tmp,~]   = intersect({vendorlist(tmp).ID},{'ni'});
-            vendorlist  = vendorlist(tmp);
+            operational = [vendorlist.IsOperational] == true;
+            supported   = matches({vendorlist.ID},obj.supportedVendors);
+            vendorlist  = vendorlist(operational && supported);
             if isempty(vendorlist)
                 out = {};
             else
