@@ -109,27 +109,20 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             daqreset
             fprintf('Initializing IMAQ subsystem ...\n\n')
             
-            % Set video device
-            obj.settingsVideo 
-                        
-            % Set Variables related to VideoAdapter
-            obj.VideoAdaptorName = ...
-                imaqhwinfo(obj.VideoInputGreen,'AdaptorName');
-            switch obj.VideoAdaptorName
-                case 'hamamatsu'
-                    obj.VideoBits = 16;
-                case 'qimaging'
-                    obj.VideoBits = 12;
-                otherwise
-                    error('Unknown Video Adapter')
-            end
-                        
-%             % Reset LED
-%             disp('Resetting LED illumination ...')
-%             warning('off','daq:Session:onDemandOnlyChannelsAdded')
-%             obj.led(false)
-%             obj.led(true)
-%             obj.led(false)
+%             % Set video device
+%            obj.settingsVideo 
+%                         
+%             % Set Variables related to VideoAdapter
+%             obj.VideoAdaptorName = ...
+%                 imaqhwinfo(obj.VideoInputGreen,'AdaptorName');
+%             switch obj.VideoAdaptorName
+%                 case 'hamamatsu'
+%                     obj.VideoBits = 16;
+%                 case 'qimaging'
+%                     obj.VideoBits = 12;
+%                 otherwise
+%                     error('Unknown Video Adapter')
+%             end
             
             % Generate Stimulus
             disp('Generating stimulus ...')
