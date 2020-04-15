@@ -1,0 +1,1 @@
+function obj = cbOkay(obj,~,~)obj.toggleCtrls('off')obj.device = daq('ni')
