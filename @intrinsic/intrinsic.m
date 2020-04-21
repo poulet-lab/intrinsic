@@ -47,6 +47,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Toolbox
         Settings
 
+        DAQ
         DAQvec
         DAQrate         = 5000
         DAQsession   	= []
@@ -106,19 +107,22 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.ResponseTemporal.x  = [];
             obj.ResponseTemporal.y  = [];
 
+            % Set up data acquisition
+            obj.DAQ = DAQdevice(obj.Settings);
+            
             % Reset IMAQ and DAQ devices
-            disp('Disconnecting and deleting all IMAQ objects ...')
-            imaqreset, pause(1)
-            disp('Resetting Data Acquisition Toolbox ...')
-            daqreset
+%             disp('Disconnecting and deleting all IMAQ objects ...')
+%             imaqreset, pause(1)
+            
+            
 
 %             % Set video device
 %            obj.settingsVideo
 
-
-            % Generate Stimulus
-            disp('Generating stimulus ...')
-            obj.generateStimulus
+% 
+%             % Generate Stimulus
+%             disp('Generating stimulus ...')
+%             obj.generateStimulus
 
             % Fire up GUI
             fprintf('\nReady to go!\n')
@@ -145,18 +149,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     end
 
     methods %(Access = private)
-
-
-        function led(~,state)
-            disp('LED!!')
-%             d = daq.getDevices;
-%             s = daq.createSession('ni');
-%             s.addDigitalChannel(d(1).ID,'Port0/line7','OutputOnly');
-%             outputSingleScan(s,state)
-%             release(s)
-        end
-
-
 
 
 

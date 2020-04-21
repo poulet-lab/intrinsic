@@ -1,44 +1,35 @@
 function cbVendor(obj,~,~)
 
 % get currently selected value from UI control
-ctrl    = getappdata(obj.fig,'controls');
-hCtrl   = ctrl.vendor;
-value   = hCtrl.String{hCtrl.Value};
-value   = obj.vendors.ID(matches(obj.vendors.FullName,value));
+ctrl     = getappdata(obj.fig,'controls');
+hCtrl    = ctrl.vendor;
+vendorID = hCtrl.String{hCtrl.Value};
+vendorID = obj.vendors.ID(matches(obj.vendors.FullName,vendorID)).char;
 
 % compare with previously selected value (return if identical)
-if isequal(hCtrl.UserData,value)
+if isequal(getappdata(obj.fig,'vendorID'),vendorID)
     return
 end
-hCtrl.UserData = value;
-
-% select devices matching current vendor
-devices = obj.devices;
-if ~isempty(devices)
-    hw = devices(matches(devices.VendorID,value),:);
-else
-    hw = {};
-end
+setappdata(obj.fig,'vendorID',vendorID);
 
 % manage UI control for device selection
-if isempty(hw)
+devices = obj.devices(vendorID);
+if isempty(devices)
     % disable device selection
-    ctrl.device.Enable	= 'off';
-    ctrl.device.String  = {''};
-    ctrl.device.Value   = 1;
+    ctrl.device.Enable = 'off';
+    ctrl.device.String = {''};
+    ctrl.device.Value  = 1;
 else
     % enable device selection, fill device IDs and names
-    ctrl.device.Enable	= 'on';
-    ctrl.device.String  = compose('%s: %s',[hw.DeviceID hw.Model]);
+    ctrl.device.Enable = 'on';
+    ctrl.device.String = compose('%s: %s',[devices.DeviceID devices.Model]);
 
     % select previously used device if vendor matches
-    if strcmp(value,loadvar(obj,'vendor',''))
-        ctrl.device.Value = max([find([hw.DeviceID]==...
-            loadvar(obj,'deviceID',NaN)) 1]);
+    if strcmp(vendorID,loadVar(obj,'vendorID',''))
+        ctrl.device.Value = max([find(strcmp([devices.DeviceID],...
+            obj.loadVar('deviceID',NaN)),1) 1]);
     else
         ctrl.device.Value = 1;
     end
-
-    % run dependent callback
-    obj.cbDevice()
+    obj.cbDevice;
 end

@@ -1,72 +1,41 @@
 function cbDevice(obj,~,~)
 
 % get currently selected value from UI control
-ctrl    = getappdata(obj.fig,'controls');
-hCtrl   = ctrl.device;
-device  = hCtrl.String{hCtrl.Value};
-device  = regexp(device,'^([\w]*)','match','once');
+ctrl     = getappdata(obj.fig,'controls');
+hCtrl    = ctrl.device;
+deviceID = hCtrl.String{hCtrl.Value};
+deviceID = regexp(deviceID,'^([\w]*)','match','once');
 
 % compare with previously selected value (return if identical)
-if isequal(hCtrl.UserData,device)
+if isequal(getappdata(obj.fig,'deviceID'),deviceID)
     return
 end
-hCtrl.UserData = device;
+setappdata(obj.fig,'deviceID',deviceID);
 
-% find channels
-vendor     = ctrl.vendor.UserData;
-chNamesOut = obj.channels(vendor,device,{'AnalogOutput','DigitalIO'});
-chNamesIn   = obj.channels(vendor,device,{'AnalogInput','DigitalIO'});
+% get device info
+vendorID   = getappdata(obj.fig,'vendorID');
+deviceInfo = obj.devices(vendorID,deviceID).DeviceInfo;
+setappdata(obj.fig,'deviceInfo',deviceInfo);
 
-% manage UI control for output channel selection
-if isempty(chNamesOut)
-    set([ctrl.outStim ctrl.outCam], ...
-    	'String',   {''}, ...
-        'Enable',   'off', ...
-        'Value',    1);
+% fill UI controls for channel selection
+for ii = 1:numel(ctrl.channel)
+    set(ctrl.channel(ii),'String', ...
+        obj.channelNames(deviceInfo,obj.channelProp(ii).types));
+end
+
+% select previously used channels if vendorID and deviceID match
+chSaved = obj.loadVar('channelIDs',{});
+if numel(chSaved)==numel(ctrl.channel) && ...
+        strcmp(loadVar(obj,'vendorID',''),vendorID) && ...
+        strcmp(obj.loadVar('deviceID',''),deviceID)
+    channelValues = cellfun(@(x,y) {max([find(matches(x,y)) 1])},...
+        {ctrl.channel.String}',chSaved(:));
 else
-    set([ctrl.outStim ctrl.outCam], ...
-    	'String',   chNamesOut, ...
-        'Enable',   'on');
+    channelValues = {1 2 1};
 end
+[ctrl.channel.Value] = deal(channelValues{:});
+ctrl.rate.String = num2str(obj.loadVar('rate',1000));
+ctrl.amp.String  = num2str(obj.loadVar('triggerAmp',5));
 
-% manage UI control for input channel selection
-if isempty(chNamesIn)
-    set(ctrl.inCam, ...
-    	'String',   {''}, ...
-        'Enable',   'off', ...
-        'Value',    1);
-else
-    set(ctrl.inCam, ...
-    	'String',   chNamesIn, ...
-        'Enable',   'on');
-end
-
-% % select devices matching current vendor
-% devices = obj.devices;
-% if ~isempty(devices)
-%     hw = devices(matches(devices.VendorID,value),:);
-% else
-%     hw = {};
-% end
-% 
-% % manage UI control for device selection
-% if isempty(hw)
-%     % disable device selection
-%     ctrl.device.Enable	= 'off';
-%     ctrl.device.String  = {''};
-%     ctrl.device.Value   = 1;
-% else
-%     % enable device selection, fill device IDs and names
-%     ctrl.device.Enable	= 'on';
-%     ctrl.device.String  = compose('%s: %s',[hw.DeviceID hw.Model]);
-% 
-% %     % select previously used device if adaptor matches
-% %     if strcmp(value,loadvar(obj,'adaptor',''))
-% %         c.device.Value = max([find([hw.DeviceID]==...
-% %             loadvar(obj,'deviceID',NaN)) 1]);
-% %     else
-% %         c.device.Value = 1;
-% %     end
-% 
-%     obj.interface = daq(value);
-end
+% run dependent callback
+obj.cbChannel()

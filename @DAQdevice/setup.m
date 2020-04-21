@@ -1,13 +1,13 @@
 function setup(obj)
-% open GUI to change camera settings.
+% open GUI to change DAQ settings.
 
 % some parameters controlling size and appearance of the controls
 pad         = 7;                    % padding
-hFigure     = 325;                  % height of figure
+hFigure     = 355;                  % height of figure
 wFigure     = 290;                  % width of figure
-wLabel      = 105;                  % width of labels
+wLabel      = 107;                  % width of labels
 hCtrl       = 23;
-hPanelHead  = 12;
+hPanelHead  = 20;
 
 % create figure
 obj.fig = figure(...
@@ -19,47 +19,50 @@ obj.fig = figure(...
     'NumberTitle',  'off', ...
     'Units',        'pixels');
 
-% create UI controls (see helper functions at the bottom)
+% create UI panels (see helper function below)
 p(1) = addPanel(2,'Device Selection',hFigure);
-p(2) = addPanel(3,'Channel Configuration',p(1).Position(2));
+p(2) = addPanel(numel(obj.channelProp),'Channel Selection',p(1).Position(2));
 p(3) = addPanel(2,'Output Parameters',p(2).Position(2));
-ctrl.vendor   = addPopup(1,@obj.cbVendor,'Vendor',obj.vendors.FullName,p(1));
-ctrl.device   = addPopup(2,@obj.cbDevice,'Device',{''},p(1));
-ctrl.outStim  = addPopup(1,@obj.cbOutStim,'Stimulus Output',{''},p(2));
-ctrl.outCam   = addPopup(2,@obj.cbOutCam,'Camera Trigger',{''},p(2));
-ctrl.inCam    = addPopup(3,@obj.cbInCam,'Input from Camera',{''},p(2));
-ctrl.rate     = addEdit(1,@obj.cbRate,'Trigger Amplitude (V)',p(3));
-ctrl.rate     = addEdit(2,@obj.cbRate,'Sampling Rate (Hz)',p(3));
+
+% create UI controls (see helper functions below)
+ctrl.panels	= p';
+ctrl.vendor	= addPopup(1,@obj.cbVendor,'Vendor',obj.vendors.FullName,p(1));
+ctrl.device	= addPopup(2,@obj.cbDevice,'Device',{''},p(1));
+ctrl.amp   	= addEdit(1,@obj.cbTriggerAmp,'Trigger Amplitude (V)',p(3));
+ctrl.rate  	= addEdit(2,@obj.cbRate,'Sampling Rate (Hz)',p(3));
+
+% create UI controls for channels
+ctrl.channel = gobjects(numel(obj.channelProp),1);
+for ii = 1:numel(ctrl.channel)
+    ctrl.channel(ii) = addPopup(ii,@obj.cbChannel,...
+        obj.channelProp(ii).label,{''},p(2));
+end
 
 % create UI buttons
-ctrl.okay     = addButton(1,'OK',@obj.cbOkay);
-ctrl.cancel   = addButton(2,'Cancel',@obj.cbAbort);
+ctrl.okay      = addButton(1,'OK',@obj.cbOkay);
+ctrl.cancel    = addButton(2,'Cancel',@(~,~,~) close(obj.fig));
 
-% % disable some of the UI controls
-% set([ctrl.res ctrl.binning ctrl.bitDepth ctrl.bitRate],'Enable','Off');
-
-% % load values from file
-% ctrl.adaptor.Value = max([find(strcmp(ctrl.adaptor.String,...
-%     loadvar(obj,'adaptor',''))) 1]);
+% load vendor selection
+ctrl.vendor.Value = max([find(strcmp(ctrl.vendor.String,...
+    loadVar(obj,'deviceID',NaN)),1) 1]);
 
 % store UI control objects
 setappdata(obj.fig,'controls',ctrl);
 
-% run dependent callback functions
-obj.cbVendor()
-
 % initialize
+obj.cbVendor(ctrl.vendor)
 movegui(obj.fig,'center')
 obj.fig.Visible = 'on';
 
     function panel = addPanel(nRows,string,top)
         % helper function for creating uipanels
-        size     = [wFigure-2*pad nRows*(pad+hCtrl)+hPanelHead+6];
+        size     = [wFigure-2*pad nRows*(pad+hCtrl)+hPanelHead+7];
         position = [pad+1 top-pad-size(2)];
         panel    = uipanel(obj.fig, ...
             'Title',    string, ...
             'Units',    'pixels', ...
-            'Position', round([position size]));
+            'Position', floor([position size]), ...
+            'Tag',      string);
     end
 
     function control = addButton(row,string,callback)
@@ -69,7 +72,8 @@ obj.fig.Visible = 'on';
         control  = uicontrol(obj.fig, ...
             'String',   string, ...
             'Callback', callback, ...
-            'Position', round([position size]));
+            'Position', round([position size]), ...
+            'Tag',      string);
     end
 
     function control = addLabel(row,string,parent)
@@ -92,7 +96,8 @@ obj.fig.Visible = 'on';
             'Style',    'popupmenu', ...
             'String',   string, ...
             'Callback', callback, ...
-            'Position', round([position size]));
+            'Position', round([position size]), ...
+            'Tag',      label);
     end
 
     function control = addEdit(row,callback,label,parent)
@@ -102,7 +107,8 @@ obj.fig.Visible = 'on';
         position = [2*pad+wLabel parent.Position(4)-row*(pad+hCtrl-1)-hPanelHead];
         control  = uicontrol(parent, ...
             'Style',    'edit', ...
-            'Callback', callback,...
-            'Position', round([position size]));
+            'Callback', callback, ...
+            'Position', round([position size]), ...
+            'Tag',      label);
     end
 end

@@ -6,28 +6,43 @@ classdef DAQdevice < handle
     
     properties (Access = private)
         fig
+        matPrefix = 'DAQ_'
     end
 
     properties (Constant = true, Access = private)
-
         % is the Data Acquisition Toolbox both installed and licensed?
         toolbox = ~isempty(ver('DAQ')) && license('test','data_acq_toolbox');
 
-        % matfile for storage of settings
-        mat     = matfile([mfilename('fullpath') '.mat'],'Writable',true)
-
-        % list of supported vendors
+        % supported vendors
         supportedVendors = {'ni'};
+        
+        % supported channel types
+        channelTypesOut  = {'AnalogOutput','DigitalIO'};
+        channelTypesIn   = {'AnalogInput','DigitalIO'};
     end
 
     properties (SetAccess = immutable, GetAccess = private)
-        %devices
-        vendors
+        channelProp
+        nChannelsOut
+        nChannelsIn
+        mat
+    end
+    
+    properties (Dependent = true)
+        available
+        triggerAmplitude
     end
 
     methods
         function obj = DAQdevice(varargin)
 
+            % parse input arguments
+            p = inputParser;
+            addRequired(p,'MatFile',@(n)validateattributes(n,...
+                {'matlab.io.MatFile'},{'scalar'}))
+            parse(p,varargin{:})
+            obj.mat = p.Results.MatFile;
+            
             % check for Data Acquisition Toolbox
             if ~obj.toolbox
                 warning('Image Acquisition Toolbox is not available.')
@@ -37,6 +52,16 @@ classdef DAQdevice < handle
             % reset Data Acquisition Toolbox
             disp('Resetting Data Acquisition Toolbox ...')
             daqreset
+
+            % define immutable channel properties
+            tmp(1,:) = {'out','out','in'};
+            tmp(2,:) = {'Stimulus','Camera Trigger','Camera Sync'};
+            tmp{3,1} = {'AnalogOutput'};
+            tmp{3,2} = {'AnalogOutput','DigitalIO'};
+            tmp{3,3} = {'AnalogInput','DigitalIO'};
+            obj.channelProp	 = cell2struct(tmp,{'flow','label','types'});
+            obj.nChannelsOut = sum(matches({obj.channelProp.flow},'out'));
+            obj.nChannelsIn  = sum(matches({obj.channelProp.flow},'in'));
 
             % check for supported & operational DAQ vendors
             if isempty(obj.vendors)
@@ -52,9 +77,54 @@ classdef DAQdevice < handle
                 return
             end
 
+            % try to create DAQ interface
+            obj.createInterface
         end
 
-        function out = get.vendors(obj)
+        function out = get.available(obj)
+            out = false;
+            if isa(obj.interface,'daq.interfaces.DataAcquisition')
+                out = numel(obj.interface.Channels) == ...
+                        obj.nChannelsOut + obj.nChannelsIn;
+            end
+        end
+        
+        function out = get.triggerAmplitude(obj)
+            out = obj.loadVar('triggerAmp',[]);
+        end
+        
+        setup(obj)
+    end
+    
+    methods (Access = private)
+        
+        % callback and helper functions are in separate files
+        cbVendor(obj,~,~)
+        cbDevice(obj,~,~)
+        cbChannel(obj,~,~)
+        cbRate(obj,~,~)
+        cbTriggerAmp(obj,~,~)
+        toggleCtrls(obj,state)
+        createInterface(obj)
+        
+        function out = loadVar(obj,var,default)
+            % load variable from matfile or return default if non-existant
+            out = default;
+            if ~exist(obj.mat.Properties.Source,'file')
+                return
+            else
+                var = [obj.matPrefix var];
+                if ~isempty(who('-file',obj.mat.Properties.Source,var))
+                    out = obj.mat.(var);
+                end
+            end
+        end
+        
+        function saveVar(obj,varName,data)
+            obj.mat.([obj.matPrefix varName]) = data;
+        end
+        
+        function out = vendors(obj)
             % get list of vendors
             [vendorList,tmp] = daqvendorlist;
             if isempty(tmp)
@@ -70,23 +140,6 @@ classdef DAQdevice < handle
                 out = table('Size',[0 0]);
             else
                 out = vendorList(vendorList.ID.matches({tmp.ID}),:);
-            end
-        end
-        
-        setup(obj)
-    end
-
-    methods (Access = private)
-        cbVendor(obj,~,~)
-        cbDevice(obj,~,~)
-        
-        function out = loadvar(obj,var,default)
-            % load variable from matfile or return default if non-existant
-            out = default;
-            if ~exist(obj.mat.Properties.Source,'file')
-                return
-            elseif ~isempty(who('-file',obj.mat.Properties.Source,var))
-                out = obj.mat.(var);
             end
         end
         
@@ -108,32 +161,31 @@ classdef DAQdevice < handle
                 out = out(out.VendorID.matches(tmp),:);
             end
             
+            % limit to devices with sufficient number of channels
+            nIn	 = arrayfun(@(x) numel(obj.channelNames(x, ...
+                obj.channelTypesIn)), out.DeviceInfo);
+            nOut = arrayfun(@(x) numel(obj.channelNames(x, ...
+                obj.channelTypesOut)),out.DeviceInfo);
+            out = out(nIn >= obj.nChannelsIn & nOut >= obj.nChannelsOut,:);
+            
             % limit to specific device
             if ~isempty(out) && ~isempty(deviceID)
                 out = out(out.DeviceID.matches(deviceID),:);
             end
         end
         
-        function out = subsystems(obj,vendorID,deviceID,types)
-            % get device info
-            deviceInfo = obj.devices(vendorID,deviceID).DeviceInfo;
-            if isempty(deviceInfo)
-                out = [];
-                return
-            end
-            
+        function out = subsystems(~,deviceInfo,types)
             % limit to clocked subsystems
             out = deviceInfo.Subsystems;
             out = out(arrayfun(@(x) x.RateLimit(2)>0,out));
             
-            % limit to specific types
-            if nargin > 3 && ~isempty(out)
+            % limit to specified types
+            if nargin > 2 && ~isempty(out)
                 out = out(matches({out.SubsystemType},types));
             end
         end
         
-        function out = channels(obj,varargin)
-            narginchk(3,4)
+        function out = channelNames(obj,varargin)
             subsystems = obj.subsystems(varargin{:});
             if isempty(subsystems)
                 out = {};
