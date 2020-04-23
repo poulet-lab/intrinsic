@@ -1,7 +1,7 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
-    properties %(Access = private)
-        Version         = '1.0 alpha 1'
+    properties (Access = private)
+        Version         = '1.0-alpha1'
         Flags
 
         h               = [] 	% handles
@@ -47,6 +47,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Toolbox
         Settings
 
+        Camera
+        
         DAQ
         DAQvec
         DAQrate         = 5000
@@ -107,19 +109,12 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.ResponseTemporal.x  = [];
             obj.ResponseTemporal.y  = [];
 
-            % Set up data acquisition
+            % Initalize data acquisition
             obj.DAQ = DAQdevice(obj.Settings);
-            
-            % Reset IMAQ and DAQ devices
-%             disp('Disconnecting and deleting all IMAQ objects ...')
-%             imaqreset, pause(1)
-            
-            
 
-%             % Set video device
-%            obj.settingsVideo
+            % Initialize video device
+            obj.settingsVideo
 
-% 
 %             % Generate Stimulus
 %             disp('Generating stimulus ...')
 %             obj.generateStimulus

@@ -22,7 +22,7 @@ obj.fig = figure(...
 
 % create UI controls (see helper functions at the bottom)
 ctrl.adaptor  = addPopup(1,@obj.cbAdapt,'Adaptor',[{'none'} obj.adaptors]);
-ctrl.device   = addPopup(2,@obj.cbDev,'Device',{''});
+ctrl.device   = addPopup(2,@obj.cbDevice,'Device',{''});
 ctrl.mode     = addPopup(3,@obj.cbMode,'Mode',{''});
 ctrl.res      = addEditXY(4,'','Resolution (px)');
 ctrl.binning  = addEditXY(5,@obj.cbROI,'Hardware Binning');
@@ -40,14 +40,14 @@ set([ctrl.res ctrl.binning ctrl.bitDepth ctrl.bitRate],'Enable','Off');
 
 % load values from file
 ctrl.adaptor.Value = max([find(strcmp(ctrl.adaptor.String,...
-    loadvar(obj,'adaptor',''))) 1]);
+    loadVar(obj,'adaptor',''))) 1]);
 
 % store UI control objects
 setappdata(obj.fig,'controls',ctrl);
 
 % run dependent callback functions
 obj.cbAdapt()
-obj.cbDev()
+obj.cbDevice()
 
 % initialize
 movegui(obj.fig,'center')

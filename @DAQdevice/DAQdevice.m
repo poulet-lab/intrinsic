@@ -6,7 +6,6 @@ classdef DAQdevice < handle
     
     properties (Access = private)
         fig
-        matPrefix = 'DAQ_'
     end
 
     properties (Constant = true, Access = private)
@@ -19,6 +18,9 @@ classdef DAQdevice < handle
         % supported channel types
         channelTypesOut  = {'AnalogOutput','DigitalIO'};
         channelTypesIn   = {'AnalogInput','DigitalIO'};
+        
+        % prefix for variables in matfile
+        matPrefix = 'DAQ_'
     end
 
     properties (SetAccess = immutable, GetAccess = private)
@@ -45,7 +47,7 @@ classdef DAQdevice < handle
             
             % check for Data Acquisition Toolbox
             if ~obj.toolbox
-                warning('Image Acquisition Toolbox is not available.')
+                warning('Data Acquisition Toolbox is not available.')
                 return
             end
 
@@ -98,7 +100,7 @@ classdef DAQdevice < handle
     
     methods (Access = private)
         
-        % callback and helper functions are in separate files
+        % callbacks and some helper functions are in separate files
         cbVendor(obj,~,~)
         cbDevice(obj,~,~)
         cbChannel(obj,~,~)

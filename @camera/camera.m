@@ -13,7 +13,7 @@ classdef camera < handle
         available   % Is the selected device available?
         supported   % Is the selected device supported?
     end
-
+    
     properties (SetAccess = private)
         inputR  = []            % Video input object (red channel)
         inputG  = []            % Video input object (green channel)
@@ -26,8 +26,13 @@ classdef camera < handle
         % is the Image Acquisition Toolbox both installed and licensed?
         toolbox = ~isempty(ver('IMAQ')) && ...
             license('test','image_acquisition_toolbox');
-        % matfile for storage of settings
-        mat     = matfile([mfilename('fullpath') '.mat'],'Writable',true)
+        
+        % prefix for variables in matfile
+        matPrefix = 'DAQ_'
+    end
+    
+    properties (SetAccess = immutable, GetAccess = private)
+        mat         % matfile for storage of settings
     end
 
     properties (Access = private)
@@ -116,8 +121,14 @@ classdef camera < handle
 
     methods
         function obj = camera(varargin)
-            % CAMERA  handle camera settings for INTRINSIC
 
+            % parse input arguments
+            p = inputParser;
+            addRequired(p,'MatFile',@(n)validateattributes(n,...
+                {'matlab.io.MatFile'},{'scalar'}))
+            parse(p,varargin{:})
+            obj.mat = p.Results.MatFile;
+            
             % check for IMAQ toolbox
             if ~obj.toolbox
                 warning('Image Acquisition Toolbox is not available.')
@@ -125,7 +136,9 @@ classdef camera < handle
             end
 
             % disconnect and delete all image acquisition objects
+            disp('Disconnecting and deleting all IMAQ objects ...')
             imaqreset
+            pause(1)
 
             % check for installed adapters
             if isempty(obj.adaptors)
@@ -223,186 +236,15 @@ classdef camera < handle
 
         toggleCtrls(obj,state)
         cbAdapt(obj,~,~)
+        cbDevice(obj,~,~)
+        cbMode(obj,~,~)
+        cbROI(obj,~,~)
+        cbFPS(obj,~,~)
         cbOkay(obj,~,~)
+        
 
         function cbAbort(obj,~,~)
             close(obj.fig)
-        end
-
-        function cbDev(obj,~,~)
-
-            % get currently selected value from UI control
-            h       = getappdata(obj.fig,'controls');
-            hCtrl   = h.device;
-            value   = hCtrl.String{hCtrl.Value};
-
-            % compare with previously selected value (return if identical)
-            if isequal(hCtrl.UserData,value)
-                return
-            end
-            hCtrl.UserData = value;
-
-            % manage UI control for mode selection
-            if isempty(hCtrl.UserData)
-                % disable mode selection
-                h.mode.Enable = 'off';
-                h.mode.String = {''};
-                h.mode.Value  = 1;
-            else
-                % enable mode selection
-                h.mode.Enable = 'on';
-
-                % get some variables
-                hw      = getappdata(obj.fig,'deviceInfo');
-                hw      = hw(hCtrl.Value);
-                devID   = hw.DeviceID;
-                devName = hw.DeviceName;
-                modes   = hw.SupportedFormats(:);
-                adapt   = h.adaptor.UserData;
-
-                % restrict modes to 16bit MONO (supported devices only)
-                if ~isempty(regexpi(devName,'^QICam'))
-                    modes(cellfun(@isempty,regexpi(modes,'^MONO16'))) = [];
-                end
-
-                % sort modes by resolution (if obtainable through regexp)
-                tmp = regexpi(modes,'^(\w*)_(\d)*x(\d)*$','tokens','once');
-                if all(cellfun(@numel,tmp)==3)
-                    tmp = cat(1,tmp{:});
-                    tmp(:,2:3) = cellfun(@(x) {str2double(x)},tmp(:,2:3));
-                    [~,idx] = sortrows(tmp);
-                    modes = modes(idx);
-                end
-
-                % fill modes, save to appdata for later use
-                setappdata(obj.fig,'modes',modes);
-                h.mode.String = modes;
-
-                % select previously used mode if adaptor & device ID match
-                if strcmp(adapt,obj.adaptor) && devID==obj.deviceID
-                    h.mode.Value = max([find(strcmp(modes,...
-                        obj.loadvar('videoMode',''))) 1]);
-                elseif ~isempty(devID)
-                    h.mode.Value = find(strcmp(modes,hw.DefaultFormat));
-                else
-                    h.mode.Value = 1;
-                end
-            end
-            h.mode.UserData = 'needs to be processed by obj.cbMode';
-
-            %obj.cbMode(h.mode)
-        end
-
-        function cbMode(obj, hCtrl, ~)
-            % read value from control
-            m   = hCtrl.String{hCtrl.Value};
-            setappdata(obj.fig,'mode',m);
-
-            % find some more variables
-            d   = getappdata(obj.fig,'deviceName');
-            a 	= getappdata(obj.fig,'adaptor');
-            id  = getappdata(obj.fig,'deviceID');
-
-            % fill video resolution and ROI
-            h   = getappdata(obj.fig,'controls');
-            if isempty(m)
-                h.res(1).String = '';
-                h.res(2).String = '';
-                h.ROI(1).String = '';
-                h.ROI(2).String = '';
-                res = [NaN NaN];
-            else
-                % Try to get the resolution of the selected mode via regex.
-                % In case of a non-standard name create a temporary video
-                % input object and get the resolution from there.
-                regex = regexpi(m,'^\w*_(\d)*x(\d)*$','tokens','once');
-                if ~isempty(regex)
-                    res = str2double(regex);
-                else
-                    obj.toggleCtrls('off')
-                    tmp = videoinput(a,id,m);
-                    res = tmp.VideoResolution;
-                    delete(tmp)
-                    obj.toggleCtrls('on')
-                end
-                h.res(1).String = num2str(res(1));
-                h.res(2).String = num2str(res(2));
-                h.ROI(1).String = num2str(res(1));
-                h.ROI(2).String = num2str(res(2));
-            end
-            setappdata(obj.fig,'resolution',res);
-            obj.cbROI()
-
-            % fill binning (only on supported cameras)
-            if ~isempty(m)
-                if ismember(a,{'qimaging'}) && ismember(d,{'QICam B'})
-                     tmp = getappdata(obj.fig,'modes');
-                     tmp = regexpi(tmp,'^\w*_(\d)*x\d*$','tokens','once');
-                     bin = max(cellfun(@str2double,[tmp{:}])) / res(1);
-                end
-            else
-                bin = [];
-            end
-            set([h.binning(1) h.binning(2)],'String',bin);
-
-            % toggle OK button
-            tmp = {'on','off'};
-            h.btnOk.Enable =  tmp{isempty(m)+1};
-
-            % check framerate
-            obj.cbFPS(h.FPS)
-        end
-
-        function cbROI(obj, ~, ~)
-            h   = getappdata(obj.fig,'controls');
-            h   = findobj([h.ROI(1) h.ROI(2)])';
-            roi = round(str2double({h.String}));
-            if isequal(getappdata(obj.fig,'roi'),roi)
-                return
-            end
-
-            res = getappdata(obj.fig,'resolution');
-            if isempty(res) || any(isnan(res))
-                roi = [NaN NaN];
-                set(h,'String','','Enable','Off')
-            else
-                idx = isnan(roi) | (roi > res) | (roi < 0);
-                roi(idx) = res(idx);
-                arrayfun(@(x,y) set(x,'String',num2str(y)),h,roi)
-                set(h,'Enable','On')
-            end
-            setappdata(obj.fig,'roi',roi);
-            obj.bitrate
-        end
-
-        function cbFPS(obj, hCtrl, ~)
-            fps = round(str2double(hCtrl.String));
-            a   = getappdata(obj.fig,'adaptor');
-            d   = getappdata(obj.fig,'deviceName');
-
-            % limit rates for qimaing QICam B
-            if strcmpi([a d],'qimagingQICam B')
-                res = getappdata(obj.fig,'resolution');
-                switch res(2)
-                    case 130
-                        lims = [1 59];
-                    case 260
-                        lims = [1 36];
-                    case 520
-                        lims = [1 19];
-                    case 1040
-                        lims = [1 6];
-                end
-            else
-                lims = [1 60];
-            end
-
-            fps = max([fps min(lims)]);
-            fps = min([fps max(lims)]);
-
-            hCtrl.String = num2str(fps);
-            setappdata(obj.fig,'rate',fps);
-            obj.bitrate
         end
 
         function cbOVS(obj, hCtrl, ~)
@@ -442,14 +284,21 @@ classdef camera < handle
                 (bitdepth * prod(roi) * fps) / (ovs * 1E6));
         end
 
-        function out = loadvar(obj,var,default)
+        function out = loadVar(obj,var,default)
             % load variable from matfile or return default if non-existant
             out = default;
             if ~exist(obj.mat.Properties.Source,'file')
                 return
-            elseif ~isempty(who('-file',obj.mat.Properties.Source,var))
-                out = obj.mat.(var);
+            else
+                var = [obj.matPrefix var];
+                if ~isempty(who('-file',obj.mat.Properties.Source,var))
+                    out = obj.mat.(var);
+                end
             end
+        end
+        
+        function saveVar(obj,varName,data)
+            obj.mat.([obj.matPrefix varName]) = data;
         end
     end
 end

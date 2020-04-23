@@ -44,9 +44,9 @@ else
         {hw.DeviceID},{hw.DeviceName});
 
     % select previously used device if adaptor matches
-    if strcmp(value,loadvar(obj,'adaptor',''))
+    if strcmp(value,loadVar(obj,'adaptor',''))
         c.device.Value = max([find([hw.DeviceID]==...
-            loadvar(obj,'deviceID',NaN)) 1]);
+            loadVar(obj,'deviceID',NaN)) 1]);
     else
         c.device.Value = 1;
     end
@@ -55,6 +55,6 @@ c.device.UserData = 'needs to be processed by obj.cbDev';
 
 % run dependent callbacks
 if isCallback
-    obj.cbDev(c.device)
+    obj.cbDevice(c.device)
     %obj.cbOVS(h.oversmpl)
 end

@@ -20,7 +20,7 @@ if isempty(device)
 end
 
 % create interface
-fprintf('Creating DAQ interface using %s ...\n\n',...
+fprintf('Creating DAQ interface using %s ...\n',...
     obj.devices(vendorID,deviceID).Description)
 deviceInfo   = obj.devices(vendorID,deviceID).DeviceInfo;
 subSys       = obj.subsystems(deviceInfo);
