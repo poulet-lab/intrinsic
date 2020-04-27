@@ -3,7 +3,7 @@ classdef DAQdevice < handle
     properties (SetAccess = private)
         session
     end
-    
+
     properties (Access = private)
         fig
     end
@@ -14,11 +14,11 @@ classdef DAQdevice < handle
 
         % supported vendors
         supportedVendors = {'ni'};
-        
+
         % supported channel types
         channelTypesOut  = {'AnalogOutput','DigitalIO'};
         channelTypesIn   = {'AnalogInput','DigitalIO'};
-        
+
         % prefix for variables in matfile
         matPrefix = 'DAQ_'
     end
@@ -29,12 +29,12 @@ classdef DAQdevice < handle
         nChannelsIn
         mat
     end
-    
+
     properties (Dependent = true)
         available
         triggerAmplitude
     end
-    
+
     properties (Dependent = true, GetAccess = private)
         vendors
     end
@@ -48,7 +48,7 @@ classdef DAQdevice < handle
                 {'matlab.io.MatFile'},{'scalar'}))
             parse(p,varargin{:})
             obj.mat = p.Results.MatFile;
-            
+
             % check for Data Acquisition Toolbox
             if ~obj.toolbox
                 warning('Data Acquisition Toolbox is not available.')
@@ -94,22 +94,22 @@ classdef DAQdevice < handle
                         obj.nChannelsOut + obj.nChannelsIn;
             end
         end
-        
+
         function out = get.triggerAmplitude(obj)
             out = obj.loadVar('triggerAmp',[]);
         end
-        
+
         function out = get.vendors(obj)
             out = daq.getVendors;
             out(~[out.IsOperational]) = [];
             out(~ismember({out.ID},obj.supportedVendors)) = [];
         end
-        
+
         setup(obj)
     end
-    
+
     methods (Access = private)
-        
+
         % callbacks and some helper functions are in separate files
         cbVendor(obj,~,~)
         cbDevice(obj,~,~)
@@ -118,7 +118,7 @@ classdef DAQdevice < handle
         cbTriggerAmp(obj,~,~)
         toggleCtrls(obj,state)
         createSession(obj)
-        
+
         function out = loadVar(obj,var,default)
             % load variable from matfile or return default if non-existant
             out = default;
@@ -131,7 +131,7 @@ classdef DAQdevice < handle
                 end
             end
         end
-        
+
         function saveVar(obj,varName,data)
             obj.mat.([obj.matPrefix varName]) = data;
         end
@@ -144,7 +144,7 @@ classdef DAQdevice < handle
             if isempty(d)
                 return
             end
-                        
+
             % filter for vendor ID
             if nargin < 2
                 vendorID = obj.supportedVendors;
@@ -152,12 +152,12 @@ classdef DAQdevice < handle
                 vendorID = intersect(vendorID,obj.supportedVendors);
             end
             d(~matches(arrayfun(@(x) {x.ID},[d.Vendor]),vendorID)) = [];
-            
+
             % filter for deviceID argument
             if nargin > 2
                 d(~ismember({d.ID},deviceID)) = [];
             end
-            
+
             % limit to devices with sufficient number of channels
             nIn	 = arrayfun(@(x) numel(obj.channelNames(x, ...
                 obj.channelTypesIn)), d);
@@ -165,18 +165,18 @@ classdef DAQdevice < handle
                 obj.channelTypesOut)),d);
             d(nIn < obj.nChannelsIn | nOut < obj.nChannelsOut) = [];
         end
-        
+
         function out = subsystems(~,deviceInfo,types)
             % limit to clocked subsystems
             out = deviceInfo.Subsystems;
             out = out(arrayfun(@(x) x.RateLimit(2)>0,out));
-            
+
             % limit to specified types
             if nargin > 2 && ~isempty(out)
                 out = out(matches({out.SubsystemType},types));
             end
         end
-        
+
         function out = channelNames(obj,varargin)
             subsystems = obj.subsystems(varargin{:});
             if isempty(subsystems)
