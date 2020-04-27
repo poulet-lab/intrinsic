@@ -1,7 +1,7 @@
 classdef DAQdevice < handle
 
     properties (SetAccess = private)
-        interface
+        session
     end
     
     properties (Access = private)
@@ -33,6 +33,10 @@ classdef DAQdevice < handle
     properties (Dependent = true)
         available
         triggerAmplitude
+    end
+    
+    properties (Dependent = true, GetAccess = private)
+        vendors
     end
 
     methods
@@ -79,8 +83,8 @@ classdef DAQdevice < handle
                 return
             end
 
-            % try to create DAQ interface
-            obj.createInterface
+            % try to create DAQ session
+            obj.createSession
         end
 
         function out = get.available(obj)
@@ -95,6 +99,12 @@ classdef DAQdevice < handle
             out = obj.loadVar('triggerAmp',[]);
         end
         
+        function out = get.vendors(obj)
+            out = daq.getVendors;
+            out(~[out.IsOperational]) = [];
+            out(~ismember({out.ID},obj.supportedVendors)) = [];
+        end
+        
         setup(obj)
     end
     
@@ -107,7 +117,7 @@ classdef DAQdevice < handle
         cbRate(obj,~,~)
         cbTriggerAmp(obj,~,~)
         toggleCtrls(obj,state)
-        createInterface(obj)
+        createSession(obj)
         
         function out = loadVar(obj,var,default)
             % load variable from matfile or return default if non-existant
@@ -125,55 +135,35 @@ classdef DAQdevice < handle
         function saveVar(obj,varName,data)
             obj.mat.([obj.matPrefix varName]) = data;
         end
-        
-        function out = vendors(obj)
-            % get list of vendors
-            [vendorList,tmp] = daqvendorlist;
-            if isempty(tmp)
-                out = {};
-                return
-            end
 
-            % limit to supported and operational vendors
-            operational = [tmp.IsOperational] == true;
-            supported   = matches({tmp.ID},obj.supportedVendors);
-            tmp  = tmp(operational & supported);
-            if isempty(tmp)
-                out = table('Size',[0 0]);
-            else
-                out = vendorList(vendorList.ID.matches({tmp.ID}),:);
-            end
-        end
-        
-        function out = devices(obj,vendorID,deviceID)
-            % manage arguments
-            if nargin < 2, vendorID = obj.supportedVendors; end
-            if nargin < 3, deviceID = ''; end
-            
+        function d = devices(obj,vendorID,deviceID)
             % get list of devices
             disableVendorDiagnostics
-            out = daqlist('all');
+            d = daq.getDevices;
             enableVendorDiagnostics
-
-            % limit to supported vendors
-            if isempty(out)
-                out = table('Size',[0 0]);
+            if isempty(d)
+                return
+            end
+                        
+            % filter for vendor ID
+            if nargin < 2
+                vendorID = obj.supportedVendors;
             else
-                tmp = intersect(obj.supportedVendors,vendorID);
-                out = out(out.VendorID.matches(tmp),:);
+                vendorID = intersect(vendorID,obj.supportedVendors);
+            end
+            d(~matches(arrayfun(@(x) {x.ID},[d.Vendor]),vendorID)) = [];
+            
+            % filter for deviceID argument
+            if nargin > 2
+                d(~ismember({d.ID},deviceID)) = [];
             end
             
             % limit to devices with sufficient number of channels
             nIn	 = arrayfun(@(x) numel(obj.channelNames(x, ...
-                obj.channelTypesIn)), out.DeviceInfo);
+                obj.channelTypesIn)), d);
             nOut = arrayfun(@(x) numel(obj.channelNames(x, ...
-                obj.channelTypesOut)),out.DeviceInfo);
-            out = out(nIn >= obj.nChannelsIn & nOut >= obj.nChannelsOut,:);
-            
-            % limit to specific device
-            if ~isempty(out) && ~isempty(deviceID)
-                out = out(out.DeviceID.matches(deviceID),:);
-            end
+                obj.channelTypesOut)),d);
+            d(nIn < obj.nChannelsIn | nOut < obj.nChannelsOut) = [];
         end
         
         function out = subsystems(~,deviceInfo,types)

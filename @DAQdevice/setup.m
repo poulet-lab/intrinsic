@@ -26,7 +26,7 @@ p(3) = addPanel(2,'Output Parameters',p(2).Position(2));
 
 % create UI controls (see helper functions below)
 ctrl.panels	= p';
-ctrl.vendor	= addPopup(1,@obj.cbVendor,'Vendor',obj.vendors.FullName,p(1));
+ctrl.vendor	= addPopup(1,@obj.cbVendor,'Vendor',{obj.vendors.FullName},p(1));
 ctrl.device	= addPopup(2,@obj.cbDevice,'Device',{''},p(1));
 ctrl.amp   	= addEdit(1,@obj.cbTriggerAmp,'Trigger Amplitude (V)',p(3));
 ctrl.rate  	= addEdit(2,@obj.cbRate,'Sampling Rate (Hz)',p(3));

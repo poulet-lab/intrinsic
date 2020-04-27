@@ -14,7 +14,7 @@ setappdata(obj.fig,'deviceID',deviceID);
 
 % get device info
 vendorID   = getappdata(obj.fig,'vendorID');
-deviceInfo = obj.devices(vendorID,deviceID).DeviceInfo;
+deviceInfo = obj.devices(vendorID,deviceID);
 setappdata(obj.fig,'deviceInfo',deviceInfo);
 
 % fill UI controls for channel selection
