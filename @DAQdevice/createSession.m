@@ -13,10 +13,20 @@ if isempty(vendorID) || isempty(deviceID)
 end
 
 % check if device is present
-device     = obj.devices(vendorID,deviceID);
+device = obj.devices(vendorID,deviceID);
 if isempty(device)
     warning('Can''t find configured DAQ device (%s/%s)',vendorID,deviceID)
     return
+end
+
+% check if parameters have changed
+if isa(obj.session,'daq.Session')
+    if  strcmp(obj.session.Vendor.ID,vendorID) && all(arrayfun(@(x) ...
+            strcmp(x.Device.ID,deviceID),[obj.session.Channels])) && ...
+            isequal({obj.session.Channels.ID}',channelIDs) && ...
+            obj.session.Rate == rate
+        return
+    end
 end
 
 % create session

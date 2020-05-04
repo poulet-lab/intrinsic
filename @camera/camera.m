@@ -136,7 +136,7 @@ classdef camera < handle
             end
 
             % disconnect and delete all image acquisition objects
-            disp('Disconnecting and deleting all IMAQ objects ...')
+            fprintf('\nDisconnecting and deleting all IMAQ objects ...\n')
             imaqreset
             pause(1)
 
@@ -178,7 +178,7 @@ classdef camera < handle
 
     % public methods (defined in separate files)
     methods
-        setup(obj)
+        varargout = setup(obj)
 
         function out = get.adaptors(~)
             % returns a cell of installed IMAQ adaptors

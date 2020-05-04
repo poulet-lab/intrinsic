@@ -1,4 +1,4 @@
-function obj = cbTriggerAmp(obj,~,~)
+function cbTriggerAmp(obj,~,~)
 
 % get currently selected value from UI control
 ctrl  = getappdata(obj.fig,'controls');

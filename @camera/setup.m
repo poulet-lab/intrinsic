@@ -1,5 +1,7 @@
-function setup(obj)
+function varargout = setup(obj)
 % open GUI to change camera settings.
+
+nargoutchk(0,1)
 
 % some parameters controlling size and appearance of the controls
 pad     = 7;                    % padding
@@ -52,6 +54,11 @@ obj.cbDevice()
 % initialize
 movegui(obj.fig,'center')
 obj.fig.Visible = 'on';
+
+% output arguments
+if nargout == 1
+    varargout{1} = obj.fig;
+end
 
 
     function control = addButton(row,string,callback)

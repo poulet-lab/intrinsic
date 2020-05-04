@@ -56,7 +56,7 @@ classdef DAQdevice < handle
             end
 
             % reset Data Acquisition Toolbox
-            disp('Resetting Data Acquisition Toolbox ...')
+            fprintf('\nResetting Data Acquisition Toolbox ...\n')
             daqreset
 
             % define immutable channel properties
@@ -105,7 +105,7 @@ classdef DAQdevice < handle
             out(~ismember({out.ID},obj.supportedVendors)) = [];
         end
 
-        setup(obj)
+        varargout = setup(obj)
     end
 
     methods (Access = private)

@@ -1,6 +1,6 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
-    properties (Access = private)
+    properties %(Access = private)
         Version         = '1.0-alpha1'
         Flags
 
@@ -75,15 +75,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Class Constructor
         function obj = intrinsic(varargin)
 
-            % Check MATLAB version
-            if verLessThan('matlab','9.8')
-                error('This program requires MATLAB Version R2020a or newer.')
-            end
+%             % Check MATLAB version
+%             if verLessThan('matlab','9.7')
+%                 warning('This program requires MATLAB Version R2019b or newer.')
+%             end
 
             % Clear command window, close all figures & say hi
             clc
             close all
-            fprintf('Intrinsic Imaging, v%s\n\n',obj.Version)
+            fprintf('Intrinsic Imaging, v%s\n',obj.Version)
 
             % Warn if necessary toolboxes are unavailable
             for tmp = struct2cell(obj.Toolbox)'
@@ -113,7 +113,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.DAQ = DAQdevice(obj.Settings);
 
             % Initialize video device
-            obj.settingsVideo
+            obj.Camera = camera(obj.Settings);
 
 %             % Generate Stimulus
 %             disp('Generating stimulus ...')

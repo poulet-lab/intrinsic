@@ -1,4 +1,4 @@
-function obj = cbRate(obj,~,~)
+function cbRate(obj,~,~)
 
 % get currently selected value from UI control
 ctrl    = getappdata(obj.fig,'controls');
@@ -20,7 +20,7 @@ ranges  = vertcat(sub(idx).RateLimit);
 % round value & force into range
 rate = round(abs(rate));
 rate = max([rate max([1 min(ranges(:,1))])]);
-rate = min([rate max(ranges(:,2))]);
+rate = min([rate min(ranges(:,2))]);
 
 hCtrl.String = num2str(rate);
 setappdata(obj.fig,'rate',rate);

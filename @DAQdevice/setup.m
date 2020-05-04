@@ -1,5 +1,7 @@
-function setup(obj)
+function varargout = setup(obj)
 % open GUI to change DAQ settings.
+
+nargoutchk(0,1)
 
 % some parameters controlling size and appearance of the controls
 pad         = 7;                    % padding
@@ -53,6 +55,12 @@ setappdata(obj.fig,'controls',ctrl);
 obj.cbVendor(ctrl.vendor)
 movegui(obj.fig,'center')
 obj.fig.Visible = 'on';
+
+% output arguments
+if nargout == 1
+    varargout{1} = obj.fig;
+end
+
 
     function panel = addPanel(nRows,string,top)
         % helper function for creating uipanels

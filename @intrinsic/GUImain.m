@@ -83,10 +83,10 @@ obj.h.menu.settings = uimenu(obj.h.fig.main, ...
     'Accelerator',      'S');
 obj.h.menu.settingsVideo = uimenu(obj.h.menu.settings, ...
     'Label',            'Video Settings', ...
-    'Callback',         {@obj.settingsVideo});
+    'Callback',         {@cbCameraSetup});
 obj.h.menu.settingsDAQ = uimenu(obj.h.menu.settings, ...
     'Label',            'DAQ Settings', ...
-    'Callback',         {@obj.DAQ.setup});
+    'Callback',         {@cbDAQsetup});
 obj.h.menu.settingsStimulus = uimenu(obj.h.menu.settings, ...
     'Label',            'Stimulus Settings', ...
     'Callback',         {@obj.settingsStimulus});
@@ -156,34 +156,34 @@ obj.h.axes.temporal = axes(...
     'nextplot',         'add', ...
     'color',            'none');
 
-tcam  = obj.DAQvec.time(obj.DAQvec.cam);
-tcam  = tcam((obj.WarmupN+1):end);
-gridx = repmat(tcam,3,1);
-gridx(3,:) = NaN;
-gridx = gridx(:);
-gridy = repmat([0 .01 NaN]',length(gridx)/3,1);
-
-obj.h.plot.grid = plot(obj.h.axes.temporalBg,gridx,gridy,'k',...
-    'pickableparts',    'none');
-plot(obj.h.axes.temporalBg,[0 0],[0 1],'k',...
-    'pickableparts',    'none')
-xlim(obj.h.axes.temporalBg,obj.DAQvec.time([1 end]))
-ylim(obj.h.axes.temporalBg,[0 1])
-
-idx = obj.DAQvec.time>=gridx(1) & obj.DAQvec.time<=gridx(end-2);
-obj.h.plot.stimulus = plot(obj.h.axes.stimulus,...
-    obj.DAQvec.time(idx),obj.DAQvec.stim(idx),'r',...
-    'pickableparts',    'none');
-xlim(obj.h.axes.stimulus,obj.DAQvec.time([1 end]))
-ylim(obj.h.axes.stimulus,[0 max(obj.DAQvec.stim)])
-ylabel(obj.h.axes.stimulus,'Stim (V)')
-
-title(obj.h.axes.temporal,'Temporal Response')
-xlabel(obj.h.axes.temporal,'Time (s)')
-ylabel(obj.h.axes.temporal,'\DeltaF/F')
-linkaxes([obj.h.axes.temporal obj.h.axes.stimulus obj.h.axes.temporalBg],'x')
-linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position'});
-set(obj.h.axes.temporal,'xlim',gridx([1 end-2]));
+% tcam  = obj.DAQvec.time(obj.DAQvec.cam);
+% tcam  = tcam((obj.WarmupN+1):end);
+% gridx = repmat(tcam,3,1);
+% gridx(3,:) = NaN;
+% gridx = gridx(:);
+% gridy = repmat([0 .01 NaN]',length(gridx)/3,1);
+% 
+% obj.h.plot.grid = plot(obj.h.axes.temporalBg,gridx,gridy,'k',...
+%     'pickableparts',    'none');
+% plot(obj.h.axes.temporalBg,[0 0],[0 1],'k',...
+%     'pickableparts',    'none')
+% xlim(obj.h.axes.temporalBg,obj.DAQvec.time([1 end]))
+% ylim(obj.h.axes.temporalBg,[0 1])
+% 
+% idx = obj.DAQvec.time>=gridx(1) & obj.DAQvec.time<=gridx(end-2);
+% obj.h.plot.stimulus = plot(obj.h.axes.stimulus,...
+%     obj.DAQvec.time(idx),obj.DAQvec.stim(idx),'r',...
+%     'pickableparts',    'none');
+% xlim(obj.h.axes.stimulus,obj.DAQvec.time([1 end]))
+% ylim(obj.h.axes.stimulus,[0 max(obj.DAQvec.stim)])
+% ylabel(obj.h.axes.stimulus,'Stim (V)')
+% 
+% title(obj.h.axes.temporal,'Temporal Response')
+% xlabel(obj.h.axes.temporal,'Time (s)')
+% ylabel(obj.h.axes.temporal,'\DeltaF/F')
+% linkaxes([obj.h.axes.temporal obj.h.axes.stimulus obj.h.axes.temporalBg],'x')
+% linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position'});
+% set(obj.h.axes.temporal,'xlim',gridx([1 end-2]));
 
 obj.h.plot.temporalOVS = errorbar(obj.h.axes.temporal,NaN,NaN,NaN,...
     'horizontal','color',[1 1 1]*.5,'pickableparts','none','capsize',0);
@@ -192,8 +192,8 @@ obj.h.plot.temporal    = plot(obj.h.axes.temporal,NaN,NaN,':ko',...
     'markerfacecolor','k','markersize',2);
 obj.h.plot.temporalROI = plot(obj.h.axes.temporal,NaN,NaN,'k','linewidth',1, ...
     'pickableparts',    'none');
-plot(obj.h.axes.temporal,obj.DAQvec.time([1 end]),[0 0],'k', ...
-    'pickableparts',    'none');
+% plot(obj.h.axes.temporal,obj.DAQvec.time([1 end]),[0 0],'k', ...
+%     'pickableparts',    'none');
 
 obj.h.axes.spatial = axes(...
     'outerposition',   	[.5 .02 .5 .96], ...
@@ -243,5 +243,15 @@ obj.h.fig.main.Visible = 'on';
 
     function figResize(~,~,~)
         obj.h.axes.stimulus.Position = obj.h.axes.temporal.Position./[1 1 1 7];
+    end
+
+    function cbDAQsetup(~,~,~)
+        h = obj.DAQ.setup;
+        uiwait(h)
+    end
+
+    function cbCameraSetup(~,~,~)
+        h = obj.Camera.setup;
+        uiwait(h)
     end
 end
