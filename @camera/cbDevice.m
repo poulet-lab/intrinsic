@@ -1,9 +1,9 @@
 function cbDevice(obj,~,~)
 
 % get currently selected value from UI control
-h       = getappdata(obj.fig,'controls');
-hCtrl   = h.device;
-value   = hCtrl.String{hCtrl.Value};
+ctrl  = getappdata(obj.fig,'controls');
+hCtrl = ctrl.device;
+value = hCtrl.String{hCtrl.Value};
 
 % compare with previously selected value (return if identical)
 if isequal(hCtrl.UserData,value)
@@ -12,29 +12,29 @@ end
 hCtrl.UserData = value;
 
 % manage UI control for mode selection
-if isempty(hCtrl.UserData)
+if isempty(value)
     % disable mode selection
-    h.mode.Enable = 'off';
-    h.mode.String = {''};
-    h.mode.Value  = 1;
+    ctrl.mode.Enable = 'off';
+    ctrl.mode.String = {''};
+    ctrl.mode.Value  = 1;
 else
     % enable mode selection
-    h.mode.Enable = 'on';
+    ctrl.mode.Enable = 'on';
     
     % get some variables
-    hw      = getappdata(obj.fig,'deviceInfo');
-    hw      = hw(hCtrl.Value);
-    devID   = hw.DeviceID;
-    devName = hw.DeviceName;
-    modes   = hw.SupportedFormats(:);
-    adapt   = h.adaptor.UserData;
+    adaptor    = getappdata(obj.fig,'adaptor');
+    deviceInfo = getappdata(obj.fig,'deviceInfo');
+    deviceInfo = deviceInfo(hCtrl.Value);
+    deviceID   = deviceInfo.DeviceID;
+    deviceName = deviceInfo.DeviceName;
+    modes      = deviceInfo.SupportedFormats(:);
     
     % restrict modes to 16bit MONO (supported devices only)
-    if ~isempty(regexpi(devName,'^QICam'))
+    if ~isempty(regexpi(deviceName,'^QICam'))
         modes(cellfun(@isempty,regexpi(modes,'^MONO16'))) = [];
     end
     
-    % sort modes by resolution (if obtainable through regexp)
+    % sort modes by resolution (if obtainable through regexp) and fill ctrl
     tmp = regexpi(modes,'^(\w*)_(\d)*x(\d)*$','tokens','once');
     if all(cellfun(@numel,tmp)==3)
         tmp = cat(1,tmp{:});
@@ -42,22 +42,28 @@ else
         [~,idx] = sortrows(tmp);
         modes = modes(idx);
     end
+    ctrl.mode.String = modes;
     
-    % fill modes, save to appdata for later use
+    % save variables to appdata for later use
+    setappdata(obj.fig,'deviceID',deviceID)
+    setappdata(obj.fig,'deviceName',deviceName)
     setappdata(obj.fig,'modes',modes);
-    h.mode.String = modes;
     
-    % select previously used mode if adaptor & device ID match
-    if strcmp(adapt,obj.adaptor) && devID==obj.deviceID
-        h.mode.Value = max([find(strcmp(modes,...
-            obj.loadVar('videoMode',''))) 1]);
-    elseif ~isempty(devID)
-        h.mode.Value = find(strcmp(modes,hw.DefaultFormat));
+    % select previously used settings if adaptor & device ID match
+    if strcmp(loadVar(obj,'adaptor',[]),adaptor) && ...
+            (loadVar(obj,'deviceID',NaN) == deviceID)
+        ctrl.mode.Value = ...
+            max([find(strcmp(modes,obj.loadVar('mode',''))) 1]);
+        ROI = obj.loadVar('ROI',[NaN NaN]);
+        ctrl.ROI(1).String   = ROI(1);
+        ctrl.ROI(2).String   = ROI(2);
+        ctrl.FPS.String      = obj.loadVar('rate',1);
+        ctrl.oversmpl.String = obj.loadVar('oversampling',1);
+    elseif ~isempty(deviceID)
+        ctrl.mode.Value = find(strcmp(modes,deviceInfo.DefaultFormat));
     else
-        h.mode.Value = 1;
+        ctrl.mode.Value = 1;
     end
 end
-h.mode.UserData = 'needs to be processed by obj.cbMode';
 
-%obj.cbMode(h.mode)
-end
+obj.cbMode(ctrl.mode)

@@ -7,9 +7,8 @@ if isempty(ishandle(obj.fig))
     return
 end
 
-h = getappdata(obj.fig,'handles');
-c = structfun(@(x) x.findobj,h);
+h = findobj(obj.fig,'Enable','on','-or','Enable','off');
 if strcmp(state,'off')
-    wasOn = strcmp({c.Enable},'on');
+    wasOn = strcmp({h.Enable},'on');
 end
-set(c(wasOn),'Enable',state);
+set(h(wasOn),'Enable',state);

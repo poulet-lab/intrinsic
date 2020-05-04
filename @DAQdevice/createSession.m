@@ -8,7 +8,7 @@ props      = obj.channelProp;
 
 % check if device is configured
 if isempty(vendorID) || isempty(deviceID)
-    obj.setup
+    uiwait(obj.setup)
     return
 end
 
@@ -30,7 +30,7 @@ if isa(obj.session,'daq.Session')
 end
 
 % create session
-fprintf('Creating DAQ session using %s ...\n',...
+fprintf('Creating DAQ session using %s ... ',...
     obj.devices(vendorID,deviceID).Description)
 deviceInfo = obj.devices(vendorID,deviceID);
 subSys     = obj.subsystems(deviceInfo);
@@ -52,6 +52,7 @@ for ii = 1:numel(props)
     end
     s.Channels(ii).Name = props(ii).label;
 end
+fprintf('done.\n')
 
 % set sampling rate & save session to obj
 s.Rate = rate;

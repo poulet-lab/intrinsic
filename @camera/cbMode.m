@@ -1,60 +1,64 @@
-function cbMode(obj, hCtrl, ~)
+function cbMode(obj, ~, ~)
 
 % read value from control
-m   = hCtrl.String{hCtrl.Value};
-setappdata(obj.fig,'mode',m);
+ctrl  = getappdata(obj.fig,'controls');
+hCtrl = ctrl.mode;
+mode  = hCtrl.String{hCtrl.Value};
+setappdata(obj.fig,'mode',mode);
 
 % find some more variables
-d   = getappdata(obj.fig,'deviceName');
-a 	= getappdata(obj.fig,'adaptor');
-id  = getappdata(obj.fig,'deviceID');
+deviceName = getappdata(obj.fig,'deviceName');
+adaptor    = getappdata(obj.fig,'adaptor');
+deviceID   = getappdata(obj.fig,'deviceID');
 
-% fill video resolution and ROI
-h   = getappdata(obj.fig,'controls');
-if isempty(m)
-    h.res(1).String = '';
-    h.res(2).String = '';
-    h.ROI(1).String = '';
-    h.ROI(2).String = '';
-    res = [NaN NaN];
+% fill video resolution
+if isempty(mode)
+    ctrl.res(1).String = '';
+    ctrl.res(2).String = '';
+    ctrl.ROI(1).String = '';
+    ctrl.ROI(2).String = '';
+    resolution = [NaN NaN];
 else
     % Try to get the resolution of the selected mode via regex. In case of
     % a non-standard name create a temporary video input object and get the
     % resolution from there.
-    regex = regexpi(m,'^\w*_(\d)*x(\d)*$','tokens','once');
+    regex = regexpi(mode,'^\w*_(\d)*x(\d)*$','tokens','once');
     if ~isempty(regex)
-        res = str2double(regex);
+        resolution = str2double(regex);
     else
         obj.toggleCtrls('off')
-        tmp = videoinput(a,id,m);
-        res = tmp.VideoResolution;
+        tmp = videoinput(adaptor,deviceID,mode);
+        resolution = tmp.VideoResolution;
         delete(tmp)
         obj.toggleCtrls('on')
     end
-    h.res(1).String = num2str(res(1));
-    h.res(2).String = num2str(res(2));
-    h.ROI(1).String = num2str(res(1));
-    h.ROI(2).String = num2str(res(2));
+    ctrl.res(1).String = num2str(resolution(1));
+    ctrl.res(2).String = num2str(resolution(2));
+    if strcmp(ctrl.ROI(1).String,'NaN')
+        ctrl.ROI(1).String = num2str(resolution(1));
+        ctrl.ROI(2).String = num2str(resolution(2));
+    end
 end
-setappdata(obj.fig,'resolution',res);
-obj.cbROI()
+setappdata(obj.fig,'resolution',resolution);
 
 % fill binning (only on supported cameras)
-if ~isempty(m)
-    if ismember(a,{'qimaging'}) && ismember(d,{'QICam B'})
+if ~isempty(mode)
+    if ismember(adaptor,{'qimaging'}) && ismember(deviceName,{'QICam B'})
         tmp = getappdata(obj.fig,'modes');
         tmp = regexpi(tmp,'^\w*_(\d)*x\d*$','tokens','once');
-        bin = max(cellfun(@str2double,[tmp{:}])) / res(1);
+        bin = max(cellfun(@str2double,[tmp{:}])) / resolution(1);
     end
 else
     bin = [];
 end
-set([h.binning(1) h.binning(2)],'String',bin);
+set([ctrl.binning(1) ctrl.binning(2)],'String',bin);
 
 % toggle OK button
 tmp = {'on','off'};
-h.btnOk.Enable =  tmp{isempty(m)+1};
+ctrl.btnOk.Enable =  tmp{isempty(mode)+1};
 
-% check framerate
-obj.cbFPS(h.FPS)
-end
+% run dependent callbacks
+obj.cbROI()
+obj.cbFPS()
+obj.cbOVS()
+obj.bitrate()

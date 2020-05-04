@@ -2,25 +2,26 @@ function obj = cbOkay(obj,~,~)
 obj.toggleCtrls('off')
 
 % get values
-a   = getappdata(obj.fig,'adaptor');
-id  = getappdata(obj.fig,'deviceID');
-m   = getappdata(obj.fig,'mode');
-res = getappdata(obj.fig,'resolution');
-roi = getappdata(obj.fig,'roi');
-roi = [floor((res-roi)/2) roi];
-
-% create videoinput objects
-if ~isequal({a,id,m,roi(3:4)},{obj.adaptor,obj.deviceID, ...
-        obj.videoMode,obj.ROI}) && ~strcmp(a,'none')
-    obj.inputR = videoinput(a,id,m,'ROIPosition',roi);
-    obj.inputG = videoinput(a,id,m,'ROIPosition',roi);
-end
+adaptor      = getappdata(obj.fig,'adaptor');
+deviceID     = getappdata(obj.fig,'deviceID');
+deviceName   = getappdata(obj.fig,'deviceName');
+mode         = getappdata(obj.fig,'mode');
+resolution   = getappdata(obj.fig,'resolution');
+ROI          = getappdata(obj.fig,'roi');
+rate         = getappdata(obj.fig,'rate');
+oversampling = getappdata(obj.fig,'oversampling');
 
 % save values to matfile
-obj.mat.adaptor     = a;
-obj.mat.deviceID    = id;
-obj.mat.deviceName  = getappdata(obj.fig,'deviceName');
-obj.mat.videoMode   = m;
-obj.mat.ROI         = roi;
+obj.saveVar('adaptor',adaptor);
+obj.saveVar('deviceID',deviceID);
+obj.saveVar('deviceName',deviceName);
+obj.saveVar('mode',mode);
+obj.saveVar('resolution',resolution);
+obj.saveVar('ROI',ROI);
+obj.saveVar('rate',rate);
+obj.saveVar('oversampling',oversampling);
+
+% create videoinput objects
+obj.createInputs;
 
 close(obj.fig)

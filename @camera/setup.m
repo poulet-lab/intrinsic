@@ -5,7 +5,7 @@ nargoutchk(0,1)
 
 % some parameters controlling size and appearance of the controls
 pad     = 7;                    % padding
-hFigure	= 370;                  % height of figure
+hFigure	= 310;                  % height of figure
 wFigure	= 254;                  % width of figure
 wButton = (wFigure-3*pad) / 2;	% width of buttons
 wLabel  = (wFigure-3*pad) * .4;	% width of labels
@@ -31,14 +31,12 @@ ctrl.binning  = addEditXY(5,@obj.cbROI,'Hardware Binning');
 ctrl.ROI      = addEditXY(6,@obj.cbROI,'ROI (px)');
 ctrl.FPS      = addEdit(7,0,@obj.cbFPS,'Frame Rate (Hz)');
 ctrl.oversmpl = addEdit(8,0,@obj.cbOVS,'Oversampling');
-ctrl.scale    = addEdit(9,0,'','Scale');
-ctrl.bitDepth = addEdit(10,0,'','Bit Depth (bit)');
-ctrl.bitRate  = addEdit(11,0,'','Bit Rate (Mbit/s)');
+ctrl.bitRate  = addEdit(9,0,'','Bit Rate (Mbit/s)');
 ctrl.okay     = addButton(1,'OK',@obj.cbOkay);
 ctrl.cancel   = addButton(2,'Cancel',@obj.cbAbort);
 
 % disable some of the UI controls
-set([ctrl.res ctrl.binning ctrl.bitDepth ctrl.bitRate],'Enable','Off');
+set([ctrl.res ctrl.binning ctrl.bitRate],'Enable','Off');
 
 % load values from file
 ctrl.adaptor.Value = max([find(strcmp(ctrl.adaptor.String,...
@@ -49,14 +47,13 @@ setappdata(obj.fig,'controls',ctrl);
 
 % run dependent callback functions
 obj.cbAdapt()
-obj.cbDevice()
 
 % initialize
 movegui(obj.fig,'center')
 obj.fig.Visible = 'on';
 
 % output arguments
-if nargout == 1
+if nargout
     varargout{1} = obj.fig;
 end
 

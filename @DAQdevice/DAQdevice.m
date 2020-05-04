@@ -56,8 +56,9 @@ classdef DAQdevice < handle
             end
 
             % reset Data Acquisition Toolbox
-            fprintf('\nResetting Data Acquisition Toolbox ...\n')
+            fprintf('\nResetting Data Acquisition Toolbox ... ')
             daqreset
+            fprintf('done.\n')
 
             % define immutable channel properties
             tmp(1,:) = {'out','out','in'};
