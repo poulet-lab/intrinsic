@@ -55,12 +55,7 @@ classdef camera < handle
                 if isempty(eval('imaqhwinfo').InstalledAdaptors)
                     warning('No IMAQ adapters installed.')
                 end
-
-                % disconnect and delete all image acquisition objects
-                fprintf('\nResetting image acquisition hardware ... ')
-                imaqreset
-                pause(1)
-                fprintf('done.\n')
+                obj.reset();
             end
 
             % try to create video input
@@ -165,6 +160,14 @@ classdef camera < handle
         function saveVar(obj,varName,data)
             % save variables to matfile
             obj.mat.([obj.matPrefix varName]) = data;
+        end
+        
+        function reset(obj)
+            % disconnect and delete all image acquisition objects
+            fprintf('\nInitializing image acquisition hardware ... ')
+            imaqreset
+            pause(1)
+            fprintf('done.\n')
         end
     end
 end

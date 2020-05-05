@@ -22,10 +22,7 @@ elseif ismember(adaptor,hwinfo.InstalledAdaptors) && ~isnan(deviceID)
             'Did you forget to switch it on?'],'Camera not found',...
             'Retry','Cancel','Retry');
         if strcmp(answer,'Retry')
-            fprintf('\nResetting IMAQ toolbox ... ')
-            imaqreset
-            pause(1)
-            fprintf('done.\n')
+            obj.reset();
             tmp = [imaqhwinfo(adaptor).DeviceInfo];
         else
             obj.Adaptor  = 'none';
