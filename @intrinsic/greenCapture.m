@@ -11,12 +11,12 @@ if isa(obj.VideoPreview,'video_preview')
 end
 
 % If  red preview is running, stop it temporarily
-if strcmp(obj.VideoInputRed.preview,'on')
+if strcmp(obj.Camera.Input.Red.preview,'on')
     obj.VideoPreview.Preview = false;
 end
 
 % Capture image, use only one color plane
-obj.ImageGreen = getsnapshot(obj.VideoInputGreen);
+obj.ImageGreen = getsnapshot(obj.Camera.Input.Green);
 obj.ImageGreen = obj.ImageGreen(:,:,1);
 
 % Return to former preview state

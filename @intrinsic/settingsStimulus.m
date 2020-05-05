@@ -92,8 +92,8 @@ hui.axes = axes( ...
     'Color',   	'none');
 hold on
 hui.plot = area(hui.axes,NaN,NaN,'edgecolor','none','facecolor','k');
-xlabel('Time (s)')
-ylabel('Stimulus Amplitude (V)')
+xlabel(hui.axes,'Time (s)')
+ylabel(hui.axes,'Stimulus Amplitude (V)')
 zoom xon
 
 %% Last touches

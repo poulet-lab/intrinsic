@@ -3,7 +3,7 @@ function updateEnabled(obj)
 IAQ = obj.Toolbox.ImageAcquisition.available;
 IP  = obj.Toolbox.ImageProcessing.available;
 DAQ = obj.Toolbox.DataAcquisition.available;
-VID = isa(obj.VideoInputRed,'videoinput');
+VID = obj.Camera.Available;
 tmp = {'off', 'on'};
 
 % UI elements depending on Image Acquisition Toolbox

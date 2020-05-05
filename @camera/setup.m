@@ -23,14 +23,15 @@ obj.fig = figure(...
     'Units',        'pixels');
 
 % create UI controls (see helper functions at the bottom)
-ctrl.adaptor  = addPopup(1,@obj.cbAdapt,'Adaptor',[{'none'} obj.adaptors]);
+adaptors      = [{'none'} eval('imaqhwinfo').InstalledAdaptors];
+ctrl.adaptor  = addPopup(1,@obj.cbAdapt,'Adaptor',adaptors);
 ctrl.device   = addPopup(2,@obj.cbDevice,'Device',{''});
 ctrl.mode     = addPopup(3,@obj.cbMode,'Mode',{''});
 ctrl.res      = addEditXY(4,'','Resolution (px)');
 ctrl.binning  = addEditXY(5,@obj.cbROI,'Hardware Binning');
 ctrl.ROI      = addEditXY(6,@obj.cbROI,'ROI (px)');
 ctrl.FPS      = addEdit(7,0,@obj.cbFPS,'Frame Rate (Hz)');
-ctrl.oversmpl = addEdit(8,0,@obj.cbOVS,'Oversampling');
+ctrl.oversmpl = addEdit(8,0,@obj.cbOVS,'downsample');
 ctrl.bitRate  = addEdit(9,0,'','Bit Rate (Mbit/s)');
 ctrl.okay     = addButton(1,'OK',@obj.cbOkay);
 ctrl.cancel   = addButton(2,'Cancel',@obj.cbAbort);

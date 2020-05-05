@@ -11,14 +11,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         DirLoad         = [];
 
         VideoPreview
-        VideoInputRed
-        VideoInputGreen
-        VideoAdaptorName
-        VideoBits
 
         Scale           = 1
-        RateCam                 % Rate of camera triggers (Hz)
-        Oversampling    = 1% Oversampling factor
 
         % The Q-Cam Needs a little time to deliver a high frame rate.
         % Therefore, we deliver a couple of "Warmup Triggers" at a lower
@@ -48,11 +42,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Settings
 
         Camera
-        
         DAQ
         DAQvec
-        DAQrate         = 5000
-        DAQsession   	= []
+
         StimIn
 
         ResponseTemporal
@@ -64,21 +56,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         redMode
         nTrials
         Figure
-        ROISize
         Point
         Line
-        Binning
     end
 
     methods
 
         % Class Constructor
         function obj = intrinsic(varargin)
-
-%             % Check MATLAB version
-%             if verLessThan('matlab','9.7')
-%                 warning('This program requires MATLAB Version R2019b or newer.')
-%             end
 
             % Clear command window, close all figures & say hi
             clc
@@ -109,15 +94,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.ResponseTemporal.x  = [];
             obj.ResponseTemporal.y  = [];
 
-            % Initalize data acquisition
-            obj.DAQ = DAQdevice(obj.Settings);
-
-            % Initialize video device
+            % Initalize data acquisition & video device
+            obj.DAQ    = daqdevice(obj.Settings);
             obj.Camera = camera(obj.Settings);
 
-%             % Generate Stimulus
-%             disp('Generating stimulus ...')
-%             obj.generateStimulus
+            % Generate Stimulus
+            disp('Generating stimulus ...')
+            obj.generateStimulus
 
             % Fire up GUI
             fprintf('\nReady to go!\n')
@@ -726,45 +709,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         end
 
         %% Dependent Properties (GET)
-        function binning = get.Binning(obj)
-            % The QImaging QiCam can average neighboring pixels into bins. This
-            % yields an increase in both RateCam and SNR at the expense of
-            % image resolution. The binning factor reflects the amount of
-            % binning (1: no binning, 4: 4x4 binning)
-
-            % Binning is only defined given a valid videoinput
-            if ~isa(obj.VideoInputRed,'videoinput')
-                binning = 1;
-                return
-            end
-
-            % Currently, we only support this for QiCam
-            tmp = imaqhwinfo(obj.VideoInputRed);
-            if ~strcmp(tmp.AdaptorName,'qimaging')
-                binning = 1;
-                return
-            end
-
-            % Currently, this function only works with the QiCam
-            if ~regexpi(imaqhwinfo(obj.VideoInputRed,'DeviceName'),'^QICam')
-                binning = 1;
-                return
-            end
-
-            % Current video mode / resolution
-            current = obj.VideoInputRed.VideoFormat;
-            current = textscan(current,'%s%n%n','Delimiter',{'_','x'});
-
-            % Highest supported resolution
-            tmp   	= imaqhwinfo('qimaging','DeviceInfo');
-            tmp   	= tmp.SupportedFormats;
-            tmp     = regexp(tmp,['(?<=^' current{1}{:} '_)\d*'],'match');
-            highest = max(str2double([tmp{:}]));
-
-            % Binning factor
-            binning	= highest/current{2};
-        end
-
         function out = get.Line(obj)
             if ~any(obj.LineCoords)
                 out.x = [NaN NaN];
@@ -777,15 +721,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         function out = get.Point(obj)
             out = obj.PointCoords;
-        end
-
-        function out = get.ROISize(obj)
-            if isa(obj.VideoInputRed,'videoinput')
-                tmp	= obj.VideoInputRed.ROIPosition;
-                out = tmp(3:4);
-            else
-                out = [];
-            end
         end
 
         function out = get.redMode(obj)
@@ -861,12 +796,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             ip  = inputParser;
             addOptional(ip,'stimParams',struct,@(x) validateattributes(x,...
                 {'struct'},{'scalar'}));
-            addOptional(ip,'fs',obj.DAQ.session.Rate,@(x) validateattributes(x,...
+            addOptional(ip,'fs',obj.DAQ.Session.Rate,@(x) validateattributes(x,...
                 {'numeric'},{'scalar','positive','real'}));
             parse(ip,varargin{:})
             p   = ip.Results.stimParams;    % stimulus parameters
             fs  = ip.Results.fs;            % sampling rate (Hz)
-            ovs	= round(obj.Oversampling);  % oversampling rate (integer)
+            ds	= obj.Camera.Downsample;    % downsampling factor
+            fps = obj.Camera.FrameRate;
 
             % Load stimulus parameters from disk, if they were not passed
             % (they are only being passed, if the stimulus is generated for
@@ -879,15 +815,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
 
             % Generate times where we send out a ttl to the cam
-            rateOvs = obj.RateCam / ovs;
+            rateOvs = fps / ds;
             nPerNeg = ceil(rateOvs*p.pre)-.5;
             nPerPos = ceil(rateOvs*(p.d+p.post))-.5;
             t_ovs   = (-nPerNeg:nPerPos)/rateOvs;
 
             % Generate times where we send out a ttl to the cam
-            nPerNeg = nPerNeg*ovs + floor(ovs/2-.5) + (obj.WarmupN > 0);
-            nPerPos = nPerPos*ovs +  ceil(ovs/2-.5);
-            t_trig  = ((-nPerNeg:nPerPos) -(~mod(ovs,2)*.5)) / obj.RateCam;
+            nPerNeg = nPerNeg*ds + floor(ds/2-.5) + (obj.WarmupN > 0);
+            nPerPos = nPerPos*ds +  ceil(ds/2-.5);
+            t_trig  = ((-nPerNeg:nPerPos) -(~mod(ds,2)*.5)) / fps;
 
             % Prepend remaining sample numbers for warmup
             % (the first warmup trigger has already been added above)

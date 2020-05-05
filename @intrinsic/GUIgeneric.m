@@ -1,6 +1,6 @@
 function GUIgeneric(obj,name,margin,bottom)
 
-imsize  = obj.ROISize*obj.Scale;        % image size [px]
+imsize  = obj.Camera.ROI*obj.Scale;        % image size [px]
 psize   = imsize+4;                     % panel size [px]
 if bottom > 0                           % figure size [px]
     fsize   = psize+[2 3]*margin+[0 bottom];
@@ -33,14 +33,14 @@ obj.h.axes.(lower(name)) = axes(...
     'Tag',              name, ...
     'DataAspectRatio',  [1 1 1], ...
     'CLimMode',         'manual', ...
-    'Clim',             [0 obj.VideoBits-1]);
+    'Clim',             [0 obj.Camera.BitDepth-1]);
 
 if strcmpi(name,'green')
-    tmp = obj.ROISize * obj.Binning;
+    tmp = obj.Camera.ROI * obj.Camera.Binning;
 else
-    tmp = obj.ROISize;
+    tmp = obj.Camera.ROI;
 end
 
 obj.h.image.(lower(name)) = imshow(zeros(fliplr(tmp)),...
-    'DisplayRange',     [0 obj.VideoBits-1], ...
+    'DisplayRange',     [0 obj.Camera.BitDepth-1], ...
     'Parent',           obj.h.axes.(lower(name)));

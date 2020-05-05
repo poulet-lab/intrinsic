@@ -20,7 +20,7 @@ if isempty(value)
 else
     % enable mode selection
     ctrl.mode.Enable = 'on';
-    
+
     % get some variables
     adaptor    = getappdata(obj.fig,'adaptor');
     deviceInfo = getappdata(obj.fig,'deviceInfo');
@@ -28,12 +28,12 @@ else
     deviceID   = deviceInfo.DeviceID;
     deviceName = deviceInfo.DeviceName;
     modes      = deviceInfo.SupportedFormats(:);
-    
+
     % restrict modes to 16bit MONO (supported devices only)
-    if ~isempty(regexpi(deviceName,'^QICam'))
-        modes(cellfun(@isempty,regexpi(modes,'^MONO16'))) = [];
+    if contains(deviceName,'QICam')
+        modes  = modes(contains(modes,'MONO16'));
     end
-    
+
     % sort modes by resolution (if obtainable through regexp) and fill ctrl
     tmp = regexpi(modes,'^(\w*)_(\d)*x(\d)*$','tokens','once');
     if all(cellfun(@numel,tmp)==3)
@@ -43,12 +43,12 @@ else
         modes = modes(idx);
     end
     ctrl.mode.String = modes;
-    
+
     % save variables to appdata for later use
     setappdata(obj.fig,'deviceID',deviceID)
     setappdata(obj.fig,'deviceName',deviceName)
     setappdata(obj.fig,'modes',modes);
-    
+
     % select previously used settings if adaptor & device ID match
     if strcmp(loadVar(obj,'adaptor',[]),adaptor) && ...
             (loadVar(obj,'deviceID',NaN) == deviceID)
@@ -58,7 +58,7 @@ else
         ctrl.ROI(1).String   = ROI(1);
         ctrl.ROI(2).String   = ROI(2);
         ctrl.FPS.String      = obj.loadVar('rate',1);
-        ctrl.oversmpl.String = obj.loadVar('oversampling',1);
+        ctrl.oversmpl.String = obj.loadVar('downsample',1);
     elseif ~isempty(deviceID)
         ctrl.mode.Value = find(strcmp(modes,deviceInfo.DefaultFormat));
     else

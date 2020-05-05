@@ -9,7 +9,7 @@ mode         = getappdata(obj.fig,'mode');
 resolution   = getappdata(obj.fig,'resolution');
 ROI          = getappdata(obj.fig,'roi');
 rate         = getappdata(obj.fig,'rate');
-oversampling = getappdata(obj.fig,'oversampling');
+downsample = getappdata(obj.fig,'downsample');
 
 % save values to matfile
 obj.saveVar('adaptor',adaptor);
@@ -18,8 +18,8 @@ obj.saveVar('deviceName',deviceName);
 obj.saveVar('mode',mode);
 obj.saveVar('resolution',resolution);
 obj.saveVar('ROI',ROI);
-obj.saveVar('rate',rate);
-obj.saveVar('oversampling',oversampling);
+obj.saveVar('framerate',rate);
+obj.saveVar('downsample',downsample);
 
 % create videoinput objects
 obj.createInputs;
