@@ -1,7 +1,7 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     properties %(Access = private)
-        Version         = '1.0-alpha1'
+        Version         = '2.0-alpha1'
         Flags
 
         h               = [] 	% handles
@@ -12,7 +12,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         VideoPreview
 
-        Scale           = 1
+        Scale           = 0.5
 
         % The Q-Cam Needs a little time to deliver a high frame rate.
         % Therefore, we deliver a couple of "Warmup Triggers" at a lower
@@ -39,7 +39,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         TimeStamp       = NaN;
 
         Toolbox
-        Settings
 
         Camera
         DAQ
@@ -52,6 +51,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         PxPerCm
     end
 
+    properties (SetAccess = immutable, GetAccess = private)
+        Settings
+    end
+    
     properties (Dependent = true)
         redMode
         nTrials
@@ -69,6 +72,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             clc
             close all
             fprintf('Intrinsic Imaging, v%s\n',obj.Version)
+            figWelcome = obj.welcome();
 
             % Warn if necessary toolboxes are unavailable
             for tmp = struct2cell(obj.Toolbox)'
@@ -94,17 +98,21 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.ResponseTemporal.x  = [];
             obj.ResponseTemporal.y  = [];
 
-            % Initalize data acquisition & video device
-            obj.DAQ    = daqdevice(obj.Settings);
-            obj.Camera = camera(obj.Settings);
-
-            % Generate Stimulus
-            disp('Generating stimulus ...')
-            obj.generateStimulus
+            % Initalize data acquisition & video device, generate stimulus
+            try
+                obj.DAQ    = daqdevice(obj.Settings);
+                obj.Camera = camera(obj.Settings);
+                disp('Generating stimulus ...')
+                obj.generateStimulus
+            catch
+                close(figWelcome)
+            end
 
             % Fire up GUI
             fprintf('\nReady to go!\n')
             obj.GUImain             % Create main window
+            close(figWelcome)
+            figure(obj.h.fig.main)
             obj.updateEnabled       % Update availability of UI elements
         end
     end
@@ -115,6 +123,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
         GUIgreen(obj)                	% Create GREEN GUI
         GUIred(obj)                    	% Create RED GUI
+        f = welcome(obj)
         settingsStimulus(obj,~,~)      	% Stimulus Settings
         settingsVideo(obj,~,~)
         settingsMagnification(obj,~,~)
