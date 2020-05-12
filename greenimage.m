@@ -16,7 +16,7 @@ classdef greenimage < handle
         DeviceProperties
     end
     
-    properties
+    properties (Access = private)
         Scalebar
         Figure
     end
@@ -79,13 +79,6 @@ classdef greenimage < handle
                 'Clim',         [min(obj.Data(:)) max(obj.Data(:))])
 
             obj.Scalebar = scalebar(hax,obj.Scale);
-%             obj.Figure.SizeChangedFcn = {@resize};
-%             
-%             function resize(~,~,~)
-%                 if isvalid(obj.Scalebar)
-%                     obj.Scalebar.update
-%                 end
-%             end
         end
         
         function saveImage(obj,dirname)
