@@ -10,6 +10,8 @@ function res = saveastiff(data, path, options)
 %       'jpeg'  : lossy JPEG (When using JPEG compression, ImageWidth,
 %                 ImageLength, and RowsPerStrip must be multiples of 16.)
 %       'adobe' : lossless Adobe-style
+% options.jpegquality
+%   : JPEG compression qualtiy. A value between 1 and 100
 % options.message
 %   : TRUE or false.
 %     If this is false, all messages are skipped. 
@@ -82,6 +84,12 @@ if ~isfield(options, 'color'),     options.color     = false; end
 if ~isfield(options, 'overwrite'), options.overwrite = false; end
 if  isfield(options, 'big') == 0,  options.big       = false; end
 
+switch class(data)
+    case {'uint8', 'uint16', 'uint32', 'int8', 'int16', 'int32', 'single', 'double', 'uint64', 'int64'}
+    otherwise
+        errcode = 5; assert(false);
+end
+
 if isempty(data), errcode = 1; assert(false); end
 if (options.color == false && ndims(data) > 3) || ...
    (options.color == true && ndims(data) > 4)
@@ -146,8 +154,16 @@ switch lower(options.compress)
         tagstruct.Compression = Tiff.Compression.None;
     case 'lzw'
         tagstruct.Compression = Tiff.Compression.LZW;
-    case 'jpeg'
+    case {'jpeg', 7}
         tagstruct.Compression = Tiff.Compression.JPEG;
+        if mod(height, 16) ~= 0 || mod(width, 16) ~= 0
+            tagstruct.Compression = Tiff.Compression.AdobeDeflate;
+            disp('Warning: Image width and height must be multiples of 16 when using JPEG compression. The compression method has been automatically changed to AdobeDeflate.')
+        else
+            if isfield(options, 'jpegquality') && 1 <= options.jpegquality && options.jpegquality <= 100
+                tagstruct.JPEGQuality = options.jpegquality;
+            end
+        end
     case 'adobe'
         tagstruct.Compression = Tiff.Compression.AdobeDeflate;
     otherwise
@@ -166,7 +182,10 @@ switch class(data)
         if options.color
             errcode = 4; assert(false);
         end
-    case {'single', 'double', 'uint64', 'int64'}
+    case {'uint64', 'int64'}
+        tagstruct.SampleFormat = Tiff.SampleFormat.IEEEFP;
+        data = double(data);
+    case {'single', 'double'}
         tagstruct.SampleFormat = Tiff.SampleFormat.IEEEFP;
     otherwise
         % (Unsupported)Void, ComplexInt, ComplexIEEEFP
@@ -191,11 +210,7 @@ switch class(data)
 end
 
 %% Rows per strip
-maxstripsize = 8*1024;
-tagstruct.RowsPerStrip = ceil(maxstripsize/(width*(tagstruct.BitsPerSample/8)*size(data,3))); % http://www.awaresystems.be/imaging/tiff/tifftags/rowsperstrip.html
-if tagstruct.Compression == Tiff.Compression.JPEG
-    tagstruct.RowsPerStrip = max(16,round(tagstruct.RowsPerStrip/16)*16);
-end
+tagstruct.RowsPerStrip = 512; % http://www.awaresystems.be/imaging/tiff/tifftags/rowsperstrip.html
 
 %% Overwrite check
 if exist(path, 'file') && ~options.append

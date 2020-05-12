@@ -63,18 +63,61 @@ end
 tfl = 0; % Total frame length
 tcl = 1; % Total cell length
 while true
-    tfl = tfl + 1; % Increase frame count
-    iinfo(tfl).w       = tiff.getTag('ImageWidth');
-    iinfo(tfl).h       = tiff.getTag('ImageLength');
-    iinfo(tfl).spp     = tiff.getTag('SamplesPerPixel');
-    iinfo(tfl).color   = iinfo(tfl).spp > 2; % Grayscale: 1(real number) or 2(complex number), Color: 3(rgb), 4(rgba), 6(rgb, complex number), or 8(rgba, complex number)
-    iinfo(tfl).complex = any(iinfo(tfl).spp == [2 6 8]);
+    try
+        tfl = tfl + 1; % Increase frame count
+        iinfo(tfl).w       = tiff.getTag('ImageWidth');
+        iinfo(tfl).h       = tiff.getTag('ImageLength');
+        iinfo(tfl).spp     = tiff.getTag('SamplesPerPixel');
+        iinfo(tfl).bps     = tiff.getTag('BitsPerSample');
+        iinfo(tfl).color   = iinfo(tfl).spp > 2; % Grayscale: 1(real number) or 2(complex number), Color: 3(rgb), 4(rgba), 6(rgb, complex number), or 8(rgba, complex number)
+        iinfo(tfl).complex = any(iinfo(tfl).spp == [2 6 8]);
+
+        if tiff.getTag('Photometric') == Tiff.Photometric.Palette
+            disp('Warning: Palette information has been removed.');
+        end
+    catch
+        error 'Failed to load image';
+    end
+    
+    %% Sample format
+    switch tiff.getTag('SampleFormat')
+        % Unsupported Matlab data type: char, logical, cell, struct, function_handle, class.
+        case Tiff.SampleFormat.UInt
+            switch tiff.getTag('BitsPerSample')
+                case 8
+                    iinfo(tfl).sf = 'uint8';
+                case 16
+                    iinfo(tfl).sf = 'uint16';
+                case 32
+                    iinfo(tfl).sf = 'uint32';
+            end
+        case Tiff.SampleFormat.Int
+            switch tiff.getTag('BitsPerSample')
+                case 8
+                    iinfo(tfl).sf = 'int8';
+                case 16
+                    iinfo(tfl).sf = 'int16';
+                case 32
+                    iinfo(tfl).sf = 'int32';
+            end
+        case Tiff.SampleFormat.IEEEFP
+            switch tiff.getTag('BitsPerSample')
+                case 32
+                    iinfo(tfl).sf = 'single';
+                case 64
+                    iinfo(tfl).sf = 'double';
+            end
+        otherwise
+            % (Unsupported)Void, ComplexInt, ComplexIEEEFP
+            error 'Unsupported Matlab data type. (char, logical, cell, struct, function_handle, class)';
+    end
 
     if tfl > 1
         % If tag information is changed, make a new cell
         if iinfo(tfl-1).w ~= iinfo(tfl).w || ...
             iinfo(tfl-1).h ~= iinfo(tfl).h || ...
             iinfo(tfl-1).spp ~= iinfo(tfl).spp || ...
+            any(iinfo(tfl-1).sf ~= iinfo(tfl).sf) || ...
             iinfo(tfl-1).color ~= iinfo(tfl).color || ...
             iinfo(tfl-1).complex ~= iinfo(tfl).complex
             tcl = tcl + 1; % Increase cell count
@@ -93,6 +136,11 @@ end
 
 %% Load image data
 if tcl == 1 % simple image (no cell)
+    if ~iinfo(tfl).color
+       oimg = zeros(iinfo(tfl).h,iinfo(tfl).w,iinfo(tfl).fid, iinfo(tfl).sf); % Grayscale image
+    else
+       oimg = zeros(iinfo(tfl).h,iinfo(tfl).w,iinfo(tfl).spp,iinfo(tfl).fid, iinfo(tfl).sf); % Color image
+    end
     for tfl = 1:tfl
         tiff.setDirectory(tfl);
         temp = tiff.read();

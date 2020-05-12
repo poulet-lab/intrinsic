@@ -14,13 +14,14 @@ saveastiff(uint8(Z_index), 'Z_uint8.tif');
 
 disp('Lossless LZW compression');
 clear options;
-options.comp = 'adobe';
+options.compress = 'lzw';
 saveastiff(uint8(Z_index), 'Z_uint8_compress.tif', options);
 
 disp('Overwrite to an existing file');
 clear options;
 options.overwrite = true;
-options.compress = 'adobe';
+options.compress = 'jpeg';
+options.jpegquality = 30.0;
 saveastiff(uint8(Z_index), 'Z_uint8_compress.tif', options);
 
 disp('Disable message printing.');
