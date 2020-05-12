@@ -1,6 +1,4 @@
-function varargout = welcome(obj)
-
-nargoutchk(0,1)
+function welcome(obj)
 
 p   = 25;
 fsz = 18;
@@ -39,6 +37,6 @@ movegui(f,'center')
 f.Visible = 'on';
 drawnow
 
-if nargout
-    varargout{1} = f;
-end
+addlistener(obj,'Ready',@(~,~) delete(f));
+t = timer('TimerFcn',@(~,~) delete(f),'StartDelay',10);
+t.start

@@ -63,6 +63,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Line
     end
 
+    events
+        Ready
+    end
+    
     methods
 
         % Class Constructor
@@ -72,7 +76,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             clc
             close all
             fprintf('Intrinsic Imaging, v%s\n',obj.Version)
-            figWelcome = obj.welcome();
+            obj.welcome();
 
             % Warn if necessary toolboxes are unavailable
             for tmp = struct2cell(obj.Toolbox)'
@@ -99,21 +103,19 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.ResponseTemporal.y  = [];
 
             % Initalize data acquisition & video device, generate stimulus
-            try
-                obj.DAQ    = daqdevice(obj.Settings);
-                obj.Camera = camera(obj.Settings);
-                disp('Generating stimulus ...')
-                obj.generateStimulus
-            catch
-                close(figWelcome)
-            end
-
+            obj.DAQ    = daqdevice(obj.Settings);
+            obj.Camera = camera(obj.Settings);
+            disp('Generating stimulus ...')
+            obj.generateStimulus
+            
             % Fire up GUI
+            obj.notify('Ready');
             fprintf('\nReady to go!\n')
             obj.GUImain             % Create main window
-            close(figWelcome)
+           
             figure(obj.h.fig.main)
             obj.updateEnabled       % Update availability of UI elements
+            
         end
     end
 
