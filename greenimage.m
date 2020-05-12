@@ -109,13 +109,6 @@ classdef greenimage < handle
             t.setTag(options)
             t.write(obj.Data)
             t.close()
-            
-%             options = struct(...
-%                 'overwrite',    true, ...
-%                 'compress',     'adobe', ...
-%                 'message',      false, ...
-%                 'color',        false);
-%             saveastiff(obj.Data,fullfile(dirname,'green.tif'),options);
         end
         
         function obj = loadImage(obj,filename)
