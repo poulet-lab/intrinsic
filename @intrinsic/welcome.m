@@ -37,6 +37,7 @@ uicontrol(f, ...
 
 movegui(f,'center')
 f.Visible = 'on';
+drawnow
 
 if nargout
     varargout{1} = f;
