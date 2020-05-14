@@ -15,7 +15,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         VideoInputGreen
         
         Bits            = 16
-        Scale           = 1
+        Scale           = 3
         RateCam         = 1
         RateDAQ         = 5000
         Oversampling    = 10
@@ -36,16 +36,19 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         ImageGreen      % snapshot of anatomical details
         TimeStamp       = NaN;
 
+        DirLoad
+        redRange
         Toolbox
         Settings
 
+        ROISize
+        nTrials
+        
         DAQvec
     end
 
     properties (Dependent = true)
-        nTrials
         Figure
-        ROISize
         Point
         Line
         Binning
@@ -56,12 +59,12 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Class Constructor
         function obj = intrinsic(varargin)
 
-            % Warn if necessary toolboxes are unavailable
-            for tmp = struct2cell(obj.Toolbox)'
-                if ~tmp{1}.available
-                    warning([tmp{1}.name ' not available'])
-                end
-            end
+%             % Warn if necessary toolboxes are unavailable
+%             for tmp = struct2cell(obj.Toolbox)'
+%                 if ~tmp{1}.available
+%                     warning([tmp{1}.name ' not available'])
+%                 end
+%             end
 
             % Manage path
             addpath(fullfile(obj.DirBase,'submodules','matlab-goodies'))
@@ -81,7 +84,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.Flags.FakeDat = false;
             
             % Initialize the Image Acquisition Subsystem
-            obj.settingsVideo 	% Set video device
+            %obj.settingsVideo 	% Set video device
 
             % Initialize the Data Acquisition Subsystem
             % TODO
@@ -92,9 +95,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.mainGUI         % Create main window
             obj.updateEnabled   % Update availability of UI elements
             
-            obj.led(false)
-            obj.led(true)
-            obj.led(false)
+%             obj.led(false)
+%             obj.led(true)
+%             obj.led(false)
+            
+            obj.DirBase
         end
 
     end
@@ -113,39 +118,39 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     methods %(Access = private)
         function updateEnabled(obj)
 
-            IAQ = obj.Toolbox.ImageAcquisition.available;
-            IP  = obj.Toolbox.ImageProcessing.available;
-            DAQ = obj.Toolbox.DataAcquisition.available;
-            VID = isa(obj.VideoInputRed,'videoinput');
-            tmp = {'off', 'on'};
-
-            % UI elements depending on Image Acquisition Toolbox
-            elem = obj.h.menu.settingsVideo;
-            cond = IAQ;
-            set(elem,'Enable',tmp{cond+1});
-
-            % UI elements depending on Image Acquisition Toolbox & valid
-            % video-input
-            elem = [...
-                obj.h.push.capture, ...
-                obj.h.push.liveGreen, ...
-                obj.h.push.liveRed];
-            cond = IAQ && VID;
-            set(elem,'Enable',tmp{cond+1});
-
-            % UI elements depending on all Toolboxes
-            elem = [obj.h.push.start obj.h.push.stop];
-            cond = IAQ && IP && DAQ && VID;
-            set(elem,'Enable',tmp{cond+1});
+%             IAQ = obj.Toolbox.ImageAcquisition.available;
+%             IP  = obj.Toolbox.ImageProcessing.available;
+%             DAQ = obj.Toolbox.DataAcquisition.available;
+%             VID = isa(obj.VideoInputRed,'videoinput');
+%             tmp = {'off', 'on'};
+% 
+%             % UI elements depending on Image Acquisition Toolbox
+%             elem = obj.h.menu.settingsVideo;
+%             cond = IAQ;
+%             set(elem,'Enable',tmp{cond+1});
+% 
+%             % UI elements depending on Image Acquisition Toolbox & valid
+%             % video-input
+%             elem = [...
+%                 obj.h.push.capture, ...
+%                 obj.h.push.liveGreen, ...
+%                 obj.h.push.liveRed];
+%             cond = IAQ && VID;
+%             set(elem,'Enable',tmp{cond+1});
+% 
+%             % UI elements depending on all Toolboxes
+%             elem = [obj.h.push.start obj.h.push.stop];
+%             cond = IAQ && IP && DAQ && VID;
+%             set(elem,'Enable',tmp{cond+1});
 
         end
 
         function led(~,state)
-            d = daq.getDevices;
-            s = daq.createSession('ni');
-            s.addDigitalChannel(d.ID,'Port0/line7','OutputOnly');
-            outputSingleScan(s,state)
-            release(s)
+%             d = daq.getDevices;
+%             s = daq.createSession('ni');
+%             s.addDigitalChannel(d.ID,'Port0/line7','OutputOnly');
+%             outputSingleScan(s,state)
+%             release(s)
         end
         
         
@@ -198,11 +203,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         function greenContrast(obj,hcheck,~)    % Stretch the contrast
             obj.Settings.greenContrast = hcheck.Value;
             if hcheck.Value
-                %tmp = [min(obj.ImageGreen(:)) max(obj.ImageGreen(:))];
-                tmp = quantile(obj.ImageGreen(:),[.005 .995]);
-                if tmp(1) == tmp(2)
-                    tmp(2) = tmp(1) + 1;
-                end
+                tmp = [min(obj.ImageGreen(:)) max(obj.ImageGreen(:))];
                 set(obj.h.axes.green,'Clim',tmp);
             else
                 set(obj.h.axes.green,'Clim',[0 2^16-1]);
@@ -519,28 +520,32 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             out = obj.Settings.(name);
         end
 
-        function out = get.nTrials(obj)
-            if ndims(obj.Stack)>3
-                out = sum(squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16'));
-            else
-                out = 0;
-            end
-        end
+%         function out = get.nTrials(obj)
+%             if ndims(obj.Stack)>3
+%                 out = sum(squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16'));
+%             else
+%                 out = 0;
+%             end
+%         end
 
         % Return data directory
         function out = get.DirSave(obj)
 
+            
+            
             % Load from settings file
             out = obj.loadVar('DirSave',[]);
-            if isdir(out)
+            if isfolder(out)
                 return
+            else
+                out = filesep;
             end
-
-            % Let user pick directory
-            out = uigetdir('/','Select Data Directory');
-            if isdir(out)
-                obj.Settings.DirSave = out;
-            end
+% 
+%             % Let user pick directory
+%             out = uigetdir('/','Select Data Directory');
+%             if isdir(out)
+%                 obj.Settings.DirSave = out;
+%             end
 
         end
 
@@ -880,38 +885,45 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             % yields an increase in both RateCam and SNR at the expense of
             % image resolution. The binning factor reflects the amount of
             % binning (1: no binning, 4: 4x4 binning)
-
-            % Binning is only defined given a valid videoinput
-            if ~isa(obj.VideoInputRed,'videoinput')
+           
+            if isempty(obj.ImageGreen) || isempty(obj.Stack)
                 binning = 1;
                 return
             end
             
-            % Currently, we only support this for QiCam
-            tmp = imaqhwinfo(obj.VideoInputRed);
-            if ~strcmp(tmp.AdaptorName,'qimaging')
-                binning = 1;
-                return
-            end
+            binning = size(obj.ImageGreen,1) / size(obj.Stack,1);
 
-            % Currently, this function only works with the QiCam
-            if ~regexpi(imaqhwinfo(obj.VideoInputRed,'DeviceName'),'^QICam')
-                binning = 1;
-                return
-            end
-
-            % Current video mode / resolution
-            current = obj.VideoInputRed.VideoFormat;
-            current = textscan(current,'%s%n%n','Delimiter',{'_','x'});
-
-            % Highest supported resolution
-            tmp   	= imaqhwinfo('qimaging','DeviceInfo');
-            tmp   	= tmp.SupportedFormats;
-            tmp     = regexp(tmp,['(?<=^' current{1}{:} '_)\d*'],'match');
-            highest = max(str2double([tmp{:}]));
-
-            % Binning factor
-            binning	= highest/current{2};
+%             % Binning is only defined given a valid videoinput
+%             if ~isa(obj.VideoInputRed,'videoinput')
+%                 binning = 1;
+%                 return
+%             end
+%             
+%             % Currently, we only support this for QiCam
+%             tmp = imaqhwinfo(obj.VideoInputRed);
+%             if ~strcmp(tmp.AdaptorName,'qimaging')
+%                 binning = 1;
+%                 return
+%             end
+% 
+%             % Currently, this function only works with the QiCam
+%             if ~regexpi(imaqhwinfo(obj.VideoInputRed,'DeviceName'),'^QICam')
+%                 binning = 1;
+%                 return
+%             end
+% 
+%             % Current video mode / resolution
+%             current = obj.VideoInputRed.VideoFormat;
+%             current = textscan(current,'%s%n%n','Delimiter',{'_','x'});
+% 
+%             % Highest supported resolution
+%             tmp   	= imaqhwinfo('qimaging','DeviceInfo');
+%             tmp   	= tmp.SupportedFormats;
+%             tmp     = regexp(tmp,['(?<=^' current{1}{:} '_)\d*'],'match');
+%             highest = max(str2double([tmp{:}]));
+% 
+%             % Binning factor
+%             binning	= highest/current{2};
         end
 
         function out = get.Line(obj)
@@ -928,45 +940,70 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             out = obj.PointCoords;
         end
 
-        function out = get.ROISize(obj)
-            if isa(obj.VideoInputRed,'videoinput')
-                tmp	= obj.VideoInputRed.ROIPosition;
-                out = tmp(3:4);
-            else
-                out = [];
-            end
-        end
+%         function out = get.ROISize(obj)
+%             if isa(obj.VideoInputRed,'videoinput')
+%                 tmp	= obj.VideoInputRed.ROIPosition;
+%                 out = tmp(3:4);
+%             else
+%                 out = [];
+%             end
+%         end
 
         function fileOpen(obj,~,~)
             obj.clearData
-            keyboard
-%             %% temp
-%             tmp = ['intrinsic_' datestr(now,'yymmdd_HHMM') '.mat'];
-%             [fn,pn,~] = uiputfile({'intrinsic_*.mat','Intrinsic Data'},'Save File ...',tmp);
-%             if fn==0
-%                 return
-%             end
-%             fid = matfile(fullfile(pn,fn),'Writable',true);
-%
-%             isdata = squeeze(obj.Stack(1,1,1,:)) ~= intmax('uint16');
-%             fid.Stack  = obj.Stack(:,:,:,isdata);
-%             fid.ImageGreen = obj.ImageGreen;
-%             %%
-% % %
-%             [fn,pn,~] = uigetfile({'intrinsic_*.mat','Intrinsic Data'},'Load File ...');
-%             if fn==0
-%                 return
-%             end
-%             fn = fullfile(pn,fn);
-%             obj.clearData
-%
-%             obj.Stack  = load(fn,'Stack');
-%
-%             obj.ImageGreen = load(fn,'ImageGreen');
-%             obj.greenGUI
-%             obj.h.image.green.CData = obj.ImageGreen;
-            %keyboard
-%             tmp = matfile(fullfile(pn,fn));
+
+            % Let the user pick a directory to load data from
+            dn_data = uigetdir(obj.DirSave,'Select folder');
+            fn_data = fullfile(dn_data,'data.mat');
+            if isempty(dn_data) || ~exist(fn_data,'file')
+                errordlg('This doesn''t seem to be a valid data directory!',...
+                    'Hold on!','modal')
+                return
+            else
+                obj.clearData
+                if isfield(obj.h.fig,'green')
+                    delete(obj.h.fig.green)
+                    obj.h.fig = rmfield(obj.h.fig,'green');
+                end
+                obj.DirLoad = dn_data;
+            end
+            
+            % open settings
+            fn_set1 = fullfile(dn_data,'settings.mat');
+            fn_set2 = fullfile(obj.DirBase,'tmp.mat');
+            copyfile(fn_set1,fn_set2)
+            obj.Settings = matfile(fn_set2,'Writable',true);
+            
+            % Load vars
+            tmp = load(fn_data);
+            for field = fieldnames(tmp)'
+                if ~isempty(tmp.(field{:})) && isprop(obj,field{:})
+                    obj.(field{:}) = tmp.(field{:});
+                end
+            end
+            clear tmp
+            
+            % Load green image
+            fn = fullfile(obj.DirLoad,'green.png');
+            obj.ROISize = size(obj.Stack,[1 2]);
+            if exist(fn,'file')
+                tmp = imread(fn);
+                obj.ImageGreen = tmp(:,:,1);
+                obj.greenGUI
+                obj.h.image.green.CData = obj.ImageGreen;
+            else
+                warning('Could not find green image')
+            end
+            
+            obj.DirLoad = dn_data;
+            figure(obj.h.fig.green)
+            obj.h.check.greenContrast.Value = 1;
+            obj.greenContrast(obj.h.check.greenContrast)
+
+            % Process stack
+            obj.processStack
+            obj.updateEnabled
+            %obj.generateStimulus
         end
 
 
@@ -1064,7 +1101,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             %obj.StackBase     = [];
             obj.Stack         = [];
             obj.Sequence      = [];
-           % obj.h.image.green = [];
+            obj.h.image.green = [];
             obj.h.image.red   = [];
             obj.ImageGreen    = [];
         end
