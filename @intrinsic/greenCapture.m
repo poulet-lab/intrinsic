@@ -1,10 +1,5 @@
 function greenCapture(obj,~,~)
 
-% Create green window, if its not there already
-if ~isfield(obj.h.fig,'green')
-    obj.GUIgreen
-end
-
 % Get the current preview state
 if isa(obj.VideoPreview,'video_preview')
     preview_state = obj.VideoPreview.Preview;
@@ -15,19 +10,18 @@ if strcmp(obj.Camera.Input.Red.preview,'on')
     obj.VideoPreview.Preview = false;
 end
 
-% Capture image, use only one color plane
-obj.ImageGreen = getsnapshot(obj.Camera.Input.Green);
-obj.ImageGreen = obj.ImageGreen(:,:,1);
+% Create obj.Green / take snapshot
+if isa(obj.Green,'imageGreen')
+    obj.Green.takeImage()
+else
+    obj.Green = imageGreen(obj.Camera,200);
+end
 
 % Return to former preview state
 if isa(obj.VideoPreview,'video_preview')
     obj.VideoPreview.Preview = preview_state;
 end
 
-% Process image
-obj.h.image.green.CData = obj.ImageGreen; 	% Update display
-obj.greenContrast()                       	% Enhance Contrast
-
-% Focus the green window
-figure(obj.h.fig.green)
-end
+% % Focus the green window
+% figure(obj.h.fig.green)
+% end

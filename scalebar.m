@@ -1,7 +1,7 @@
 classdef scalebar < handle
     
     properties
-        Scale(1,1) double {mustBeNumeric, mustBeFinite, mustBeReal}
+        Scale(1,1) double {mustBeNumeric, mustBePositive, mustBeFinite, mustBeReal} = 1
     end
 
     properties (SetAccess = immutable)
@@ -20,8 +20,7 @@ classdef scalebar < handle
         Label
         Listener
     end
-   
-    
+
     properties (Constant, GetAccess = private)
         SInames = {'fm','pm','nm',[char(181) 'm'],'mm','cm','m','km'};
         SIexp   = [-15 -12 -9 -6 -3 -2 0 3];
@@ -98,11 +97,11 @@ classdef scalebar < handle
                 min([diff(obj.Parent.XLim) diff(obj.Parent.YLim)]);
             obj.Parent.Units = tmp;
             
-            padding  = round(2 / zoom);
-            margin   = round(12 / zoom);
-            wBarPx   = round(5 / zoom);
-            MinBarPx = round(80 / zoom);
-            hBack    = round(18 / zoom);
+            padding  = 2 / zoom;
+            margin   = 12 / zoom;
+            wBarPx   = 5 / zoom;
+            MinBarPx = 80 / zoom;
+            hBack    = 18 / zoom;
             
             pxPerUnit = obj.Scale ./ power(10,-2-obj.SIexp);
             idxUnit   = find(pxPerUnit<=MinBarPx,1,'last');
@@ -131,12 +130,12 @@ classdef scalebar < handle
                 valid = isequal(size(in),[1 3]) && ...
                     all(in>=0 & in<=1 & isreal(in) & isfinite(in));
             elseif ischar(in)
-                valid = ismember(in,{'y','m','c','r','g','b','w','k',...
+                valid = ismember(in,{'ymc','r','g','b','w','k',...
                     'yellow','magenta','cyan','red','green','blue',...
                     'white','black','none'});
             end
             if ~valid
-                error('"%s" is not a valid ColorSpec.',in)
+                error('Invalid color value.')
             end
         end
     end

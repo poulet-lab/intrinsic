@@ -43,6 +43,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Camera
         DAQ
         DAQvec
+        
+        Green
 
         StimIn
 
