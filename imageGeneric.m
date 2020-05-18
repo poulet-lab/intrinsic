@@ -110,7 +110,7 @@ classdef imageGeneric < handle
         function value = get.Zoom(obj)
             value = obj.PrivateZoom;
         end
-
+        
         function set.CLim(obj,value)
             obj.Axes.CLim = value;
         end
@@ -144,8 +144,20 @@ classdef imageGeneric < handle
         end
         
         function set.Zoom(obj,value)
-            validateattributes(value,{'numeric'},{'scalar','positive',...
+            validateattributes(value,{'numeric'},{'scalar',...
                 'real','finite'},mfilename,'Zoom')
+            
+            % calculate limits of zoom value
+            upper = get(0,'ScreenSize');
+            upper = upper(3:4) - [0 80];
+            lower = [400 400];
+            calc  = @(size) min((size - 4 - 2*obj.MarginPx - ...
+                [0 1] * (obj.MarginPx + obj.BottomPx)) ./ obj.Size(1:2));
+            
+            % enforce limits
+            value = min([value floor(calc(upper)*100)/100]);
+            value = max([value ceil(calc(lower)*100)/100]);
+                        
             obj.PrivateZoom = value;
             if ~isempty(obj.EditZoom) && isvalid(obj.EditZoom)
                 obj.EditZoom.String = sprintf('%d%%',round(value*100));
@@ -197,6 +209,15 @@ classdef imageGeneric < handle
                 'BorderType',       'none');
             obj.resizeFigure()
         end
+        
+        function callbackEditZoom(obj,hCtrl,~)
+            value = str2double(regexp(hCtrl.String,...
+                '^ *([\d\.]*)(?: %|%)? *$','tokens','once')) / 100;
+            if ~isempty(value)
+                obj.Zoom = value;
+            end
+            hCtrl.String = sprintf('%d%%',round(obj.Zoom*100));
+        end
     end
        
     methods (Access = private)
@@ -216,15 +237,6 @@ classdef imageGeneric < handle
             obj.Axes.XLim = [0.5 obj.Size(1)+0.5];
             obj.Axes.YLim = [0.5 obj.Size(2)+0.5];
             movegui(obj.Figure,'onscreen')
-        end
-        
-        function callbackEditZoom(obj,hCtrl,~)
-            value = str2double(regexp(hCtrl.String,...
-                '^ *([\d\.]*)(?: %|%)? *$','tokens','once')) / 100;
-            if ~isempty(value)
-                obj.Zoom = value;
-            end
-            hCtrl.String = sprintf('%d%%',obj.Zoom*100);
         end
         
         function dummyCData(obj)
