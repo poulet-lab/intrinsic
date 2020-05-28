@@ -1,7 +1,6 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     properties %(Access = private)
-        Version         = '2.0-alpha1'
         Flags
 
         h               = [] 	% handles
@@ -74,10 +73,23 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Class Constructor
         function obj = intrinsic(varargin)
 
+            % intrinsic requires MATLAB 2018b or newer
+            if verLessThan('matlab','9.5')
+                errordlg(['This software requires MATLAB version ' ...
+                    'R2018b or newer.'],'Sorry ...')
+                delete(obj)
+                return
+            end
+            
+            % For development purposes only ...
+            if ~update.validateVersionString(obj.version)
+                error('Invalid version string: "%s".', obj.version)
+            end
+            
             % Clear command window, close all figures & say hi
             clc
             close all
-            fprintf('Intrinsic Imaging, v%s\n',obj.Version)
+            fprintf('Intrinsic Imaging, v%s\n',obj.version)
             obj.welcome();
 
             % Warn if necessary toolboxes are unavailable
@@ -1059,6 +1071,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         function out = getHeader(obj)
             out = sprintf('  %s\n',matlab.mixin.CustomDisplay.getClassNameForHeader(obj));
         end
+    end
+    
+    methods (Static)
+        out = version()
     end
 
 end
