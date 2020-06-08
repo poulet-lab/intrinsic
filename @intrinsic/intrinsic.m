@@ -11,7 +11,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         VideoPreview
 
-        Scale           = 0.5
+        %Scale           = 0.5
 
         % The Q-Cam Needs a little time to deliver a high frame rate.
         % Therefore, we deliver a couple of "Warmup Triggers" at a lower
@@ -41,6 +41,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         Camera
         DAQ
+        Scale
+        
         DAQvec
         
         Green
@@ -119,6 +121,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             % Initalize data acquisition & video device, generate stimulus
             obj.DAQ    = daqdevice(obj.Settings);
             obj.Camera = camera(obj.Settings);
+            obj.Scale  = scale(obj.Settings,obj.Camera);
             disp('Generating stimulus ...')
             obj.generateStimulus
             
@@ -142,7 +145,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         f = welcome(obj)
         settingsStimulus(obj,~,~)      	% Stimulus Settings
         settingsVideo(obj,~,~)
-        settingsMagnification(obj,~,~)
         fileSave(obj,~,~)
 
         greenCapture(obj,~,~)           % Capture reference ("GREEN IMAGE")

@@ -83,16 +83,16 @@ obj.h.menu.settings = uimenu(obj.h.fig.main, ...
     'Accelerator',      'S');
 obj.h.menu.settingsVideo = uimenu(obj.h.menu.settings, ...
     'Label',            'Camera Settings', ...
-    'Callback',         {@cbCameraSetup});
+    'Callback',         {@cbSetupCamera});
 obj.h.menu.settingsDAQ = uimenu(obj.h.menu.settings, ...
     'Label',            'DAQ Settings', ...
-    'Callback',         {@cbDAQsetup});
+    'Callback',         {@cbSetupDAQ});
 obj.h.menu.settingsStimulus = uimenu(obj.h.menu.settings, ...
     'Label',            'Stimulus Settings', ...
     'Callback',         {@obj.settingsStimulus});
 obj.h.menu.settingsMagnification = uimenu(obj.h.menu.settings, ...
     'Label',            'Define Magnification', ...
-    'Callback',         {@obj.settingsMagnification});
+    'Callback',         {@cbSetupScale});
 obj.h.menu.winPos = uimenu(obj.h.menu.settings, ...
     'Label',            'Save Window Positions', ...
     'Callback',         {@obj.saveWindowPositions});
@@ -245,12 +245,17 @@ obj.h.fig.main.Visible = 'on';
         obj.h.axes.stimulus.Position = obj.h.axes.temporal.Position./[1 1 1 7];
     end
 
-    function cbDAQsetup(~,~,~)
+    function cbSetupDAQ(~,~,~)
         h = obj.DAQ.setup;
         uiwait(h)
     end
 
-    function cbCameraSetup(~,~,~)
+    function cbSetupCamera(~,~,~)
+        h = obj.Camera.setup;
+        uiwait(h)
+    end
+
+    function cbSetupScale(~,~,~)
         h = obj.Camera.setup;
         uiwait(h)
     end
