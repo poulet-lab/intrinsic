@@ -1,6 +1,6 @@
 classdef (Abstract) settingsChild < handle & matlab.mixin.Heterogeneous
     
-    properties
+    properties (Access = protected)
         Parent
     end
     

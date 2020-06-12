@@ -2,34 +2,25 @@ classdef (Abstract) settingsContainer < handle
         
     properties
         Handle
-        Children
     end
     
     properties (Abstract)
         Padding
     end
     
-    properties (Dependent)
+    properties (Access = protected)
+        Children
+    end
+    
+    properties (Dependent, Access = protected)
         LabelWidth
+    end
+        
+    properties (Dependent)
         Width
     end
 
     methods
-        function addChild(obj,child)
-            obj.Children = [obj.Children; child];
-            if obj.Visible
-                obj.resize()
-            end
-        end
-        
-        function varargout = addUIControl(obj,varargin)
-            child = settingsUIControl(obj,varargin{:});
-            obj.addChild(child)
-            if nargout == 1
-                varargout{1} = child.Control;
-            end
-        end
-        
         function varargout = addOKCancel(obj,varargin)
             child = settingsOKCancel(obj,varargin{:});
             obj.addChild(child)
@@ -72,19 +63,6 @@ classdef (Abstract) settingsContainer < handle
             end
         end
 
-        function resizeChildren(obj,correction)
-            x = obj.Padding + 1;
-            w = obj.Width - 2 * obj.Padding + correction;
-            for ii = numel(obj.Children):-1:1
-                if ii == numel(obj.Children)
-                    y = obj.Padding + 1;
-                else
-                    y = sum(obj.Children(ii+1).Position([2 4])) + obj.Padding;
-                end
-                obj.Children(ii).Position(1:3) = [x y w];
-            end
-        end
-
         function value = get.Width(obj)
             value = obj.Handle.Position(3);
         end
@@ -105,6 +83,28 @@ classdef (Abstract) settingsContainer < handle
             children = obj.Children(arrayfun(@(x) ...
                 isa(x,'settingsLabelControl'),obj.Children));
             value = max([0; arrayfun(@(x) x.LabelWidth,children)]);
+        end
+    end
+    
+    methods (Access = protected)
+        function addChild(obj,child)
+            obj.Children = [obj.Children; child];
+            if obj.Visible
+                obj.resize()
+            end
+        end
+        
+        function resizeChildren(obj,correction)
+            x = obj.Padding + 1;
+            w = obj.Width - 2 * obj.Padding + correction;
+            for ii = numel(obj.Children):-1:1
+                if ii == numel(obj.Children)
+                    y = obj.Padding + 1;
+                else
+                    y = sum(obj.Children(ii+1).Position([2 4])) + obj.Padding;
+                end
+                obj.Children(ii).Position(1:3) = [x y w];
+            end
         end
     end
     

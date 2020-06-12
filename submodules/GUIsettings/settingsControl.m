@@ -2,6 +2,9 @@ classdef (Abstract) settingsControl < settingsChild
         
     properties
         Control
+    end
+    
+    properties (Access = protected)
         Panel
     end
     
