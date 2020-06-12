@@ -41,6 +41,29 @@ classdef (Abstract) settingsContainer < handle
             end
         end
         
+        function varargout = addPopupmenu(obj,varargin)
+            p = inputParser;
+            p.KeepUnmatched = true;
+            addParameter(p,'String',{''});
+            parse(p,varargin{:});
+            unmatched = [fieldnames(p.Unmatched) struct2cell(p.Unmatched)]';
+            child = settingsUIControl(obj,unmatched{:},...
+                'String',   p.Results.String, ...
+                'Style',    'popupmenu');
+            obj.addChild(child)
+            if nargout == 1
+                varargout{1} = child.Control;
+            end
+        end
+        
+        function varargout = addEdit(obj,varargin)
+            child = settingsUIControl(obj,varargin{:},'Style','edit');
+            obj.addChild(child)
+            if nargout == 1
+                varargout{1} = child.Control;
+            end
+        end
+        
         function varargout = addEditXY(obj,varargin)
             child = settingsEditXY(obj,varargin{:});
             obj.addChild(child)
