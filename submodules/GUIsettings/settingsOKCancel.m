@@ -16,7 +16,7 @@ classdef settingsOKCancel < settingsControl
             obj.Control(1) = uicontrol(obj.Panel,'String','OK',...
                 'Callback',p.Results.Callback);
             obj.Control(2) = uicontrol(obj.Panel,'String','Cancel',...
-                'Callback',@(x,y) obj.Parent.delete);
+                'Callback',@(x,y) close(obj.Parent.Handle));
             obj.Control(1).Position(1:2) = 0;
             obj.Control(2).Position(2)   = 0;
             obj.Panel.Position(4) = obj.Control(1).Position(4) - 2;

@@ -10,8 +10,7 @@ classdef settingsEditXY < settingsLabelControl
             p.KeepUnmatched = true;
             p.FunctionName  = mfilename;
             addOptional(p,'Parent',gcf,@(x) validateattributes(x,...
-                {'matlab.ui.container.Panel','matlab.ui.Figure'},...
-                {'scalar'}));
+                {'settingsContainer'},{'scalar'}));
             addParameter(p,'Label','',@ischar);
             parse(p,varargin{:});
             unmatched = [fieldnames(p.Unmatched) struct2cell(p.Unmatched)]';
@@ -25,8 +24,8 @@ classdef settingsEditXY < settingsLabelControl
         
         function createControl(obj,varargin)
             obj.Control    = matlab.ui.control.UIControl.empty(0,2);
-            obj.Control(1) = uicontrol(obj.Panel,'Style','edit');
-            obj.Control(2) = uicontrol(obj.Panel,'Style','edit');
+            obj.Control(1) = uicontrol(obj.Panel,'Style','edit',varargin{:});
+            obj.Control(2) = uicontrol(obj.Panel,'Style','edit',varargin{:});
             
             obj.Control(1).Position(1:2) = 1;
             obj.Control(2).Position(2)   = 1;
@@ -44,7 +43,7 @@ classdef settingsEditXY < settingsLabelControl
      	function resize(obj)
             w = round((obj.Panel.Position(3)-obj.Control(1).Position(1)-obj.X.Extent(3))/2);
             h = obj.Panel.Position(4);
-            obj.Control(1).Position(1) = obj.Label.Position(3) + obj.Padding + 1;
+            obj.Control(1).Position(1) = obj.Label.Position(3) + obj.Parent.Padding + 1;
             obj.Control(2).Position(1) = obj.Panel.Position(3) - w + 1;
             obj.Control(1).Position(3) = w;
             obj.Control(2).Position(3) = w;

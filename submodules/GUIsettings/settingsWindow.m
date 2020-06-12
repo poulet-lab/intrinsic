@@ -48,11 +48,13 @@ classdef settingsWindow < settingsContainer
             end
             
             tmp = arrayfun(@(x) isa(x,'settingsPanel'),obj.Children);
-            w   = max([0; arrayfun(@(x) x.LabelWidth,obj.Children(tmp))]);
+            
+            c   = obj.Padding + 2;
+            w   = max([obj.LabelWidth-c; arrayfun(@(x) x.LabelWidth,obj.Children(tmp))]);
             for ii = reshape(find(tmp),1,[])
                 obj.Children(ii).LabelWidth = w;
             end
-            obj.LabelWidth = w + obj.Padding + 2;
+            obj.LabelWidth = w+c;
             
             obj.resizeChildren(0)
             obj.Handle.Position(4) = sum(obj.Children(1).Position([2 4])) + obj.Padding - 1;

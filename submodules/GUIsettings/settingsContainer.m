@@ -81,7 +81,7 @@ classdef (Abstract) settingsContainer < handle
         function value = get.LabelWidth(obj)
             children = obj.Children(arrayfun(@(x) ...
                 isa(x,'settingsLabelControl'),obj.Children));
-            value = max([NaN; arrayfun(@(x) x.LabelWidth,children)]);
+            value = max([0; arrayfun(@(x) x.LabelWidth,children)]);
         end
     end
     
