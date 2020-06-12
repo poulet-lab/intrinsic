@@ -3,14 +3,23 @@ classdef scale < handle
     %   Detailed explanation goes here
     
     properties
-        Fig
+        Figure
+        mat
+        Camera
     end
     
     methods
         function obj = scale(varargin)
-            %SCALE Construct an instance of this class
-            %   Detailed explanation goes here
-            
+            % parse input arguments
+            narginchk(2,2)
+            p = inputParser;
+            addRequired(p,'MatFile',@(n)validateattributes(n,...
+                {'matlab.io.MatFile'},{'scalar'}))
+            addRequired(p,'Camera',@(n)validateattributes(n,...
+                {'camera'},{'scalar'}))
+            parse(p,varargin{:})
+            obj.mat     = p.Results.MatFile;
+            obj.Camera  = p.Results.Camera;
             
         end
         
