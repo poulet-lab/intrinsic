@@ -31,7 +31,7 @@ classdef camera < handle
     end
 
     properties (Access = private)
-        fig
+        Figure
     end
 
     methods
@@ -129,6 +129,32 @@ classdef camera < handle
                 end
             end
         end
+
+        function out = modes(obj,varargin)
+            % return available modes
+            if nargin == 3
+                adaptor  = varargin{1};
+                deviceID = varargin{2};
+            else
+                adaptor  = obj.Adaptor;
+                deviceID = obj.DeviceID;
+            end
+            out = imaqhwinfo(adaptor,deviceID).SupportedFormats(:);
+
+            % restrict modes to 16bit MONO (supported devices only)
+            if contains(obj.DeviceName,'QICam')
+                out  = out(contains(out,'MONO16'));
+            end
+
+            % sort modes by resolution (if obtainable through regexp)
+            tmp = regexpi(out,'^(\w*)_(\d)*x(\d)*$','tokens','once');
+            if all(cellfun(@numel,tmp)==3)
+                tmp = cat(1,tmp{:});
+                tmp(:,2:3) = cellfun(@(x) {str2double(x)},tmp(:,2:3));
+                [~,idx] = sortrows(tmp);
+                out = out(idx);
+            end
+        end
     end
 
     methods (Access = private)
@@ -161,7 +187,7 @@ classdef camera < handle
             % save variables to matfile
             obj.mat.([obj.matPrefix varName]) = data;
         end
-        
+
         function reset(obj)
             % disconnect and delete all image acquisition objects
             fprintf('\nInitializing image acquisition hardware ... ')

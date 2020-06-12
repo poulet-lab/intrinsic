@@ -3,11 +3,11 @@ function toggleCtrls(obj,state)
 
 persistent wasOn
 
-if isempty(ishandle(obj.fig))
+if isempty(ishandle(obj.Figure))
     return
 end
 
-h = findobj(obj.fig,'Enable','on','-or','Enable','off');
+h = findobj(obj.Figure,'Enable','on','-or','Enable','off');
 if strcmp(state,'off')
     wasOn = strcmp({h.Enable},'on');
 end

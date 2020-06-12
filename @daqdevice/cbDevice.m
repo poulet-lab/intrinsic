@@ -1,21 +1,21 @@
 function cbDevice(obj,~,~)
 
 % get currently selected value from UI control
-ctrl     = getappdata(obj.Fig,'controls');
+ctrl     = getappdata(obj.Figure,'controls');
 hCtrl    = ctrl.device;
 deviceID = hCtrl.String{hCtrl.Value};
 deviceID = regexp(deviceID,'^([\w]*)','match','once');
 
 % compare with previously selected value (return if identical)
-if isequal(getappdata(obj.Fig,'deviceID'),deviceID)
+if isequal(getappdata(obj.Figure,'deviceID'),deviceID)
     return
 end
-setappdata(obj.Fig,'deviceID',deviceID);
+setappdata(obj.Figure,'deviceID',deviceID);
 
 % get device info
-vendorID   = getappdata(obj.Fig,'vendorID');
+vendorID   = getappdata(obj.Figure,'vendorID');
 deviceInfo = obj.devices(vendorID,deviceID);
-setappdata(obj.Fig,'deviceInfo',deviceInfo);
+setappdata(obj.Figure,'deviceInfo',deviceInfo);
 
 % fill UI controls for channel selection
 for ii = 1:numel(ctrl.channel)

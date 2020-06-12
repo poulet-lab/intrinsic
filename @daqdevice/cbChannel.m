@@ -1,15 +1,15 @@
 function cbChannel(obj,~,~)
 
 % get currently selected value from UI control
-ctrl       = getappdata(obj.Fig,'controls');
+ctrl       = getappdata(obj.Figure,'controls');
 hCtrl      = ctrl.channel;
 channelIDs = arrayfun(@(x) x.String(x.Value),hCtrl);
 
 % compare with previously selected value (return if identical)
-if isequal(getappdata(obj.Fig,'channelIDs'),channelIDs)
+if isequal(getappdata(obj.Figure,'channelIDs'),channelIDs)
     return
 end
-setappdata(obj.Fig,'channelIDs',channelIDs);
+setappdata(obj.Figure,'channelIDs',channelIDs);
 
 % check for duplicates
 [~,a,~] = unique(channelIDs);

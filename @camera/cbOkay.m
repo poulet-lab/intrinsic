@@ -2,14 +2,14 @@ function obj = cbOkay(obj,~,~)
 obj.toggleCtrls('off')
 
 % get values
-adaptor      = getappdata(obj.fig,'adaptor');
-deviceID     = getappdata(obj.fig,'deviceID');
-deviceName   = getappdata(obj.fig,'deviceName');
-mode         = getappdata(obj.fig,'mode');
-resolution   = getappdata(obj.fig,'resolution');
-ROI          = getappdata(obj.fig,'roi');
-rate         = getappdata(obj.fig,'rate');
-downsample = getappdata(obj.fig,'downsample');
+adaptor      = getappdata(obj.Figure,'adaptor');
+deviceID     = getappdata(obj.Figure,'deviceID');
+deviceName   = getappdata(obj.Figure,'deviceName');
+mode         = getappdata(obj.Figure,'mode');
+resolution   = getappdata(obj.Figure,'resolution');
+ROI          = getappdata(obj.Figure,'roi');
+rate         = getappdata(obj.Figure,'rate');
+downsample = getappdata(obj.Figure,'downsample');
 
 % save values to matfile
 obj.saveVar('adaptor',adaptor);
@@ -24,4 +24,4 @@ obj.saveVar('downsample',downsample);
 % create videoinput objects
 obj.createInputs;
 
-close(obj.fig)
+close(obj.Figure)

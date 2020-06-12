@@ -5,7 +5,7 @@ classdef daqdevice < handle
     end
 
     properties (Access = private)
-        Fig
+        Figure
     end
 
     properties (Constant = true, Access = private)

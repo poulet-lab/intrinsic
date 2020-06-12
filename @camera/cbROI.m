@@ -1,10 +1,10 @@
 function cbROI(obj, ~, ~)
 
-ctrl  = getappdata(obj.fig,'controls');
+ctrl  = getappdata(obj.Figure,'controls');
 hCtrl = findobj([ctrl.ROI(1) ctrl.ROI(2)])';
 roi   = round(str2double({hCtrl.String}));
 
-res = getappdata(obj.fig,'resolution');
+res = getappdata(obj.Figure,'resolution');
 if isempty(res) || any(isnan(res))
     roi = [NaN NaN];
     set(hCtrl,'String','','Enable','Off')
@@ -14,7 +14,7 @@ else
     arrayfun(@(x,y) set(x,'String',num2str(y)),hCtrl,roi)
     set(hCtrl,'Enable','On')
 end
-setappdata(obj.fig,'roi',roi);
+setappdata(obj.Figure,'roi',roi);
 
 if isCallback
     obj.bitrate

@@ -1,7 +1,7 @@
 function cbDevice(obj,~,~)
 
 % get currently selected value from UI control
-ctrl  = getappdata(obj.fig,'controls');
+ctrl  = getappdata(obj.Figure,'controls');
 hCtrl = ctrl.device;
 value = hCtrl.String{hCtrl.Value};
 
@@ -22,32 +22,20 @@ else
     ctrl.mode.Enable = 'on';
 
     % get some variables
-    adaptor    = getappdata(obj.fig,'adaptor');
-    deviceInfo = getappdata(obj.fig,'deviceInfo');
+    adaptor    = getappdata(obj.Figure,'adaptor');
+    deviceInfo = getappdata(obj.Figure,'deviceInfo');
     deviceInfo = deviceInfo(hCtrl.Value);
     deviceID   = deviceInfo.DeviceID;
     deviceName = deviceInfo.DeviceName;
-    modes      = deviceInfo.SupportedFormats(:);
+    modes      = obj.modes(adaptor,deviceID);
 
-    % restrict modes to 16bit MONO (supported devices only)
-    if contains(deviceName,'QICam')
-        modes  = modes(contains(modes,'MONO16'));
-    end
-
-    % sort modes by resolution (if obtainable through regexp) and fill ctrl
-    tmp = regexpi(modes,'^(\w*)_(\d)*x(\d)*$','tokens','once');
-    if all(cellfun(@numel,tmp)==3)
-        tmp = cat(1,tmp{:});
-        tmp(:,2:3) = cellfun(@(x) {str2double(x)},tmp(:,2:3));
-        [~,idx] = sortrows(tmp);
-        modes = modes(idx);
-    end
+    % fill modes ctrl
     ctrl.mode.String = modes;
 
     % save variables to appdata for later use
-    setappdata(obj.fig,'deviceID',deviceID)
-    setappdata(obj.fig,'deviceName',deviceName)
-    setappdata(obj.fig,'modes',modes);
+    setappdata(obj.Figure,'deviceID',deviceID)
+    setappdata(obj.Figure,'deviceName',deviceName)
+    setappdata(obj.Figure,'modes',modes);
 
     % select previously used settings if adaptor & device ID match
     if strcmp(loadVar(obj,'adaptor',[]),adaptor) && ...

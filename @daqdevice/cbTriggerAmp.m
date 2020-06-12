@@ -1,14 +1,14 @@
 function cbTriggerAmp(obj,~,~)
 
 % get currently selected value from UI control
-ctrl  = getappdata(obj.Fig,'controls');
+ctrl  = getappdata(obj.Figure,'controls');
 hCtrl = ctrl.amp;
 amp   = real(str2double(hCtrl.String));
 
 % identify trigger channel / subsystem
-chTrig  = getappdata(obj.Fig,'channelIDs');
+chTrig  = getappdata(obj.Figure,'channelIDs');
 chTrig  = chTrig{strcmp('Camera Trigger',{obj.ChannelProp.label})};
-devInfo = getappdata(obj.Fig,'deviceInfo');
+devInfo = getappdata(obj.Figure,'deviceInfo');
 subSys  = obj.subsystems(devInfo);
 subSys  = subSys(cellfun(@(x) matches(chTrig,x),{subSys.ChannelNames}));
 
@@ -16,7 +16,7 @@ subSys  = subSys(cellfun(@(x) matches(chTrig,x),{subSys.ChannelNames}));
 if matches('DigitalIO',subSys.SubsystemType)
     hCtrl.Enable = 'off';
     hCtrl.String = '(digital)';
-    setappdata(obj.Fig,'triggerAmp',1);
+    setappdata(obj.Figure,'triggerAmp',1);
     return
 else
     hCtrl.Enable = 'on';
@@ -32,4 +32,4 @@ amp   = min([amp range(2)]);
 
 % save value
 hCtrl.String = sprintf('%.1f',amp);
-setappdata(obj.Fig,'triggerAmp',str2double(hCtrl.String));
+setappdata(obj.Figure,'triggerAmp',str2double(hCtrl.String));

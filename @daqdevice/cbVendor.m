@@ -1,16 +1,16 @@
 function cbVendor(obj,~,~)
 
 % get currently selected value from UI control
-ctrl     = getappdata(obj.Fig,'controls');
+ctrl     = getappdata(obj.Figure,'controls');
 hCtrl    = ctrl.vendor;
 vendorID = hCtrl.String{hCtrl.Value};
 vendorID = obj.Vendors(ismember({obj.Vendors.FullName},vendorID)).ID;
 
 % compare with previously selected value (return if identical)
-if isequal(getappdata(obj.Fig,'vendorID'),vendorID)
+if isequal(getappdata(obj.Figure,'vendorID'),vendorID)
     return
 end
-setappdata(obj.Fig,'vendorID',vendorID);
+setappdata(obj.Figure,'vendorID',vendorID);
 
 % manage UI control for device selection
 devices = obj.devices(vendorID);

@@ -1,15 +1,15 @@
 function cbFPS(obj, ~, ~)
 
 % get currently selected value from UI control
-ctrl       = getappdata(obj.fig,'controls');
+ctrl       = getappdata(obj.Figure,'controls');
 hCtrl      = ctrl.FPS;
 fps        = round(str2double(hCtrl.String));
-adaptor    = getappdata(obj.fig,'adaptor');
-deviceName = getappdata(obj.fig,'deviceName');
+adaptor    = getappdata(obj.Figure,'adaptor');
+deviceName = getappdata(obj.Figure,'deviceName');
 
 % limit rates for qimaging QICam B
 if strcmpi(adaptor,'qimaging') && strcmpi(deviceName,'QICam B')
-    res = getappdata(obj.fig,'resolution');
+    res = getappdata(obj.Figure,'resolution');
     switch res(2)
         case 130
             lims = [1 59];
@@ -28,7 +28,7 @@ fps = max([fps min(lims)]);
 fps = min([fps max(lims)]);
 
 hCtrl.String = num2str(fps);
-setappdata(obj.fig,'rate',fps);
+setappdata(obj.Figure,'rate',fps);
 
 if isCallback
     obj.bitrate()

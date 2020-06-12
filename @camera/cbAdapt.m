@@ -2,15 +2,15 @@ function cbAdapt(obj,~,~)
 % Callback for adaptor UI control
 
 % get currently selected value from UI control
-ctrl    = getappdata(obj.fig,'controls');
+ctrl    = getappdata(obj.Figure,'controls');
 hCtrl   = ctrl.adaptor;
 adaptor = hCtrl.String{hCtrl.Value};
 
 % compare with previously selected value (return if identical)
-if isequal(getappdata(obj.fig,'adaptor'),adaptor)
+if isequal(getappdata(obj.Figure,'adaptor'),adaptor)
     return
 end
-setappdata(obj.fig,'adaptor',adaptor);
+setappdata(obj.Figure,'adaptor',adaptor);
 
 % skip a bunch of callback if user selects no adaptor ('none')
 if strcmpi(adaptor,'none')
@@ -31,7 +31,7 @@ end
 % run imaqhwinfo (expensive), save results to appdata
 [~,tmp]    = evalc('imaqhwinfo(adaptor)');
 deviceInfo = tmp.DeviceInfo;
-setappdata(obj.fig,'deviceInfo',deviceInfo);
+setappdata(obj.Figure,'deviceInfo',deviceInfo);
 
 % manage UI control for device selection
 if isempty(deviceInfo)

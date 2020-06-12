@@ -1,15 +1,15 @@
 function cbMode(obj, ~, ~)
 
 % read value from control
-ctrl  = getappdata(obj.fig,'controls');
+ctrl  = getappdata(obj.Figure,'controls');
 hCtrl = ctrl.mode;
 mode  = hCtrl.String{hCtrl.Value};
-setappdata(obj.fig,'mode',mode);
+setappdata(obj.Figure,'mode',mode);
 
 % find some more variables
-deviceName = getappdata(obj.fig,'deviceName');
-adaptor    = getappdata(obj.fig,'adaptor');
-deviceID   = getappdata(obj.fig,'deviceID');
+deviceName = getappdata(obj.Figure,'deviceName');
+adaptor    = getappdata(obj.Figure,'adaptor');
+deviceID   = getappdata(obj.Figure,'deviceID');
 
 % fill video resolution
 if isempty(mode)
@@ -39,12 +39,12 @@ else
         ctrl.ROI(2).String = num2str(resolution(2));
     end
 end
-setappdata(obj.fig,'resolution',resolution);
+setappdata(obj.Figure,'resolution',resolution);
 
 % fill binning (only on supported cameras)
 if ~isempty(mode)
     if ismember(adaptor,{'qimaging'}) && ismember(deviceName,{'QICam B'})
-        tmp = getappdata(obj.fig,'modes');
+        tmp = getappdata(obj.Figure,'modes');
         tmp = regexpi(tmp,'^\w*_(\d)*x\d*$','tokens','once');
         bin = max(cellfun(@str2double,[tmp{:}])) / resolution(1);
     end
