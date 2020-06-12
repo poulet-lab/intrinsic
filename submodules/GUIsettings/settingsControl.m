@@ -1,10 +1,8 @@
-classdef (Abstract) settingsControl < handle & matlab.mixin.Heterogeneous
+classdef (Abstract) settingsControl < settingsChild
         
     properties
         Control
-        Parent
         Panel
-        Padding = 8
     end
     
     properties (Dependent)
@@ -13,7 +11,7 @@ classdef (Abstract) settingsControl < handle & matlab.mixin.Heterogeneous
 
     methods
         function createPanel(obj)
-            obj.Panel = uipanel(obj.Parent,...
+            obj.Panel = uipanel(obj.Parent.Handle,...
                 'BorderType',           'none', ...
                 'Units',                'pixels', ...
                 'HitTest',              'off');
@@ -25,11 +23,6 @@ classdef (Abstract) settingsControl < handle & matlab.mixin.Heterogeneous
         
         function set.Position(obj,value)
             obj.Panel.Position = value;
-            obj.resize();
-        end
-        
-        function set.Padding(obj,value)
-            obj.Padding = value;
             obj.resize();
         end
     end

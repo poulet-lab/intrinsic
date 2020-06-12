@@ -5,7 +5,7 @@ classdef settingsOKCancel < settingsControl
             p = inputParser;
             p.FunctionName  = mfilename;
             addOptional(p,'Parent',gcf,@(x) validateattributes(x,...
-                {'matlab.ui.Figure'},{'scalar'}));
+                {'settingsWindow'},{'scalar'}));
             addParameter(p,'Callback',[],@(x) validateattributes(x,...
                 {'function_handle'},{'scalar'}));
             parse(p,varargin{:});
@@ -25,7 +25,7 @@ classdef settingsOKCancel < settingsControl
         end
 
      	function resize(obj)
-            w = round((obj.Panel.Position(3)-obj.Padding)/2) + 1;
+            w = round((obj.Panel.Position(3)-obj.Parent.Padding)/2) + 1;
             h = obj.Panel.Position(4) + 2;
             obj.Control(2).Position(1)   = obj.Panel.Position(3) - w + 2;
             obj.Control(1).Position(3:4) = [w h];

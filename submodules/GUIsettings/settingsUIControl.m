@@ -6,8 +6,7 @@ classdef settingsUIControl < settingsLabelControl
             p.KeepUnmatched = true;
             p.FunctionName  = mfilename;
             addOptional(p,'Parent',gcf,@(x) validateattributes(x,...
-                {'matlab.ui.container.Panel','matlab.ui.Figure'},...
-                {'scalar'}));
+                {'settingsContainer'},{'scalar'}));
             addParameter(p,'Label','',@ischar);
             parse(p,varargin{:});
             unmatched = [fieldnames(p.Unmatched) struct2cell(p.Unmatched)]';
@@ -32,7 +31,7 @@ classdef settingsUIControl < settingsLabelControl
         
      	function resize(obj)
             controlPos    = obj.Control.Position;
-            controlPos(1) = obj.Label.Position(3) + obj.Padding + 1;
+            controlPos(1) = obj.Label.Position(3) + obj.Parent.Padding + 1;
             controlPos(3) = max([0 obj.Panel.Position(3) - controlPos(1) + 1]);
             controlPos(4) = max([0 obj.Panel.Position(4)]);
             obj.Control.Position = controlPos;

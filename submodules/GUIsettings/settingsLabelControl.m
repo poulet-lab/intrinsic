@@ -1,6 +1,6 @@
 classdef (Abstract) settingsLabelControl < settingsControl
     
-    properties
+    properties (Access = protected)
         Label
     end
     
@@ -19,7 +19,7 @@ classdef (Abstract) settingsLabelControl < settingsControl
         end
         
         function value = get.LabelWidth(obj)
-            value = obj.Label.Extent(3);
+            value = obj.Label.Position(3);
         end
         
         function set.LabelWidth(obj,value)
