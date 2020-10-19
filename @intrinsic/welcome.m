@@ -3,7 +3,7 @@ function welcome(obj)
 p   = 25;
 fsz = 18;
 
-logo = fullfile(pwd,'icons','logo.png');
+logo = fullfile(obj.DirBase,'icons','logo.png');
 [img,~,alpha] = imread(logo);
 whlogo = size(img,[2 1]);
 

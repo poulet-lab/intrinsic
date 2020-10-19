@@ -91,7 +91,7 @@ obj.h.menu.settingsStimulus = uimenu(obj.h.menu.settings, ...
     'Label',            'Stimulus Settings', ...
     'Callback',         {@obj.settingsStimulus});
 obj.h.menu.settingsMagnification = uimenu(obj.h.menu.settings, ...
-    'Label',            'Define Magnification', ...
+    'Label',            'Scale Settings', ...
     'Callback',         {@cbSetupScale});
 obj.h.menu.winPos = uimenu(obj.h.menu.settings, ...
     'Label',            'Save Window Positions', ...
@@ -115,7 +115,7 @@ obj.h.menu.debugTestdata = uimenu(obj.h.menu.debug, ...
     'Callback',         {@obj.test_data});
 
 %% Menu Icons
-setIcon = @(h,fn) setMenuIcon(obj.h.menu.(h),fullfile(pwd,'icons',fn));
+setIcon = @(h,fn) setMenuIcon(obj.h.menu.(h),fullfile(obj.DirBase,'icons',fn));
 setIcon('fileNew',                  'file_new.png')
 setIcon('fileOpen',                 'file_open.png')
 setIcon('fileSave',                 'file_save.png')
@@ -219,7 +219,7 @@ obj.h.fig.main.Visible = 'on';
         pos(1,1:2) = obj.h.axes.temporal.CurrentPoint(1,1:2);
         rbbox;
         pos(2,1:2) = obj.h.axes.temporal.CurrentPoint(1,1:2);
-
+ 
         % section of the temporal response that is within the rectangle
         x = sort(pos(:,1));
         y = sort(pos(:,2));
@@ -256,7 +256,7 @@ obj.h.fig.main.Visible = 'on';
     end
 
     function cbSetupScale(~,~,~)
-        h = obj.Camera.setup;
+        h = obj.Scale.setup;
         uiwait(h)
     end
 end
