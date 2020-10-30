@@ -26,6 +26,8 @@ classdef settingsUIControl < settingsLabelControl
                     obj.Panel.Position(4) = obj.Control.Position(4);
                 case 'popupmenu'
                     obj.Panel.Position(4) = obj.Control.Position(4) + 2;
+                case 'pushbutton'
+                    obj.Panel.Position(4) = obj.Control.Position(4) + 2;                    
             end
         end
         
@@ -40,6 +42,8 @@ classdef settingsUIControl < settingsLabelControl
                 case 'edit'
                     obj.Label.Position(4) = controlPos(4) - 3;
                 case 'popupmenu'
+                    obj.Label.Position(4) = controlPos(4) - 5;
+                case 'pushbutton'
                     obj.Label.Position(4) = controlPos(4) - 5;
                 otherwise
                     obj.Label.Position(4) = controlPos(4);

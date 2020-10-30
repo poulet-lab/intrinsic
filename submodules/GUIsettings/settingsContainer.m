@@ -55,8 +55,24 @@ classdef (Abstract) settingsContainer < handle
             end
         end
         
+        function varargout = addButton(obj,varargin)
+            child = settingsUIControl(obj,varargin{:},'Style','pushbutton');
+            obj.addChild(child)
+            if nargout == 1
+                varargout{1} = child.Control;
+            end
+        end
+        
         function varargout = addEditXY(obj,varargin)
             child = settingsEditXY(obj,varargin{:});
+            obj.addChild(child)
+            if nargout == 1
+                varargout{1} = child.Control;
+            end
+        end
+        
+        function varargout = addPopupEdit(obj,varargin)
+            child = settingsPopupEdit(obj,varargin{:});
             obj.addChild(child)
             if nargout == 1
                 varargout{1} = child.Control;
