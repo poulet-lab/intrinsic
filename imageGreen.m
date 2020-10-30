@@ -18,7 +18,7 @@ classdef imageGreen < imageGeneric
             % call constructor of superclass
             obj = obj@imageGeneric(varargin{:});
             
-            % save mode if Video Input Object "Green"
+            % save mode of Video Input Object "Green"
             obj.Mode = obj.Camera.Input.Green.VideoFormat;
                         
             % Take picture
@@ -50,6 +50,9 @@ classdef imageGreen < imageGeneric
             tmp   = fieldnames(props);
             tmp(structfun(@(x) x.DeviceSpecific,propinfo(src))) = [];
             obj.DeviceProperties = rmfield(props,tmp);
+            
+            % show figure
+            obj.Visible = 'on';
         end
 
         function saveTIFF(obj,dirname)

@@ -24,10 +24,7 @@ classdef imageGeneric < handle
     properties (Transient, Access = private)
         PanelAxes
         PanelZoom
-        Axes
-        Image
         Scalebar
-        MarginPx = 6
         BottomPx = 20
         EditZoom
         LabelZoom
@@ -35,6 +32,9 @@ classdef imageGeneric < handle
     
     properties (Transient, Access = protected)
         Toolbar
+        Axes
+        Image
+        MarginPx = 6
     end
 
     properties (Dependent, SetAccess = protected)
@@ -60,7 +60,7 @@ classdef imageGeneric < handle
         function obj = imageGeneric(camera,scale)
             % validate input arguments
             validateattributes(camera,{'camera'},{'scalar'});
-            validateattributes(scale,{'numeric'},{'scalar','real','finite'});
+            validateattributes(scale,{'numeric'},{'scalar','real'});
 
             obj.Scale   	= scale;
             obj.Camera   	= camera;
@@ -116,8 +116,13 @@ classdef imageGeneric < handle
         end
         
         function set.Scale(obj,value)
-            validateattributes(value,{'numeric'},{'scalar','positive',...
-                'real','finite'},mfilename,'Scale')
+            if ~isnan(value)
+                validateattributes(value,{'numeric'},{'scalar',...
+                    'positive','finite','real'},mfilename,'Scale')
+            else
+                validateattributes(value,{'numeric'},{'scalar','real'},...
+                    mfilename,'Scale')
+            end
             obj.PrivateScale = value;
             obj.Scalebar.Scale = value;
         end
@@ -134,7 +139,7 @@ classdef imageGeneric < handle
         end
         
         function set.Visible(obj,value)
-            validatestring(value,{'on','off'},mfilename,'Visible')
+            validatestring(value,{'on','off'},mfilename,'Visible');
             if (isempty(obj.Figure) || ~isvalid(obj.Figure)) && ...
                     strcmp(value,'on')
                 obj.createFigure()
@@ -176,7 +181,8 @@ classdef imageGeneric < handle
                 'Resize',           'off', ...
                 'Position',         obj.Position, ...
                 'HandleVisibility', 'off', ...
-                'DockControls',     'off');
+                'DockControls',     'off', ...
+                'CloseRequestFcn',  @obj.closeFigure);
             obj.PanelAxes = uipanel(obj.Figure, ...
                 'Units',            'Pixels', ...
                 'BorderType',       'beveledin');
@@ -189,7 +195,6 @@ classdef imageGeneric < handle
             obj.Image = image(obj.Axes,...
                 'CData',            obj.CData, ...
                 'CDataMapping',     'scaled');
-            obj.Scalebar = scalebar(obj.Axes,obj.Scale);
             obj.PanelZoom = uipanel(obj.Figure, ...
                 'Units',            'pixels', ...
                 'Position',         [1 1 70 obj.BottomPx], ...
@@ -208,6 +213,7 @@ classdef imageGeneric < handle
                 'Units',            'Pixels', ...
                 'BorderType',       'none');
             obj.resizeFigure()
+            obj.Scalebar = scalebar(obj.Axes,obj.Scale);
         end
         
         function callbackEditZoom(obj,hCtrl,~)
@@ -237,6 +243,12 @@ classdef imageGeneric < handle
             obj.Axes.XLim = [0.5 obj.Size(1)+0.5];
             obj.Axes.YLim = [0.5 obj.Size(2)+0.5];
             movegui(obj.Figure,'onscreen')
+        end
+        
+        function closeFigure(obj,~,~)
+            obj.Visible = 'off';
+            obj.PrivatePosition = obj.Position;
+            delete(obj.Figure)
         end
         
         function dummyCData(obj)

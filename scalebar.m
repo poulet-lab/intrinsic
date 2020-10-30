@@ -1,7 +1,7 @@
 classdef scalebar < handle
     
     properties
-        Scale(1,1) double {mustBeNumeric, mustBePositive, mustBeFinite, mustBeReal} = 1
+        Scale = 1
     end
 
     properties (SetAccess = immutable)
@@ -12,6 +12,7 @@ classdef scalebar < handle
         Visible
         FaceColor
         BackgroundColor
+        Position
     end
     
     properties (GetAccess = private, SetAccess = immutable)
@@ -48,6 +49,13 @@ classdef scalebar < handle
         end
 
         function set.Scale(obj,value)
+            if ~isnan(value)
+                validateattributes(value,{'numeric'},{'scalar',...
+                    'positive','finite','real'},mfilename,'Scale')
+            else
+                validateattributes(value,{'numeric'},{'scalar','real'},...
+                    mfilename,'Scale')
+            end
             obj.Scale = value;
             obj.update()
         end
@@ -69,6 +77,10 @@ classdef scalebar < handle
 
         function value = get.Visible(obj)
             value = obj.Bar.Visible;
+        end
+        
+        function value = get.Position(obj)
+            value = obj.Background.Position;
         end
         
         function value = get.FaceColor(obj)
@@ -100,18 +112,22 @@ classdef scalebar < handle
             padding  = 2 / zoom;
             margin   = 12 / zoom;
             wBarPx   = 5 / zoom;
-            MinBarPx = 80 / zoom;
+            MinBarPx = 120 / zoom;
             hBack    = 18 / zoom;
             
-            pxPerUnit = obj.Scale ./ power(10,-2-obj.SIexp);
-            idxUnit   = find(pxPerUnit<=MinBarPx,1,'last');
-            strUnit   = obj.SInames{idxUnit};
+            if ~isnan(obj.Scale)
+                pxPerUnit = obj.Scale ./ power(10,-2-obj.SIexp);
+                idxUnit   = find(pxPerUnit<=MinBarPx,1,'last');
+                strUnit   = obj.SInames{idxUnit};
+                tmp       = reshape([1 2 5]'.*10.^(0:10),1,[]);
+                lBarSI    = tmp(find(pxPerUnit(idxUnit).*tmp<=MinBarPx,1,'last'));
+                lBarPx    = lBarSI * pxPerUnit(idxUnit);
+                lString   = sprintf('%d %s',lBarSI,strUnit);
+            else
+                lBarPx    = MinBarPx;
+                lString   = 'NaN';
+            end
             
-            % define length of bar (SI and px)
-            tmp       = reshape([1 2 5]'.*10.^(0:10),1,[]);
-            lBarSI    = tmp(find(pxPerUnit(idxUnit).*tmp<=MinBarPx,1,'last'));
-            lBarPx    = lBarSI * pxPerUnit(idxUnit);
-
             set(obj.Bar,'Position',[ ...
                 obj.Parent.XLim(2)-lBarPx-margin ...
                     obj.Parent.YLim(2)-wBarPx-margin lBarPx wBarPx]);
@@ -121,7 +137,7 @@ classdef scalebar < handle
                 'Position',     [obj.Bar.Position(1)+obj.Bar.Position(3)/2 ...
                 obj.Bar.Position(2)-0 0], ...
                 'Interpreter',  'tex', ...
-                'String',       sprintf('%d %s',lBarSI,strUnit));
+                'String',       lString);
         end
         
         function validateColor(~,in)
