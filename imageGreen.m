@@ -123,7 +123,7 @@ classdef imageGreen < imageGeneric
     methods (Access = private)
         function callbackCheckContrast(obj,hCtrl,~)
             if hCtrl.Value
-                obj.CLim = [min(obj.CData(:)) max(obj.CData(:))];
+                obj.CLim = [min(obj.CData(:))-1 max(obj.CData(:))+1];
             else
                 obj.CLim = [0 2^obj.BitDepth-1];
             end
