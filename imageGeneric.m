@@ -151,7 +151,11 @@ classdef imageGeneric < handle
                 obj.EditZoom.String = sprintf('%d%%',round(value*100));
                 obj.resizeFigure()
             end
-        end    
+        end
+        
+        function focus(obj)
+            figure(obj.Figure)
+        end
     end
     
     methods (Access = protected)
