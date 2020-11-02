@@ -24,7 +24,6 @@ classdef imageGeneric < handle
     properties (Transient, Access = private)
         PanelAxes
         PanelZoom
-        Scalebar
         BottomPx = 20
         EditZoom
         LabelZoom
@@ -35,10 +34,7 @@ classdef imageGeneric < handle
         Axes
         Image
         MarginPx = 6
-    end
-
-    properties (Dependent, SetAccess = protected)
-        Scale
+        Scalebar
     end
     
     properties (Dependent, SetObservable)
@@ -50,9 +46,10 @@ classdef imageGeneric < handle
     
     properties (Access = private)
         PrivatePosition = [100 100 200 200]
-        PrivateScale    = 1
         PrivateVisible  = 'off'
         PrivateZoom     = 1
+        Scale
+        ScaleListener
     end
     
     methods
@@ -60,12 +57,14 @@ classdef imageGeneric < handle
         function obj = imageGeneric(camera,scale)
             % validate input arguments
             validateattributes(camera,{'camera'},{'scalar'});
-            validateattributes(scale,{'numeric'},{'scalar','real'});
+            validateattributes(scale,{'scale'},{'scalar'});
 
-            obj.Scale   	= scale;
-            obj.Camera   	= camera;
-            obj.Adaptor   	= camera.Adaptor;
-            obj.DeviceName 	= camera.DeviceName;
+            obj.Scale           = scale;
+            obj.Camera          = camera;
+            obj.Adaptor         = camera.Adaptor;
+            obj.DeviceName      = camera.DeviceName;
+            obj.ScaleListener   = ...
+                event.listener(obj.Scale,'Update',@obj.scaleChanged);
             
             obj.dummyCData;
         end
@@ -99,10 +98,6 @@ classdef imageGeneric < handle
             end
         end
         
-        function value = get.Scale(obj)
-            value = obj.PrivateScale;
-        end
-
         function value = get.Visible(obj)
             value = obj.PrivateVisible;
         end
@@ -113,18 +108,6 @@ classdef imageGeneric < handle
         
         function set.CLim(obj,value)
             obj.Axes.CLim = value;
-        end
-        
-        function set.Scale(obj,value)
-            if ~isnan(value)
-                validateattributes(value,{'numeric'},{'scalar',...
-                    'positive','finite','real'},mfilename,'Scale')
-            else
-                validateattributes(value,{'numeric'},{'scalar','real'},...
-                    mfilename,'Scale')
-            end
-            obj.PrivateScale = value;
-            obj.Scalebar.Scale = value;
         end
         
         function set.Position(obj,value)
@@ -213,7 +196,7 @@ classdef imageGeneric < handle
                 'Units',            'Pixels', ...
                 'BorderType',       'none');
             obj.resizeFigure()
-            obj.Scalebar = scalebar(obj.Axes,obj.Scale);
+            obj.Scalebar = scalebar(obj.Axes,obj.Scale.PxPerCm);
         end
         
         function callbackEditZoom(obj,hCtrl,~)
@@ -227,6 +210,10 @@ classdef imageGeneric < handle
     end
        
     methods (Access = private)
+        function scaleChanged(obj,~,~)
+            obj.Scalebar.Scale = obj.Scale.PxPerCm;
+        end
+        
         function resizeFigure(obj,varargin)
             panelSize  = obj.Size(1:2) .* obj.Zoom + 4;
             figureSize = panelSize + 2*obj.MarginPx + ...
