@@ -13,6 +13,4 @@ listener    = addlistener(imCal,'Calibrate',@done);
         setappdata(obj.Figure,'deviceData',deviceData)
         delete(listener)
     end
-
 end
-
