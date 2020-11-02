@@ -14,4 +14,6 @@ obj.saveVar('Magnification', obj.Magnification)
 obj.saveVar('Data', obj.Data)
 obj.saveVar('PxPerCm', obj.PxPerCm)
 
+% close figure & fire notifier
 close(obj.Figure)
+notify(obj,'Update')

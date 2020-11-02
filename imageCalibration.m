@@ -16,6 +16,10 @@ classdef imageCalibration < imageGeneric
         Time
         Resolution
     end
+    
+    properties (GetAccess = public)
+        PxPerCm = NaN
+    end
 
     events
         Calibrate
@@ -44,7 +48,9 @@ classdef imageCalibration < imageGeneric
         function createFigure(obj)
             createFigure@imageGeneric(obj)
             
-            obj.test()          % JUST FOR TESTING
+            % JUST FOR TESTING
+            tmp = imread('2.0x.png');
+            obj.CData = tmp(:,:,1);
             
             colormap(obj.Figure,'gray')
             obj.Figure.Name = 'Calibration';
@@ -121,11 +127,6 @@ classdef imageCalibration < imageGeneric
             obj.Visible = 'on';
         end
         
-        function test(obj,~,~)
-            tmp = imread('2.0x.png');
-            obj.CData = tmp(:,:,1);
-        end
-        
         function cbEditDistance(obj,hCtrl,~)
             cm = str2double(hCtrl.String)/10;
             if isfinite(cm) && isscalar(cm)
@@ -152,9 +153,9 @@ classdef imageCalibration < imageGeneric
             
             % update scale
             obj.Pixels  = sqrt(sum(diff(obj.DistanceLine.Position,1).^2));
-            obj.Scale   = obj.Pixels / obj.Centimeters;
-            
-            obj.EditScale.String = sprintf('%0.1f',obj.Scale);
+            obj.PxPerCm = obj.Pixels / obj.Centimeters;
+            obj.EditScale.String = sprintf('%0.1f',obj.PxPerCm);
+            obj.Scalebar.Scale   = obj.PxPerCm;
         end
     end
 end

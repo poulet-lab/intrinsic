@@ -26,6 +26,10 @@ classdef scale < handle
         matPrefix = 'scale_'
     end
     
+    events
+        Update
+    end
+    
     methods
         function obj = scale(varargin)
             % parse input arguments
@@ -61,6 +65,7 @@ classdef scale < handle
         function set.Magnification(obj,magnification)
             obj.MagnificationPriv = ...
                 validatestring(magnification,obj.Magnifications);
+            notify(obj,'Update')
         end
         
         function out = get.PxPerCm(obj)
