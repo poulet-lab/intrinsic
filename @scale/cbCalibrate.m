@@ -2,7 +2,7 @@ function cbCalibrate(obj,~,~)
 
 deviceData  = getappdata(obj.Figure,'deviceData');
 controls    = getappdata(obj.Figure,'controls');
-imCal       = imageCalibration(obj.Camera,obj);
+imCal       = imageCalibration(obj.Parent);
 listener    = addlistener(imCal,'Calibrate',@done);
 
     function done(~,~)
