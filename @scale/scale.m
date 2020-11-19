@@ -23,7 +23,7 @@ classdef scale < handle
     end
     
     properties (Constant = true, Access = private)
-        matPrefix = 'scale_'
+        MatPrefix = 'scale_'
     end
     
     events
@@ -31,17 +31,11 @@ classdef scale < handle
     end
     
     methods
-        function obj = scale(varargin)
-            % parse input arguments
-            narginchk(2,2)
-            p = inputParser;
-            addRequired(p,'MatFile',@(n)validateattributes(n,...
-                {'matlab.io.MatFile'},{'scalar'}))
-            addRequired(p,'Camera',@(n)validateattributes(n,...
-                {'camera'},{'scalar'}))
-            parse(p,varargin{:})
-            obj.mat            = p.Results.MatFile;
-            obj.Camera         = p.Results.Camera;
+        function obj = scale(parent)
+            narginchk(1,1)
+            validateattributes(parent,{'intrinsic'},{'scalar'});
+            obj.Parent         = parent;
+            obj.Camera         = obj.Parent.Camera;
             obj.Data           = obj.loadVar('Data',struct);
             obj.Magnifications = obj.loadVar('Magnifications',{''});
             obj.Magnification  = obj.loadVar('Magnification','');
@@ -89,21 +83,11 @@ classdef scale < handle
     
     methods (Access = private)
         function out = loadVar(obj,var,default)
-            % load variable from matfile / return default if non-existant
-            out = default;
-            if ~exist(obj.mat.Properties.Source,'file')
-                return
-            else
-                var = [obj.matPrefix var];
-                if ~isempty(who('-file',obj.mat.Properties.Source,var))
-                    out = obj.mat.(var);
-                end
-            end
+            out = obj.Parent.loadVar([obj.MatPrefix var],default);
         end
 
         function saveVar(obj,varName,data)
-            % save variables to matfile
-            obj.mat.([obj.matPrefix varName]) = data;
+            obj.Parent.saveVar([obj.MatPrefix varName],data);
         end
 
         % callbacks and some helper functions are in separate files

@@ -119,9 +119,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.ResponseTemporal.y  = [];
 
             % Initalize data acquisition & video device, generate stimulus
-            obj.DAQ    = daqdevice(obj.Settings);
-            obj.Camera = camera(obj.Settings);
-            obj.Scale  = scale(obj.Settings,obj.Camera);
+            obj.DAQ    = daqdevice(obj);
+            obj.Camera = camera(obj);
+            obj.Scale  = scale(obj);
             disp('Generating stimulus ...')
             obj.generateStimulus
             
@@ -309,15 +309,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             stop(obj.VideoInputRed)
             obj.DAQsession.stop
             obj.led(false)
-        end
-
-        % Load variable from file, return defaults if var/file not found
-        function out = loadVar(obj,name,default)
-            validateattributes(name,{'char'},{'vector'})
-            if isempty(who(obj.Settings,name))
-                obj.Settings.(name) = default;
-            end
-            out = obj.Settings.(name);
         end
 
         function out = get.nTrials(obj)
@@ -1072,6 +1063,27 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         end
         function out = getHeader(obj)
             out = sprintf('  %s\n',matlab.mixin.CustomDisplay.getClassNameForHeader(obj));
+        end
+    end
+    
+    % Methods for accessing obj.Settings
+    methods (Access = {?camera,?daqdevice,?scale})
+        
+        function out = loadVar(obj,variableName,defaultValue)
+            % Load variable from file, return defaults if not found
+            out = defaultValue;
+            if ~exist(obj.Settings.Properties.Source,'file')
+                return
+            else
+                if ~isempty(who(obj.Settings,variableName))
+                    out = obj.Settings.(variableName);
+                end
+            end
+        end
+
+        function saveVar(obj,variableName,data)
+            % Save variable to file
+            obj.Settings.(variableName) = data;
         end
     end
     

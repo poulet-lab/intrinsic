@@ -23,29 +23,21 @@ classdef camera < handle
     properties (Constant = true, Access = private)
         toolbox   = ~isempty(ver('IMAQ')) && ...
             license('test','image_acquisition_toolbox');
-        matPrefix = 'camera_'
-    end
-
-    properties (SetAccess = immutable, GetAccess = private)
-        mat         % matfile for storage of settings
+        MatPrefix = 'camera_'
     end
 
     properties (Access = private)
+        Parent
         Figure
     end
 
     methods
         varargout = setup(obj)
 
-        function obj = camera(varargin)
-
-            % parse input arguments
+        function obj = camera(parent)
             narginchk(1,1)
-            p = inputParser;
-            addRequired(p,'MatFile',@(n)validateattributes(n,...
-                {'matlab.io.MatFile'},{'scalar'}))
-            parse(p,varargin{:})
-            obj.mat = p.Results.MatFile;
+            validateattributes(parent,{'intrinsic'},{'scalar'});
+            obj.Parent = parent;
 
             if ~obj.toolbox
                 % check for IMAQ toolbox
@@ -171,24 +163,14 @@ classdef camera < handle
         toggleCtrls(obj,state)
 
         function out = loadVar(obj,var,default)
-            % load variable from matfile / return default if non-existant
-            out = default;
-            if ~exist(obj.mat.Properties.Source,'file')
-                return
-            else
-                var = [obj.matPrefix var];
-                if ~isempty(who('-file',obj.mat.Properties.Source,var))
-                    out = obj.mat.(var);
-                end
-            end
+            out = obj.Parent.loadVar([obj.MatPrefix var],default);
         end
 
         function saveVar(obj,varName,data)
-            % save variables to matfile
-            obj.mat.([obj.matPrefix varName]) = data;
+            obj.Parent.saveVar([obj.MatPrefix varName],data);
         end
 
-        function reset(obj)
+        function reset(~)
             % disconnect and delete all image acquisition objects
             fprintf('\nInitializing image acquisition hardware ... ')
             imaqreset

@@ -5,6 +5,7 @@ classdef daqdevice < handle
     end
 
     properties (Access = private)
+        Parent
         Figure
     end
 
@@ -27,7 +28,6 @@ classdef daqdevice < handle
         ChannelProp
         NChannelsOut
         NChannelsIn
-        Matfile
     end
 
     properties (Dependent = true)
@@ -40,15 +40,10 @@ classdef daqdevice < handle
     end
 
     methods
-        function obj = daqdevice(varargin)
-
-            % parse input arguments
+        function obj = daqdevice(parent)
             narginchk(1,1)
-            p = inputParser;
-            addRequired(p,'MatFile',@(n)validateattributes(n,...
-                {'matlab.io.MatFile'},{'scalar'}))
-            parse(p,varargin{:})
-            obj.Matfile = p.Results.MatFile;
+            validateattributes(parent,{'intrinsic'},{'scalar'});
+            obj.Parent = parent;
 
             % check for Data Acquisition Toolbox
             if ~obj.Toolbox
@@ -123,20 +118,11 @@ classdef daqdevice < handle
         toggleCtrls(obj,state)
 
         function out = loadVar(obj,var,default)
-            % load variable from matfile or return default if non-existant
-            out = default;
-            if ~exist(obj.Matfile.Properties.Source,'file')
-                return
-            else
-                var = [obj.MatPrefix var];
-                if ~isempty(who('-file',obj.Matfile.Properties.Source,var))
-                    out = obj.Matfile.(var);
-                end
-            end
+            out = obj.Parent.loadVar([obj.MatPrefix var],default);
         end
 
         function saveVar(obj,varName,data)
-            obj.Matfile.([obj.MatPrefix varName]) = data;
+            obj.Parent.saveVar([obj.MatPrefix varName],data);
         end
 
         function d = devices(obj,vendorID,deviceID)

@@ -13,15 +13,12 @@ end
 % Create obj.Green / take snapshot
 if isa(obj.Green,'imageGreen')
     obj.Green.takeImage()
+    obj.Green.focus
 else
-    obj.Green = imageGreen(obj.Camera,200);
+    obj.Green = imageGreen(obj);
 end
 
 % Return to former preview state
 if isa(obj.VideoPreview,'video_preview')
     obj.VideoPreview.Preview = preview_state;
 end
-
-% % Focus the green window
-% figure(obj.h.fig.green)
-% end
