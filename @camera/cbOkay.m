@@ -9,7 +9,7 @@ mode         = getappdata(obj.Figure,'mode');
 resolution   = getappdata(obj.Figure,'resolution');
 ROI          = getappdata(obj.Figure,'roi');
 rate         = getappdata(obj.Figure,'rate');
-downsample = getappdata(obj.Figure,'downsample');
+downsample   = getappdata(obj.Figure,'downsample');
 
 % save values to matfile
 obj.saveVar('adaptor',adaptor);
