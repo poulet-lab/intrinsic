@@ -30,6 +30,10 @@ classdef camera < handle
         Parent
         Figure
     end
+    
+    events
+        SettingsUpdated
+    end
 
     methods
         varargout = setup(obj)

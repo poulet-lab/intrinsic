@@ -24,4 +24,7 @@ obj.saveVar('downsample',downsample);
 % create videoinput objects
 obj.createInputs;
 
+% notify listeners of updated settings
+notify(obj,'SettingsUpdated')
+
 close(obj.Figure)
