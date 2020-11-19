@@ -45,7 +45,7 @@ else
         ROI = obj.loadVar('ROI',[NaN NaN]);
         ctrl.ROI(1).String   = ROI(1);
         ctrl.ROI(2).String   = ROI(2);
-        ctrl.FPS.String      = obj.loadVar('rate',1);
+        ctrl.FPS.String      = obj.loadVar('framerate',1);
         ctrl.oversmpl.String = obj.loadVar('downsample',1);
     elseif ~isempty(deviceID)
         ctrl.mode.Value = find(strcmp(modes,deviceInfo.DefaultFormat));
