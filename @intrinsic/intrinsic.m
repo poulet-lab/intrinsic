@@ -218,31 +218,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             end
         end
 
-        function redPlayback(obj,~,~)           % Play stack as movie
-
-            %TODO: THIS IS BROKEN
-%             % disable UI controls
-%             tmpobj = struct2cell(obj.h.fig);
-%             tmpobj = findobj([tmpobj{:}],'Enable','on');
-%             set(tmpobj,'Enable','off')
-%
-%             % create temporary axes for movie
-%             tmpax = axes(...
-%                 'Parent',   obj.h.panel.red, ...
-%                 'Position', obj.h.axes.red.Position, ...
-%                 'Visible',  'off');
-%
-%             % play movie
-%             obj.processMovie
-%
-%             movie(tmpax,obj.Movie,1,obj.RateCam/obj.Oversampling,[2 2 0 0])
-%
-%             % delete temporary axes, enable UI controls
-%             delete(tmpax)
-%             set(tmpobj,'Enable','on')
-
-        end
-
         function redView(obj,~,~)
             modus = obj.redMode;                % get current image mode
             ptile = obj.h.axes.red.UserData;    % scaling percentile
@@ -622,23 +597,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             %% define X and Y values for temporal plot
             obj.ResponseTemporal.x = obj.Time';
             obj.ResponseTemporal.y = squeeze(subVol(c3,c4,:));
-        end
-
-        function processMovie(obj)
-            ptile = obj.h.axes.red.UserData;
-            cmap  = flipud(brewermap(2^8,'PuOr'));
-            tmp   = sort(abs(obj.SequenceFilt(:)));
-            scal  = max([1 tmp(ceil(length(tmp)*ptile))]);
-          	tmp   = obj.SequenceFilt ./ scal;
-            tmp   = ceil(tmp .* 2^7 + 2^7);
-            tmp(tmp<1)	 = 1;
-            tmp(tmp>2^8) = 2^8;
-            tmp  = imresize(tmp,obj.Scale,'nearest');
-            mov(size(obj.SequenceFilt,3)) = struct('cdata',[],'colormap',[]);
-            for ii = 1:size(obj.SequenceFilt,3)
-                mov(ii) = im2frame(tmp(:,:,ii),cmap);
-            end
-            obj.Movie = mov;
         end
 
         % Load icon for toolbar
