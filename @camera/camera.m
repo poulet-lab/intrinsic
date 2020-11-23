@@ -28,6 +28,9 @@ classdef camera < handle
 
     properties (Access = private)
         Parent
+    end
+
+    properties (Access = private, Transient)
         Figure
     end
     

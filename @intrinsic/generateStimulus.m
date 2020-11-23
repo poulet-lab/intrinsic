@@ -85,6 +85,7 @@ if nargout == 0
         ylim(obj.h.axes.stimulus,[0 max(out)*10])
         obj.clearData
         obj.update_plots
+        obj.plotCameraTrigger
     end
 else
     varargout{1} = out;

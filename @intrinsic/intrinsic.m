@@ -42,6 +42,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Camera
         DAQ
         Scale
+        Stimulus
         
         DAQvec
         
@@ -106,7 +107,24 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             % Settings are loaded from / saved to disk
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
-                'Writable',true);
+                'Writable', true);
+            
+            % Initalize data acquisition & video device, generate stimulus
+            obj.DAQ = daqdevice(obj);
+            
+            % Initalize camera, register listener
+            obj.Camera = camera(obj);
+            addlistener(obj.Camera,'SettingsUpdated',@obj.cbUpdatedCameraSettings);
+            
+            % Initialize scale object
+            obj.Scale = scale(obj);
+            
+            % Initialize stimulus object
+            obj.Stimulus = stimulus(obj);
+            addlistener(obj.Stimulus,'SettingsUpdated',@obj.cbUpdatedStimulusSettings);
+            
+
+            % LEGACY STUFF BELOW ------------------------------------------
 
             % Initialize some variables
             obj.h.image.green       = [];
@@ -117,15 +135,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.Flags.FakeDat       = false;
             obj.ResponseTemporal.x  = [];
             obj.ResponseTemporal.y  = [];
-
-            % Initalize data acquisition & video device, generate stimulus
-            obj.DAQ    = daqdevice(obj);
             
-            % Initalize camera, register listener
-            obj.Camera = camera(obj);
-            addlistener(obj.Camera,'SettingsUpdated',@obj.cbUpdatedCameraSettings)
-            
-            obj.Scale  = scale(obj);
             disp('Generating stimulus ...')
             obj.generateStimulus
             
@@ -867,7 +877,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     end
     
     % Methods for accessing obj.Settings
-    methods (Access = {?camera,?daqdevice,?scale})
+    methods (Access = {?camera,?daqdevice,?scale,?stimulus})
         
         function out = loadVar(obj,variableName,defaultValue)
             % Load variable from file, return defaults if not found
