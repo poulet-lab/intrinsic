@@ -5,7 +5,7 @@ classdef settingsOKCancel < settingsControl
             p = inputParser;
             p.FunctionName  = mfilename;
             addOptional(p,'Parent',gcf,@(x) validateattributes(x,...
-                {'settingsWindow'},{'scalar'}));
+                {'settingsContainer'},{'scalar'}));
             addParameter(p,'Callback',[],@(x) validateattributes(x,...
                 {'function_handle'},{'scalar'}));
             parse(p,varargin{:});
