@@ -7,7 +7,7 @@ classdef stimulus < handle
     end
 
     properties (SetAccess = private)
-        WaveformType
+        Type
         Frequency
         DutyCycle
         Ramp
@@ -16,6 +16,10 @@ classdef stimulus < handle
         PreStimulus
         PostStimulus
         InterStimulus
+    end
+        
+    properties (SetAccess = private, SetObservable, AbortSet)
+        Timeseries
     end
     
     properties (Access = private)
@@ -32,13 +36,14 @@ classdef stimulus < handle
 
     methods
         varargout = setup(obj)
+        varargout = generate(obj)
+        cbOkay(obj,~,~)
 
         function obj = stimulus(parent)
-            narginchk(1,1)
             validateattributes(parent,{'intrinsic'},{'scalar'});
             obj.Parent = parent;
             
-            obj.WaveformType = obj.loadVar('WaveformType','Sinusoidal');
+            obj.Type = obj.loadVar('Type','Sinusoidal');
             obj.Frequency = obj.loadVar('Frequency',10);
             obj.DutyCycle = obj.loadVar('DutyCycle',50);
             obj.Ramp = obj.loadVar('Ramp',0);
@@ -47,11 +52,13 @@ classdef stimulus < handle
             obj.PreStimulus = obj.loadVar('PreStimulus',5);
             obj.PostStimulus = obj.loadVar('PostStimulus',10);
             obj.InterStimulus = obj.loadVar('InterStimulus',20);
+            
+            obj.generate()
         end
         
-        function set.WaveformType(obj,value)
+        function set.Type(obj,value)
             validatestring(value,{'Sinusoidal', 'Triangular', 'Square'});
-            obj.WaveformType = value;
+            obj.Type = value;
         end
     end
 

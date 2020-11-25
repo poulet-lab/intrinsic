@@ -27,4 +27,5 @@ obj.createInputs;
 % notify listeners of updated settings
 notify(obj,'SettingsUpdated')
 
+% close figure
 close(obj.Figure)

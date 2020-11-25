@@ -39,14 +39,16 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         Toolbox
 
+        % new objects
         Camera
         DAQ
         Scale
         Stimulus
+        Green
         
         DAQvec
         
-        Green
+
 
         StimIn
 
@@ -109,20 +111,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
                 'Writable', true);
             
-            % Initalize data acquisition & video device, generate stimulus
+            % Initalize sub-classes
             obj.DAQ = daqdevice(obj);
-            
-            % Initalize camera, register listener
             obj.Camera = camera(obj);
-            addlistener(obj.Camera,'SettingsUpdated',@obj.cbUpdatedCameraSettings);
-            
-            % Initialize scale object
             obj.Scale = scale(obj);
-            
-            % Initialize stimulus object
             obj.Stimulus = stimulus(obj);
-            addlistener(obj.Stimulus,'SettingsUpdated',@obj.cbUpdatedStimulusSettings);
             
+            % Initialize listeners
+            addlistener(obj.Camera,'SettingsUpdated',@obj.cbUpdatedCameraSettings);
+            addlistener(obj.Stimulus,'Timeseries','PostSet',@obj.cbUpdatedStimulusSettings);
 
             % LEGACY STUFF BELOW ------------------------------------------
 
@@ -152,11 +149,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
     % Methods defined in separate files:
     methods (Access = private)
+        plotCameraTrigger(obj)
+        plotStimulus(obj)
+        
         GUImain(obj)                    % Create MAIN GUI
         GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
         GUIgreen(obj)                	% Create GREEN GUI
         GUIred(obj)                    	% Create RED GUI
-        f = welcome(obj)
+        welcome(obj)
         settingsStimulus(obj,~,~)      	% Stimulus Settings
         settingsVideo(obj,~,~)
         fileSave(obj,~,~)
@@ -171,7 +171,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     
     methods
         update_plots(obj)
-        plotCameraTrigger(obj)
+
     end
 
     methods %(Access = private)

@@ -33,6 +33,7 @@ classdef daqdevice < handle
     properties (Dependent = true)
         Available
         TriggerAmplitude
+        MaxStimulusAmplitude
     end
 
     properties (Dependent = true, GetAccess = private)
@@ -94,6 +95,12 @@ classdef daqdevice < handle
 
         function out = get.TriggerAmplitude(obj)
             out = obj.loadVar('triggerAmp',[]);
+        end
+        
+        function out = get.MaxStimulusAmplitude(obj)
+            tmp = find(strcmp({obj.Session.Channels.Name},'Stimulus'),1);
+            tmp = obj.Session.Channels(tmp).Range;
+            out = tmp.Max;
         end
 
         function out = get.Vendors(obj)

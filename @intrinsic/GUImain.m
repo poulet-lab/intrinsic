@@ -165,19 +165,18 @@ obj.h.axes.temporal = axes(...
 linkaxes([obj.h.axes.temporal obj.h.axes.stimulus obj.h.axes.temporalBg],'x')
 linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position'});
 
-% Temporal response: stimulus
-obj.h.plot.stimulus = plot(obj.h.axes.stimulus,...
-    obj.DAQvec.time,obj.DAQvec.stim,'r',...
-    'pickableparts',    'none');
-ylim(obj.h.axes.stimulus,[0 max(obj.DAQvec.stim)])
-ylabel(obj.h.axes.stimulus,'Stim (V)')
-
 % Temporal response: markers for t=0 and camera triggers
 obj.h.plot.grid = plot(obj.h.axes.temporalBg,NaN,NaN,'k',...
     'pickableparts',    'none');
 xline(obj.h.axes.temporalBg,0,'k', ...
     'PickableParts',    'none')
 obj.plotCameraTrigger()
+
+% Temporal response: stimulus
+obj.h.plot.stimulus = plot(obj.h.axes.stimulus,NaN,NaN,'r',...
+    'pickableparts',    'none');
+ylabel(obj.h.axes.stimulus,'Stim (V)')
+obj.plotStimulus()
 
 % Temporal response: the actual response
 title(obj.h.axes.temporal,'Temporal Response')

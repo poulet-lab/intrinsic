@@ -79,10 +79,10 @@ if nargout == 0
     obj.Time        = obj.DAQvec.time(ttl_view);
     obj.IdxStimROI  = obj.Time>=0;
     if isfield(obj.h,'axes')
-        obj.h.plot.stimulus.XData = tax;
-        obj.h.plot.stimulus.YData = out;
-        xlim(obj.h.axes.stimulus,tax([1 end]))
-        ylim(obj.h.axes.stimulus,[0 max(out)*10])
+%         obj.h.plot.stimulus.XData = tax;
+%         obj.h.plot.stimulus.YData = out;
+%         xlim(obj.h.axes.stimulus,tax([1 end]))
+%         ylim(obj.h.axes.stimulus,[0 max(out)*10])
         obj.clearData
         obj.update_plots
         obj.plotCameraTrigger
