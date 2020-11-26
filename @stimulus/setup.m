@@ -3,11 +3,14 @@ function varargout = setup(obj)
 
 nargoutchk(0,1)
 
+obj.Parent.h.axes.temporalBg.Visible = 'Off';
+
 % create settings window & panels
-window     = settingsWindow(...
-    'Name',     'Stimulus Settings', ...
-    'Width',    260, ...
-    'CloseRequestFcn', @cbClose);
+window = settingsWindow(...
+    'Name',             'Stimulus Settings', ...
+    'Width',            260, ...
+    'CloseRequestFcn',  @cbClose, ...
+    'DeleteFcn',        @cbDelete);
 obj.Figure = window.Handle;
 panel(1)   = window.addPanel('Title','Waveform');
 panel(2)   = window.addPanel('Title','Timing');
@@ -56,11 +59,12 @@ Controls.InterStimulus = panel(2).addEdit( ...
 [Controls.okay,Controls.cancel] = window.addOKCancel(...
     'Callback',	@cbOkay);
 
-% edit fields: copy value to string
+% edit fields: synchronize Value & String, add Tag
 fn = fieldnames(Controls)';
 fn = fn(structfun(@(x) strcmp(x.Style,'edit'),Controls));
 for f = fn
     Controls.(f{:}).String = sprintf('%g',Controls.(f{:}).Value);
+    Controls.(f{:}).Value  = str2double(Controls.(f{:}).String);
     Controls.(f{:}).Tag    = f{:};
 end
 
@@ -96,7 +100,7 @@ end
         end
         Controls.DutyCycle.String = Parameters.DutyCycle;
         Controls.Ramp.String = Parameters.Ramp;
-        apply()
+        updateLocalParameters()
     end
 
     function cbEdit(control,~,limits)
@@ -108,12 +112,12 @@ end
             value = min(value,limits(2));
         end
         control.String = sprintf('%g',value);
-        control.Value  = value;
-        Parameters.(control.Tag) = value;
-        apply()
+        control.Value  = str2double(control.String);
+        Parameters.(control.Tag) = control.Value;
+        updateLocalParameters()
     end
 
-    function apply()
+    function updateLocalParameters()
         setappdata(obj.Figure,'parameters',Parameters);
         obj.Parent.plotStimulus(Parameters)
     end
@@ -130,7 +134,13 @@ end
     end
 
     function cbClose(~,~,~)
-        obj.Parent.plotStimulus;
+        if ~isequal(Parameters,obj.Parameters)
+            obj.Parent.plotStimulus;
+        end
         delete(obj.Figure)
+    end
+
+    function cbDelete(~,~,~)
+        obj.Parent.h.axes.temporalBg.Visible = 'Off';
     end
 end

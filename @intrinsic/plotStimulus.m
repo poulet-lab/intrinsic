@@ -4,10 +4,13 @@ if ~exist('p','var')
     p = obj.Stimulus.Parameters;
 end
 
+hPlot = obj.h.plot.stimulus;
+hAxes = obj.h.axes.stimulus;
+
 ts = obj.Stimulus.generate(p);
+hPlot.XData = ts.Time;
+hPlot.YData = ts.Data;
 
-obj.h.plot.stimulus.XData = ts.Time;
-obj.h.plot.stimulus.YData = ts.Data;
-
-xlim(obj.h.axes.stimulus,[-p.PreStimulus p.Duration+p.PostStimulus])
-ylim(obj.h.axes.stimulus,[0 p.Amplitude])
+hAxes.XLim  = [-p.PreStimulus p.Duration+p.PostStimulus];
+hAxes.YLim  = [0 p.Amplitude];
+hAxes.YTick = [0 p.Amplitude];
