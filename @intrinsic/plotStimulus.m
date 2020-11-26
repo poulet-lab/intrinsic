@@ -1,8 +1,13 @@
-function plotStimulus(obj)
+function plotStimulus(obj,p)
 
-obj.h.plot.stimulus.XData = obj.Stimulus.Timeseries.Time;
-obj.h.plot.stimulus.YData = obj.Stimulus.Timeseries.Data;
+if ~exist('p','var')
+    p = obj.Stimulus.Parameters;
+end
 
-xlim(obj.h.axes.stimulus,[-obj.Stimulus.PreStimulus ...
-    obj.Stimulus.Duration + obj.Stimulus.PostStimulus])
-ylim(obj.h.axes.stimulus,[0 obj.Stimulus.Amplitude])
+ts = obj.Stimulus.generate(p);
+
+obj.h.plot.stimulus.XData = ts.Time;
+obj.h.plot.stimulus.YData = ts.Data;
+
+xlim(obj.h.axes.stimulus,[-p.PreStimulus p.Duration+p.PostStimulus])
+ylim(obj.h.axes.stimulus,[0 p.Amplitude])

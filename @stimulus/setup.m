@@ -4,62 +4,70 @@ function varargout = setup(obj)
 nargoutchk(0,1)
 
 % create settings window & panels
-window     = settingsWindow('Name','Stimulus Settings','Width',260);
+window     = settingsWindow(...
+    'Name',     'Stimulus Settings', ...
+    'Width',    260, ...
+    'CloseRequestFcn', @cbClose);
 obj.Figure = window.Handle;
 panel(1)   = window.addPanel('Title','Waveform');
 panel(2)   = window.addPanel('Title','Timing');
+
+% local copy of parameter struct
+Parameters = obj.Parameters;
 
 % create UI controls
 Controls.Type = panel(1).addPopupmenu( ...
     'Label',   	'Waveform Type', ...
     'Callback',	@cbType, ...
     'String',  	{'Sinusoidal', 'Triangular', 'Square'});
-Controls.Type.Value = max([find(strcmp(Controls.Type.String,obj.Type)) 1]);
+Controls.Type.Value = max([find(strcmp(Controls.Type.String,Parameters.Type)) 1]);
 Controls.Frequency = panel(1).addEdit( ...
     'Label',   	'Frequency (Hz)', ...
-    'Callback',	{@forceValue,[0.01 obj.Parent.DAQ.Session.Rate/2]}, ...
-    'Value',	obj.Frequency);
+    'Callback',	{@cbEdit,[0.01 obj.Parent.DAQ.Session.Rate/2]}, ...
+    'Value',	Parameters.Frequency);
 Controls.DutyCycle = panel(1).addEdit( ...
     'Label',   	'Duty Cycle (%)', ...
-    'Callback',	{@forceValue,[0 100]}, ...
-    'Value',	obj.DutyCycle);
+    'Callback',	{@cbEdit,[0 100]}, ...
+    'Value',	Parameters.DutyCycle);
 Controls.Ramp = panel(1).addEdit( ...
     'Label',   	'Ramp (%)', ...
-    'Callback',	{@forceValue,[0 100]}, ...
-    'Value',	obj.Ramp);
+    'Callback',	{@cbEdit,[0 100]}, ...
+    'Value',	Parameters.Ramp);
 Controls.Amplitude = panel(1).addEdit( ...
     'Label',   	'Amplitude (V)', ...
-    'Callback',	{@forceValue,[0 obj.Parent.DAQ.MaxStimulusAmplitude]}, ...
-    'Value',	obj.Amplitude);
+    'Callback',	{@cbEdit,[0 obj.Parent.DAQ.MaxStimulusAmplitude(2)]}, ...
+    'Value',	Parameters.Amplitude);
 Controls.Duration = panel(2).addEdit( ...
     'Label',   	'Duration (s)', ...
-    'Callback',	{@forceValue,[0 100]}, ...
-    'Value',	obj.Duration);
+    'Callback',	{@cbEdit,[0 100]}, ...
+    'Value',	Parameters.Duration);
 Controls.PreStimulus = panel(2).addEdit( ...
     'Label',   	'Pre-Stimulus (s)', ...
-    'Callback',	{@forceValue,[1/obj.Parent.Camera.FrameRate 100]}, ...
-    'Value',	obj.PreStimulus);
+    'Callback',	{@cbEdit,[1/obj.Parent.Camera.FrameRate 100]}, ...
+    'Value',	Parameters.PreStimulus);
 Controls.PostStimulus = panel(2).addEdit( ...
     'Label',   	'Post-Stimulus (s)', ...
-    'Callback',	{@forceValue,[0 100]}, ...
-    'Value',	obj.PostStimulus);
+    'Callback',	{@cbEdit,[0 100]}, ...
+    'Value',	Parameters.PostStimulus);
 Controls.InterStimulus = panel(2).addEdit( ...
     'Label',   	'Inter-Stimulus (s)', ...
-    'Callback',	{@forceValue,[0 1000]}, ...
-    'Value',	obj.InterStimulus);
+    'Callback',	{@cbEdit,[0 1000]}, ...
+    'Value',	Parameters.InterStimulus);
 [Controls.okay,Controls.cancel] = window.addOKCancel(...
-    'Callback',	@obj.cbOkay);
+    'Callback',	@cbOkay);
 
 % edit fields: copy value to string
 fn = fieldnames(Controls)';
 fn = fn(structfun(@(x) strcmp(x.Style,'edit'),Controls));
 for f = fn
     Controls.(f{:}).String = sprintf('%g',Controls.(f{:}).Value);
+    Controls.(f{:}).Tag    = f{:};
 end
 
 % save appdata & initialize
-setappdata(obj.Figure,'controls',Controls);
 cbType(Controls.Type,[])
+setappdata(obj.Figure,'controls',Controls);
+setappdata(obj.Figure,'parameters',Parameters);
 window.Visible = 'on';
 
 % output arguments
@@ -68,26 +76,30 @@ if nargout
 end
 
     function cbType(control,~)
-        switch control.String{control.Value}
+        Parameters.Type = control.String{control.Value};
+        switch Parameters.Type
             case 'Sinusoidal'
-                Controls.DutyCycle.String = 50;
+                Parameters.DutyCycle = 50;
+                Parameters.Ramp = NaN;
                 Controls.DutyCycle.Enable = 'off';
-                Controls.Ramp.String = NaN;
                 Controls.Ramp.Enable = 'off';
             case 'Triangular'
-                Controls.DutyCycle.String = 50;
+                Parameters.DutyCycle = 50;
+                Parameters.Ramp = 100;
                 Controls.DutyCycle.Enable = 'off';
-                Controls.Ramp.String = 100;
                 Controls.Ramp.Enable = 'off';
             case 'Square'
-                Controls.DutyCycle.String = obj.DutyCycle;
+                Parameters.DutyCycle = obj.Parameters.DutyCycle;
+                Parameters.Ramp = 0;
                 Controls.DutyCycle.Enable = 'on';
-                Controls.Ramp.String = 0;
                 Controls.Ramp.Enable = 'on';
         end
+        Controls.DutyCycle.String = Parameters.DutyCycle;
+        Controls.Ramp.String = Parameters.Ramp;
+        apply()
     end
 
-    function forceValue(control,~,limits)
+    function cbEdit(control,~,limits)
         value = str2double(control.String);
         if isnan(value)
             value = control.Value;
@@ -97,5 +109,28 @@ end
         end
         control.String = sprintf('%g',value);
         control.Value  = value;
+        Parameters.(control.Tag) = value;
+        apply()
+    end
+
+    function apply()
+        setappdata(obj.Figure,'parameters',Parameters);
+        obj.Parent.plotStimulus(Parameters)
+    end
+
+    function cbOkay(~,~,~)
+        Parameters = getappdata(obj.Figure,'parameters');
+        for Var = fieldnames(Parameters)'
+            obj.saveVar(Var{:},Parameters.(Var{:}))
+        end
+        if ~isequaln(obj.Parameters,Parameters)
+            obj.Parameters = Parameters;
+        end
+        delete(obj.Figure)
+    end
+
+    function cbClose(~,~,~)
+        obj.Parent.plotStimulus;
+        delete(obj.Figure)
     end
 end

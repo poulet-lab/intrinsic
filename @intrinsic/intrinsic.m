@@ -119,7 +119,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             
             % Initialize listeners
             addlistener(obj.Camera,'SettingsUpdated',@obj.cbUpdatedCameraSettings);
-            addlistener(obj.Stimulus,'Timeseries','PostSet',@obj.cbUpdatedStimulusSettings);
+            addlistener(obj.Stimulus,'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);
 
             % LEGACY STUFF BELOW ------------------------------------------
 
@@ -148,9 +148,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     end
 
     % Methods defined in separate files:
+    methods (Access = {?stimulus})
+        plotStimulus(obj,p)
+    end
+    
     methods (Access = private)
         plotCameraTrigger(obj)
-        plotStimulus(obj)
+        
         
         GUImain(obj)                    % Create MAIN GUI
         GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
