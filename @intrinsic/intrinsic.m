@@ -134,7 +134,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             % Fire up GUI
             obj.notify('Ready');
             intrinsic.message('Startup complete')
-            fprintf('\n')
             obj.GUImain             % Create main window
 
             figure(obj.h.fig.main)
