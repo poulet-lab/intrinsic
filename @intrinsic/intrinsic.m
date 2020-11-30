@@ -48,8 +48,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         
         DAQvec
         
-
-
         StimIn
 
         ResponseTemporal
@@ -118,7 +116,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.Scale = scale(obj);
                         
             % Initialize listeners
-            addlistener(obj.Camera,'SettingsUpdated',@obj.cbUpdatedCameraSettings);
+            addlistener(obj.Camera,'Update',@obj.cbUpdatedCameraSettings);
             addlistener(obj.Stimulus,'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);
 
             % LEGACY STUFF BELOW ------------------------------------------

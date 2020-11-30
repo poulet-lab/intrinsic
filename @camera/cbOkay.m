@@ -25,7 +25,7 @@ obj.saveVar('downsample',downsample);
 obj.createInputs;
 
 % notify listeners of updated settings
-notify(obj,'SettingsUpdated')
+notify(obj,'Update')
 
 % close figure
 close(obj.Figure)

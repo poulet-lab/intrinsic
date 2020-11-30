@@ -57,3 +57,6 @@ fprintf('done.\n')
 % set sampling rate & save session to obj
 s.Rate = rate;
 obj.Session = s;
+
+% notify listeners of updated settings
+notify(obj,'Update')

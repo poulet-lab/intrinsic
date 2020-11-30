@@ -9,7 +9,7 @@ classdef subsystem < handle
     end
     
     events
-        SettingsUpdated
+        Update
     end
     
     methods

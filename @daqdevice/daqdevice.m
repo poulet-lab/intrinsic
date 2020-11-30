@@ -79,7 +79,7 @@ classdef daqdevice < subsystem
                 return
             end
 
-            % try to create DAQ session
+            % create DAQ session
             obj.createSession
         end
 

@@ -25,10 +25,6 @@ classdef scale < subsystem
         MatPrefix = 'scale_'
     end
 
-    events
-        Update
-    end
-
     methods
         function obj = scale(varargin)
             obj = obj@subsystem(varargin{:});
