@@ -112,11 +112,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 'Writable', true);
             
             % Initalize sub-classes
-            obj.DAQ = daqdevice(obj);
-            obj.Camera = camera(obj);
-            obj.Scale = scale(obj);
             obj.Stimulus = stimulus(obj);
-            
+            obj.Camera = camera(obj);
+            obj.DAQ = daqdevice(obj);
+            obj.Scale = scale(obj);
+                        
             % Initialize listeners
             addlistener(obj.Camera,'SettingsUpdated',@obj.cbUpdatedCameraSettings);
             addlistener(obj.Stimulus,'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);
@@ -881,7 +881,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     end
     
     % Methods for accessing obj.Settings
-    methods (Access = {?camera,?daqdevice,?scale,?stimulus})
+    methods (Access = {?subsystem})
         
         function out = loadVar(obj,variableName,defaultValue)
             % Load variable from file, return defaults if not found

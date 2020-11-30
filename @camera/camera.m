@@ -1,4 +1,4 @@
-classdef camera < handle
+classdef camera < subsystem
 
     properties (SetAccess = private)
         Adaptor      = 'none';                      % Selected IMAQ adaptor
@@ -23,28 +23,23 @@ classdef camera < handle
     properties (Constant = true, Access = private)
         toolbox   = ~isempty(ver('IMAQ')) && ...
             license('test','image_acquisition_toolbox');
-        MatPrefix = 'camera_'
     end
 
-    properties (Access = private)
-        Parent
+    properties (Constant = true, Access = protected)
+        MatPrefix = 'camera_'
     end
 
     properties (Access = private, Transient)
         Figure
     end
     
-    events
-        SettingsUpdated
-    end
+
 
     methods
         varargout = setup(obj)
 
-        function obj = camera(parent)
-            narginchk(1,1)
-            validateattributes(parent,{'intrinsic'},{'scalar'});
-            obj.Parent = parent;
+        function obj = camera(varargin)
+            obj = obj@subsystem(varargin{:});
 
             if ~obj.toolbox
                 % check for IMAQ toolbox
@@ -168,14 +163,6 @@ classdef camera < handle
         cbROI(obj,~,~)
         createInputs(obj)
         toggleCtrls(obj,state)
-
-        function out = loadVar(obj,var,default)
-            out = obj.Parent.loadVar([obj.MatPrefix var],default);
-        end
-
-        function saveVar(obj,varName,data)
-            obj.Parent.saveVar([obj.MatPrefix varName],data);
-        end
 
         function reset(~)
             % disconnect and delete all image acquisition objects

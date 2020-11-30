@@ -1,11 +1,10 @@
-classdef daqdevice < handle
+classdef daqdevice < subsystem
 
     properties (SetAccess = private)
         Session
     end
 
     properties (Access = private)
-        Parent
         Figure
     end
 
@@ -19,15 +18,16 @@ classdef daqdevice < handle
         % supported channel types
         ChannelTypesOut  = {'AnalogOutput','DigitalIO'};
         ChannelTypesIn   = {'AnalogInput','DigitalIO'};
-
-        % prefix for variables in matfile
-        MatPrefix = 'DAQ_'
     end
 
     properties (SetAccess = immutable, GetAccess = private)
         ChannelProp
         NChannelsOut
         NChannelsIn
+    end
+    
+    properties (Constant = true, Access = protected)
+        MatPrefix = 'DAQ_'
     end
 
     properties (Dependent = true)
@@ -41,11 +41,9 @@ classdef daqdevice < handle
     end
 
     methods
-        function obj = daqdevice(parent)
-            narginchk(1,1)
-            validateattributes(parent,{'intrinsic'},{'scalar'});
-            obj.Parent = parent;
-
+        function obj = daqdevice(varargin)
+            obj = obj@subsystem(varargin{:});
+            
             % check for Data Acquisition Toolbox
             if ~obj.Toolbox
                 warning('Data Acquisition Toolbox is not available.')
@@ -100,7 +98,7 @@ classdef daqdevice < handle
         function out = get.MaxStimulusAmplitude(obj)
             tmp = find(strcmp({obj.Session.Channels.Name},'Stimulus'),1);
             tmp = obj.Session.Channels(tmp).Range;
-            out = tmp.Max;
+            out = [tmp.Min tmp.Max];
         end
 
         function out = get.Vendors(obj)
@@ -123,14 +121,6 @@ classdef daqdevice < handle
         cbVendor(obj,~,~)
         createSession(obj)
         toggleCtrls(obj,state)
-
-        function out = loadVar(obj,var,default)
-            out = obj.Parent.loadVar([obj.MatPrefix var],default);
-        end
-
-        function saveVar(obj,varName,data)
-            obj.Parent.saveVar([obj.MatPrefix varName],data);
-        end
 
         function d = devices(obj,vendorID,deviceID)
             % get list of devices

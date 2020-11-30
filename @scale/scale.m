@@ -1,4 +1,4 @@
-classdef scale < handle
+classdef scale < subsystem
 
     properties
         Magnifications
@@ -15,14 +15,13 @@ classdef scale < handle
     end
 
     properties (Access = private)
-        Parent
         Figure
         Camera
         MagnificationPriv
         Data
     end
 
-    properties (Constant = true, Access = private)
+    properties (Constant = true, Access = protected)
         MatPrefix = 'scale_'
     end
 
@@ -31,10 +30,9 @@ classdef scale < handle
     end
 
     methods
-        function obj = scale(parent)
-            narginchk(1,1)
-            validateattributes(parent,{'intrinsic'},{'scalar'});
-            obj.Parent         = parent;
+        function obj = scale(varargin)
+            obj = obj@subsystem(varargin{:});
+            
             obj.Camera         = obj.Parent.Camera;
             obj.Data           = obj.loadVar('Data',struct);
             obj.Magnifications = obj.loadVar('Magnifications',{''});
@@ -82,15 +80,6 @@ classdef scale < handle
     end
 
     methods (Access = private)
-        function out = loadVar(obj,var,default)
-            out = obj.Parent.loadVar([obj.MatPrefix var],default);
-        end
-
-        function saveVar(obj,varName,data)
-            obj.Parent.saveVar([obj.MatPrefix varName],data);
-        end
-
-        % callbacks and some helper functions are in separate files
         cbCalibrate(obj,~,~)
         cbMagnification(obj,~,~)
         cbOkay(obj,~,~)

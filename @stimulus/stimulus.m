@@ -1,34 +1,25 @@
-classdef stimulus < handle
+classdef stimulus < subsystem
 
     properties (Constant = true, Access = private)
         toolbox   = ~isempty(ver('IMAQ')) && ...
             license('test','image_acquisition_toolbox');
-        MatPrefix = 'stimulus_'
     end
         
+	properties (Constant = true, Access = protected)
+        MatPrefix = 'stimulus_'
+    end
+    
     properties (SetAccess = private, SetObservable, AbortSet)
         Parameters
     end
     
-    properties (Access = private)
-        Parent
-    end
-
     properties (Access = private, Transient)
         Figure
     end
-    
-    events
-        SettingsUpdated
-    end
 
     methods
-        varargout = setup(obj)
-        varargout = generate(obj,p)
-
-        function obj = stimulus(parent)
-            validateattributes(parent,{'intrinsic'},{'scalar'});
-            obj.Parent = parent;
+        function obj = stimulus(varargin)
+            obj = obj@subsystem(varargin{:});
 
             % load stimulus parameters
             p.Type          = obj.loadVar('Type','Sinusoidal');
@@ -42,15 +33,8 @@ classdef stimulus < handle
             p.InterStimulus = obj.loadVar('InterStimulus',20);
             obj.Parameters  = p;
         end
-    end
-
-    methods (Access = private)
-        function out = loadVar(obj,var,default)
-            out = obj.Parent.loadVar([obj.MatPrefix var],default);
-        end
-
-        function saveVar(obj,varName,data)
-            obj.Parent.saveVar([obj.MatPrefix varName],data);
-        end
+        
+        varargout = setup(obj)
+        varargout = generate(obj,p)
     end
 end
