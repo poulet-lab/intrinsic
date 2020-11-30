@@ -29,7 +29,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Time            % time vector
         IdxStimROI
 
-        Movie           % relative response (same as obj.Sequence, as movie)
         ImageRedDiff    % relative response (averaged across trials & time)
         ImageRedBase    %
         ImageRedStim    %
@@ -45,9 +44,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Scale
         Stimulus
         Green
-        
-        DAQvec
-        
+
         StimIn
 
         ResponseTemporal
@@ -58,7 +55,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     properties (SetAccess = immutable, GetAccess = private)
         Settings
     end
-    
+
     properties (Dependent = true)
         redMode
         nTrials
@@ -70,7 +67,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
     events
         Ready
     end
-    
+
     methods
 
         % Class Constructor
@@ -83,16 +80,16 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 delete(obj)
                 return
             end
-            
+
             % For development purposes only ...
             if ~update.validateVersionString(obj.version)
                 error('Invalid version string: "%s".', obj.version)
             end
-            
+
             % Clear command window, close all figures & say hi
             clc
             close all
-            fprintf('Intrinsic Imaging, v%s\n',obj.version)
+            fprintf('<strong>Intrinsic Imaging, v%s</strong>\n\n',obj.version)
             obj.welcome();
 
             % Warn if necessary toolboxes are unavailable
@@ -108,17 +105,18 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             % Settings are loaded from / saved to disk
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
                 'Writable', true);
-            
+
             % Initalize subsystems
             obj.Stimulus = subsystemStimulus(obj);
             obj.Camera   = subsystemCamera(obj);
             obj.DAQ      = subsystemDAQ(obj);
             obj.Scale    = subsystemScale(obj);
-                        
-            % Initialize listeners
-            addlistener(obj.Camera,'Update',@obj.cbUpdatedCameraSettings);
-            addlistener(obj.Stimulus,'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);
 
+            % Initialize listeners
+            addlistener(obj.Stimulus,'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);
+            addlistener(obj.Camera,'Update',@obj.cbUpdatedCameraSettings);
+            addlistener(obj.DAQ,'Update',@obj.cbUpdatedDAQSettings);
+                                    
             % LEGACY STUFF BELOW ------------------------------------------
 
             % Initialize some variables
@@ -130,30 +128,29 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.Flags.FakeDat       = false;
             obj.ResponseTemporal.x  = [];
             obj.ResponseTemporal.y  = [];
-            
-            disp('Generating stimulus ...')
-            obj.generateStimulus
-            
+
+            %obj.generateStimulus
+
             % Fire up GUI
             obj.notify('Ready');
-            fprintf('\nReady to go!\n')
+            intrinsic.message('Startup complete')
+            fprintf('\n')
             obj.GUImain             % Create main window
-           
+
             figure(obj.h.fig.main)
             obj.updateEnabled       % Update availability of UI elements
-            
         end
     end
 
     % Methods defined in separate files:
-    methods (Access = {?stimulus})
+    methods (Access = {?subsystemStimulus})
         plotStimulus(obj,p)
     end
-    
+
     methods (Access = private)
         plotCameraTrigger(obj)
-        
-        
+
+
         GUImain(obj)                    % Create MAIN GUI
         GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
         GUIgreen(obj)                	% Create GREEN GUI
@@ -167,13 +164,15 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         greenContrast(obj,~,~)          % Modify contrast of "GREEN IMAGE"
         redStart(obj,~,~)
         updateEnabled(obj)
-        cbUpdatedCameraSettings(obj,src,eventData)
         varargout = generateStimulus(obj,varargin)
+        
+        cbUpdatedCameraSettings(obj,src,eventData)
+        cbUpdatedDAQSettings(obj,src,eventData)
+        cbUpdatedStimulusSettings(obj,src,eventData)
     end
-    
+
     methods
         update_plots(obj)
-
     end
 
     methods %(Access = private)
@@ -682,11 +681,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 end
 
                 % load TIFF to stack
-                obj.message(sprintf('Loading "%s" ... ',fn))
+                obj.status(sprintf('Loading "%s" ... ',fn))
                 fprintf('Loading "%s" ... ',fn)
                 obj.Stack{ii} = loadtiff(fullfile(obj.DirLoad,fn));
             end
-            obj.message
+            obj.status
 
             % Load green image
             fn = fullfile(obj.DirLoad,'green.png');
@@ -709,10 +708,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.greenContrast
 
             % Process stack
-            obj.message('Processing ...')
+            obj.status('Processing ...')
             obj.processStack
             obj.updateEnabled
-            obj.message
+            obj.status
         end
 
         function clearData(obj,~,~)
@@ -857,7 +856,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         end
 
-        function message(obj,in)
+        function status(obj,in)
             basename = 'Intrinsic Imaging';
             if nargin < 2
                 obj.h.fig.main.Name = basename;
@@ -877,10 +876,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             out = sprintf('  %s\n',matlab.mixin.CustomDisplay.getClassNameForHeader(obj));
         end
     end
-    
+
     % Methods for accessing obj.Settings
     methods (Access = {?subsystemGeneric})
-        
+
         function out = loadVar(obj,variableName,defaultValue)
             % Load variable from file, return defaults if not found
             out = defaultValue;
@@ -898,9 +897,10 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.Settings.(variableName) = data;
         end
     end
-    
+
     methods (Static)
         out = version()
+        message(varargin)
     end
 
 end

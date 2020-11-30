@@ -2,6 +2,7 @@ classdef subsystemDAQ < subsystemGeneric
 
     properties (SetAccess = private)
         Session
+        OutputData = tscollection([],'Name','Output Data')
     end
 
     properties (Access = private)
@@ -51,9 +52,7 @@ classdef subsystemDAQ < subsystemGeneric
             end
 
             % reset Data Acquisition Toolbox
-            fprintf('\nResetting Data Acquisition Toolbox ... ')
-            daqreset
-            fprintf('done.\n')
+            obj.reset()
 
             % define immutable channel properties
             tmp(1,:) = {'out','out','in'};
@@ -64,7 +63,7 @@ classdef subsystemDAQ < subsystemGeneric
             obj.ChannelProp	 = cell2struct(tmp,{'flow','label','types'});
             obj.NChannelsOut = sum(matches({obj.ChannelProp.flow},'out'));
             obj.NChannelsIn  = sum(matches({obj.ChannelProp.flow},'in'));
-
+            
             % check for supported & operational DAQ vendors
             if isempty(obj.Vendors)
                 warning(['No operational DAQ vendors available. Use ' ...
@@ -78,7 +77,7 @@ classdef subsystemDAQ < subsystemGeneric
                 warning('No supported data acquisition devices found.')
                 return
             end
-
+            
             % create DAQ session
             obj.createSession
         end
@@ -110,6 +109,10 @@ classdef subsystemDAQ < subsystemGeneric
         varargout = setup(obj)
     end
 
+    methods (Access = {?intrinsic})
+        queueData(obj)
+    end
+    
     methods (Access = private)
 
         % callbacks and some helper functions are in separate files
@@ -119,8 +122,8 @@ classdef subsystemDAQ < subsystemGeneric
         cbRate(obj,~,~)
         cbTriggerAmp(obj,~,~)
         cbVendor(obj,~,~)
-        createSession(obj)
         toggleCtrls(obj,state)
+        createSession(obj)
 
         function d = devices(obj,vendorID,deviceID)
             % get list of devices
@@ -170,6 +173,11 @@ classdef subsystemDAQ < subsystemGeneric
             else
                 out = vertcat(subsystems.ChannelNames);
             end
+        end
+        
+        function reset(~)
+            intrinsic.message('Resetting Data Acquisition Toolbox')
+            daqreset
         end
     end
 end

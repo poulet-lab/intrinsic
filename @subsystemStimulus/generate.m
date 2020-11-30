@@ -1,13 +1,15 @@
-function ts = generate(obj,p)
+function ts = generate(obj,p,fs)
 
 % check arguments
-if ~exist('p','var')
+if ~exist('p','var') || isempty(p)
     p = obj.Parameters;
+end
+if ~exist('fs','var')
+    fs = obj.Parent.DAQ.Session.Rate;
 end
 
 % create time axis
-fs     = obj.Parent.DAQ.Session.Rate;
-t      = -p.PreStimulus : (1/fs) : (p.Duration + p.PostStimulus);
+t      = -p.PreStimulus : (1/fs) : (p.Duration + p.PostStimulus - 1/fs);
 [~,i0] = min(abs(t));
 t      = t - t(i0);
 

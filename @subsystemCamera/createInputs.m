@@ -1,12 +1,12 @@
 function createInputs(obj)
 
 % load variables from disk
-adaptor          = obj.loadVar('adaptor','');
-deviceID         = obj.loadVar('deviceID',NaN);
+adaptor	 = obj.loadVar('adaptor','');
+deviceID = obj.loadVar('deviceID',NaN);
 
 % return if adaptor is set to 'none' or IMAQ is unavailable
 if strcmp(adaptor,'none') || ~obj.toolbox
-    obj.Adaptor  = 'none';
+    obj.Adaptor = 'none';
     return
 end
 
@@ -43,8 +43,8 @@ obj.Downsample = obj.loadVar('downsample',1);
 % create videoinput objects
 if ~isequal({adaptor,deviceID,mode,ROI(3:4)},{obj.Adaptor,obj.DeviceID, ...
         obj.Mode,obj.ROI}) && ~strcmp(adaptor,'none')
-    fprintf('Creating video input: %s %s (%s) ...', ...
-        adaptor,obj.DeviceName,mode)
+    intrinsic.message(sprintf('Creating video input: %s %s (%s)', ...
+        adaptor,obj.DeviceName,mode))
     
     obj.Adaptor     = adaptor;
     obj.DeviceID    = deviceID;
@@ -66,5 +66,4 @@ if ~isequal({adaptor,deviceID,mode,ROI(3:4)},{obj.Adaptor,obj.DeviceID, ...
     obj.Adaptor     = adaptor;
     obj.DeviceID    = deviceID;
     obj.Mode        = mode;
-    fprintf(' done.\n')
 end

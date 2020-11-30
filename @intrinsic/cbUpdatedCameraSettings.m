@@ -1,4 +1,3 @@
 function cbUpdatedCameraSettings(obj,~,~)
 
-obj.generateStimulus()
-obj.plotCameraTrigger()
+obj.DAQ.queueData()

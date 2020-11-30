@@ -1,16 +1,16 @@
 function plotStimulus(obj,p)
 
 if ~exist('p','var')
-    p = obj.Stimulus.Parameters;
+    ts = obj.DAQ.OutputData.Stimulus;
+    p  = obj.Stimulus.Parameters;
+else
+    ts = obj.Stimulus.generate(p);
 end
 
-hPlot = obj.h.plot.stimulus;
-hAxes = obj.h.axes.stimulus;
-
-ts = obj.Stimulus.generate(p);
-hPlot.XData = ts.Time;
-hPlot.YData = ts.Data;
-
-hAxes.XLim  = [-p.PreStimulus p.Duration+p.PostStimulus];
-hAxes.YLim  = [0 p.Amplitude];
-hAxes.YTick = [0 p.Amplitude];
+set(obj.h.plot.stimulus, ...
+    'XData',    ts.Time, ...
+    'YData',    ts.Data);
+set(obj.h.axes.stimulus, ...
+    'XLim',     [-p.PreStimulus p.Duration+p.PostStimulus], ...
+    'YLim',     [0 p.Amplitude], ...
+    'YTick',    [0 p.Amplitude]);

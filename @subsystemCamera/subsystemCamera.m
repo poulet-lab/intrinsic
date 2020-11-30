@@ -166,10 +166,9 @@ classdef subsystemCamera < subsystemGeneric
 
         function reset(~)
             % disconnect and delete all image acquisition objects
-            fprintf('\nInitializing image acquisition hardware ... ')
+            intrinsic.message('Resetting image acquisition hardware')
             imaqreset
             pause(1)
-            fprintf('done.\n')
         end
     end
 end

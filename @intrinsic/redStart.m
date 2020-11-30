@@ -65,13 +65,13 @@ for ii = 1:nruns
     if ~isrunning(obj.VideoInputRed) && ...             % check for interruption
             obj.VideoInputRed.FramesAvailable ~= ...
             obj.VideoInputRed.TriggerRepeat+1
-        obj.message
+        obj.status
         break
     end
     stop(obj.VideoInputRed)                         % disarm the camera
 
     % get data from camera
-    obj.message('Processing ...');
+    obj.status('Processing ...');
     drawnow
     try
         switch obj.VideoAdaptorName
@@ -85,7 +85,7 @@ for ii = 1:nruns
                 data = squeeze(data(:,:,1,(obj.WarmupN+1):end));
         end
     catch ME
-        obj.message
+        obj.status
         errordlg(ME.message)
         ME.rethrow
     end
@@ -102,16 +102,16 @@ for ii = 1:nruns
     % format figure title
     for pp = 1:dpause
         if ~obj.Flags.Running
-            obj.message
+            obj.status
             return
         else
-            obj.message(sprintf('Waiting (%ds)',dpause-pp))
+            obj.status(sprintf('Waiting (%ds)',dpause-pp))
             pause(1)
         end
     end
 end
 obj.Flags.Running   = false;
-obj.message
+obj.status
 
 release(obj.DAQsession)
 obj.DAQsession = [];
@@ -121,6 +121,6 @@ obj.DAQsession = [];
             'Acquiring Data (run %d/%d: %d%%)',...
             [ii nruns floor(100*obj.VideoInputRed.FramesAvailable/ ...
             (obj.VideoInputRed.TriggerRepeat+1))]);
-        obj.message(asd)
+        obj.status(asd)
     end
 end

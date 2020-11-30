@@ -35,6 +35,6 @@ classdef subsystemStimulus < subsystemGeneric
         end
         
         varargout = setup(obj)
-        varargout = generate(obj,p)
+        ts = generate(obj,p,fs)
     end
 end

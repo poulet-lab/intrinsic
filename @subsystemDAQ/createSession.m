@@ -30,33 +30,31 @@ if isa(obj.Session,'daq.Session')
 end
 
 % create session
-fprintf('Creating DAQ session using %s ... ',...
-    obj.devices(vendorID,deviceID).Description)
+intrinsic.message('Creating DAQ session: %s',obj.devices(vendorID,deviceID).Description)
 deviceInfo = obj.devices(vendorID,deviceID);
 subSys     = obj.subsystems(deviceInfo);
-s          = daq.createSession(vendorID);
+session    = daq.createSession(vendorID);
 for ii = 1:numel(props)
     subIdx  = cellfun(@(x) ismember(channelIDs{ii},x),{subSys.ChannelNames});
     subType = subSys(subIdx).SubsystemType;
     switch subType
         case 'AnalogOutput'
-            s.addAnalogOutputChannel(deviceID,channelIDs{ii},'Voltage');
+            session.addAnalogOutputChannel(deviceID,channelIDs{ii},'Voltage');
         case 'AnalogInput'
-            s.addAnalogInputChannel(deviceID,channelIDs{ii},'Voltage');
+            session.addAnalogInputChannel(deviceID,channelIDs{ii},'Voltage');
         case 'DigitalIO'
             if strcmp(props(ii).flow,'out')
-                s.addDigitalChannel(deviceID,channelIDs{ii},'OutputOnly')
+                session.addDigitalChannel(deviceID,channelIDs{ii},'OutputOnly')
             else
-                s.addDigitalChannel(deviceID,channelIDs{ii},'InputOnly')
+                session.addDigitalChannel(deviceID,channelIDs{ii},'InputOnly')
             end
     end
-    s.Channels(ii).Name = props(ii).label;
+    session.Channels(ii).Name = props(ii).label;
 end
-fprintf('done.\n')
 
 % set sampling rate & save session to obj
-s.Rate = rate;
-obj.Session = s;
+session.Rate = rate;
+obj.Session = session;
 
-% notify listeners of updated settings
-notify(obj,'Update')
+% queue output data
+obj.queueData();

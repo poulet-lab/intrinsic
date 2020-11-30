@@ -1,3 +1,3 @@
 function cbUpdatedStimulusSettings(obj,~,~)
 
-obj.plotStimulus()
+obj.DAQ.queueData()
