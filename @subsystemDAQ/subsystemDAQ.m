@@ -2,7 +2,7 @@ classdef subsystemDAQ < subsystemGeneric
 
     properties (SetAccess = private)
         Session
-        OutputData = tscollection([],'Name','Output Data')
+        OutputData
     end
 
     properties (Access = private)
