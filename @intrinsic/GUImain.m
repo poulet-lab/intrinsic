@@ -160,7 +160,7 @@ obj.h.axes.temporal = axes(...
     'NextPlot',         'add', ...
     'Color',            'none');
 linkaxes([obj.h.axes.temporal obj.h.axes.stimulus obj.h.axes.temporalBg],'x')
-linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position'});
+linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position','InnerPosition'});
 
 % Temporal response: markers for t=0 and camera triggers
 xline(obj.h.axes.temporalBg,0, ...
@@ -253,7 +253,19 @@ obj.h.fig.main.Visible = 'on';
     end
 
     function figResize(~,~,~)
-        obj.h.axes.stimulus.Position = obj.h.axes.temporal.Position./[1 1 1 10];
+        obj.h.fig.main.Units = 'pixels';
+        figSize = obj.h.fig.main.Position;
+        px2norm = @(px) px./figSize(3:4);
+        obj.h.fig.main.Units = 'normalized';
+        
+        margin = 60;
+        
+        obj.h.axes.temporal.InnerPosition = ...
+            [px2norm(margin) px2norm(figSize(3:4).*[0.5 1]-[2 2].*margin)];
+        obj.h.axes.stimulus.InnerPosition = ...
+            obj.h.axes.temporal.InnerPosition ./ [1 1 1 10];
+        obj.h.axes.spatial.InnerPosition = ...
+            obj.h.axes.temporal.InnerPosition + [.5 0 0 0];
     end
 
     function cbSetupDAQ(~,~,~)
