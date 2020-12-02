@@ -3,6 +3,7 @@ classdef subsystemDAQ < subsystemGeneric
     properties (SetAccess = private)
         Session
         OutputData
+        InputData
     end
 
     properties (Access = private)
@@ -35,6 +36,7 @@ classdef subsystemDAQ < subsystemGeneric
         Available
         TriggerAmplitude
         MaxStimulusAmplitude
+        nTrigger
     end
 
     properties (Dependent = true, GetAccess = private)
@@ -105,12 +107,28 @@ classdef subsystemDAQ < subsystemGeneric
             out(~[out.IsOperational]) = [];
             out(~ismember({out.ID},obj.SupportedVendors)) = [];
         end
+        
+        function out = get.nTrigger(obj)
+            out = nnz(diff([0; obj.OutputData.Trigger.Data])>0);
+        end
 
         varargout = setup(obj)
     end
 
     methods (Access = {?intrinsic})
         queueData(obj)
+        
+        function run(obj)
+            pause(1)
+            intrinsic.message('Starting DAQ session')
+            [data,~,~] = obj.Session.startForeground;
+            intrinsic.message('Releasing DAQ session')
+            release(obj.Session)
+            pause(1)
+            obj.InputData = ...
+                timeseries(data,obj.OutputData.Stimulus.Time, ...
+                'Name','Camera Sync');
+        end
     end
     
     methods (Access = private)
@@ -174,7 +192,7 @@ classdef subsystemDAQ < subsystemGeneric
                 out = vertcat(subsystems.ChannelNames);
             end
         end
-        
+                
         function reset(~)
             intrinsic.message('Resetting Data Acquisition Toolbox')
             daqreset

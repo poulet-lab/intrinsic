@@ -11,7 +11,7 @@ end
 % create time axis
 t      = -p.PreStimulus : (1/fs) : (p.Duration + p.PostStimulus - 1/fs);
 [~,i0] = min(abs(t));
-t      = t - t(i0);
+t      = t(:) - t(i0);
 
 % create stimulus waveform
 d = round(p.Duration * p.Frequency) / p.Frequency;

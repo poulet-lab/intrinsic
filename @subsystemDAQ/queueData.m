@@ -17,20 +17,21 @@ triggerIdx   = 1:round(fs/rate):length(tsc.Trigger.Data);
 zeroShift    = triggerIdx(zeroIdx1) - zeroIdx2;
 triggerIdx   = triggerIdx - zeroShift;
 triggerIdx(triggerIdx<1 | triggerIdx > numel(tsc.Trigger.Data)) = [];
-tsc.Trigger.Data(triggerIdx) = obj.TriggerAmplitude;
+tsc.Trigger.Data(triggerIdx) = 1;% obj.TriggerAmplitude;
 
-% Check if we actually need to carry on
-if isequal(obj.OutputData,tsc)
-    return
+% length & amplitude of trigger pulses
+triggerLength = .001;
+tmp = conv(tsc.Trigger.Data>0,ones(1,ceil(fs*triggerLength)),'full');
+tsc.Trigger.Data = tmp(1:numel(tsc.Trigger.Data)) * obj.TriggerAmplitude;
+
+% Update obj property & notify listeners
+if ~isequal(obj.OutputData,tsc)
+    obj.OutputData = tsc;
+    notify(obj,'Update')
 end
 
-% Save tscollection to object
-obj.OutputData = tsc;
-
 % Combine output data to matrix
-outputData = zeros(obj.OutputData.Stimulus.Length,obj.NChannelsOut);
-outputData(:,1) = squeeze(obj.OutputData.Stimulus.Data);
-outputData(:,2) = squeeze(obj.OutputData.Trigger.Data);
+outputData = [obj.OutputData.Stimulus.Data obj.OutputData.Trigger.Data];
 
 % Queue output data
 tmp = 'daq:Session:queuedDataHasBeenDeleted';
@@ -42,6 +43,3 @@ warning('on',tmp)
 % Print message & fire notifier
 intrinsic.message('Queuing output data: %d samples at %d Hz (%g seconds)',...
     obj.Session.NumberOfScans,obj.Session.Rate,obj.Session.DurationInSeconds)
-
-% notify listeners of updated settings
-notify(obj,'Update')

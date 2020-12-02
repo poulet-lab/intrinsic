@@ -1,6 +1,7 @@
 function plotCameraTrigger(obj)
 
-tcam  = obj.DAQ.OutputData.Trigger.Time(obj.DAQ.OutputData.Trigger.Data>0)';
+tcam = obj.DAQ.OutputData.Trigger.Time(...
+    diff([0; obj.DAQ.OutputData.Trigger.Data])>0)';
 
 gridx = repmat(tcam,3,1);
 gridx(3,:) = NaN;

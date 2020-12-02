@@ -31,6 +31,7 @@ classdef subsystemCamera < subsystemGeneric
 
     properties (Access = private, Transient)
         Figure
+        Data
     end
     
 
@@ -150,6 +151,80 @@ classdef subsystemCamera < subsystemGeneric
             end
         end
     end
+    
+    methods (Access = {?intrinsic})
+        function start(obj)
+            if isrunning(obj.Input.Red)
+                error('The camera is already acquiring data.')
+            end
+
+            obj.Parent.message('Arming image acquisition')
+            
+            % TODO: move trigger configuration to setup
+            switch obj.Adaptor
+                case 'qimaging'
+                    triggerconfig(obj.Input.Red,'hardware','risingEdge','TTL')
+                case 'hamamatsu'
+                    triggerconfig(obj.Input.Red,'hardware','risingEdge','EdgeTrigger')
+            end
+            
+            flushdata(obj.Input.Red)
+            obj.Input.Red.TriggerRepeat = Inf;
+            obj.Input.Red.FramesPerTrigger = 1;
+            obj.Input.Red.FramesAcquiredFcn = @obj.displayFrameCount;
+            obj.Input.Red.FramesAcquiredFcnCount = 1;
+            start(obj.Input.Red)
+        end
+        
+        function stop(obj)
+            obj.Parent.status
+            stop(obj.Input.Red)
+            nframes = obj.Input.Red.FramesAvailable;
+            obj.Parent.message('Obtaining %d frames from camera',nframes)
+            obj.Data = getdata(obj.Input.Red,nframes);
+        end
+        
+        function save(obj,fn)
+            if isempty(obj.Data)
+                return
+            end
+            
+            obj.Parent.message('Saving image data to disk')
+            tiff = Tiff(fn,'w');
+            options = struct( ...
+                'ImageWidth',          size(obj.Data,2), ...
+                'ImageLength',         size(obj.Data,1), ...
+                'Photometric',         Tiff.Photometric.MinIsBlack, ...
+                'Compression',         Tiff.Compression.LZW, ...
+                'PlanarConfiguration', Tiff.PlanarConfiguration.Chunky, ...
+                'BitsPerSample',       16, ...
+                'SamplesPerPixel',     size(obj.Data,3), ...
+                'XResolution',         round(obj.Parent.Scale.PxPerCm), ...
+                'YResolution',         round(obj.Parent.Scale.PxPerCm), ...
+                'ResolutionUnit',      Tiff.ResolutionUnit.Centimeter, ...
+                'Software',            'Intrinsic Imaging', ...
+                'Make',                'adaptor', ...
+                'Model',               'device', ...
+                'DateTime',            datestr(now,'yyyy:mm:dd HH:MM:SS'), ...
+                'ImageDescription',    sprintf(...
+                    'ImageJ=\nimages=%d\nframes=%d\nslices=1\nhyperstack=false\nunit=cm\nfinterval=%0.5f\nfps=%0.5f\n', ...
+                    size(obj.Data,4),size(obj.Data,4),1/obj.FrameRate,obj.FrameRate), ...
+                'SampleFormat',        Tiff.SampleFormat.UInt, ...
+                'RowsPerStrip',        512);
+            tic
+            for frame = 1:size(obj.Data,4)
+                tiff.setTag(options);
+                tiff.write(obj.Data(:, :, :, frame));
+                if frame < size(obj.Data,4)
+                   tiff.writeDirectory();
+                end
+            end
+            tiff.close()
+            toc
+
+            obj.Data = [];
+        end
+    end
 
     methods (Access = private)
         bitrate(obj)
@@ -169,6 +244,12 @@ classdef subsystemCamera < subsystemGeneric
             intrinsic.message('Resetting image acquisition hardware')
             imaqreset
             pause(1)
+        end
+        
+        function displayFrameCount(obj,~,~)
+            string = sprintf('Acquired Frame %d/%d', ...
+                obj.Input.Red.FramesAvailable,obj.Parent.DAQ.nTrigger);
+            obj.Parent.status(string)
         end
     end
 end

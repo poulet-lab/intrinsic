@@ -1,6 +1,6 @@
-classdef subsystemScale < subsystemGeneric
+classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
 
-    properties
+    properties (Access = private)
         Magnifications
     end
 
@@ -22,7 +22,7 @@ classdef subsystemScale < subsystemGeneric
     end
 
     properties (Constant = true, Access = protected)
-        MatPrefix = 'scale_'
+        MatPrefix = 'scale_';
     end
 
     methods
@@ -79,5 +79,21 @@ classdef subsystemScale < subsystemGeneric
         cbCalibrate(obj,~,~)
         cbMagnification(obj,~,~)
         cbOkay(obj,~,~)
+    end
+    
+    methods (Access = protected)
+        function cp = copyElement(obj)
+            cp = subsystemScale(obj.Parent);
+        end
+    end
+    
+    methods (Static)
+        function obj = saveobj(obj)
+            
+        end
+        
+        function obj = loadobj(obj)
+            
+        end
     end
 end
