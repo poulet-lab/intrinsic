@@ -28,7 +28,7 @@ classdef imageCalibration < imageGeneric
     methods
         function obj = imageCalibration(varargin)
             % check arguments
-            narginchk(2,2)
+            narginchk(1,1)
             
             % call constructor of superclass
             obj = obj@imageGeneric(varargin{:});

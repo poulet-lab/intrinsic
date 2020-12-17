@@ -13,7 +13,7 @@ classdef imageGreen < imageGeneric
     methods
         function obj = imageGreen(varargin)
             % check arguments
-            narginchk(2,2)
+            narginchk(1,1)
             
             % call constructor of superclass
             obj = obj@imageGeneric(varargin{:});
@@ -32,6 +32,10 @@ classdef imageGreen < imageGeneric
             % Snap a picture
             [frame, meta] = getsnapshot(obj.Camera.Input.Green);
 
+            % Copy scale from parent
+            obj.Scale = copy(obj.Parent.Scale);
+            %obj.scaleChanged();
+            
             % save image data / scale to 16 bit
             if obj.Camera.BitDepth == 12
                 obj.CData    = frame(:,:,1) .* 16;

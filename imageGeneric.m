@@ -30,6 +30,7 @@ classdef imageGeneric < handle
     end
     
     properties (Transient, Access = protected)
+        Parent
         Toolbar
         Axes
         Image
@@ -48,23 +49,26 @@ classdef imageGeneric < handle
         PrivatePosition = [100 100 200 200]
         PrivateVisible  = 'off'
         PrivateZoom     = 1
-        Scale
         ScaleListener
+    end
+    
+    properties (Access = protected)
+        Scale
     end
     
     methods
         
-        function obj = imageGeneric(camera,scale)
+        function obj = imageGeneric(parent)
             % validate input arguments
-            validateattributes(camera,{'camera'},{'scalar'});
-            validateattributes(scale,{'scale'},{'scalar'});
+            validateattributes(parent,{'intrinsic'},{'scalar'});
 
-            obj.Scale           = scale;
-            obj.Camera          = camera;
-            obj.Adaptor         = camera.Adaptor;
-            obj.DeviceName      = camera.DeviceName;
+            obj.Parent          = parent;
+            obj.Scale           = parent.Scale;
+            obj.Camera          = parent.Camera;
+            obj.Adaptor         = parent.Camera.Adaptor;
+            obj.DeviceName      = parent.Camera.DeviceName;
             obj.ScaleListener   = ...
-                event.listener(obj.Scale,'Update',@obj.scaleChanged);
+                event.listener(parent.Scale,'Update',@obj.scaleChanged);
             
             obj.dummyCData;
         end
@@ -211,13 +215,13 @@ classdef imageGeneric < handle
             end
             hCtrl.String = sprintf('%d%%',round(obj.Zoom*100));
         end
-    end
-       
-    methods (Access = private)
+        
         function scaleChanged(obj,~,~)
             obj.Scalebar.Scale = obj.Scale.PxPerCm;
         end
-        
+    end
+       
+    methods (Access = private)
         function resizeFigure(obj,varargin)
             panelSize  = obj.Size(1:2) .* obj.Zoom + 4;
             figureSize = panelSize + 2*obj.MarginPx + ...
