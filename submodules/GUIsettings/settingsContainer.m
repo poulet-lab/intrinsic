@@ -47,6 +47,14 @@ classdef (Abstract) settingsContainer < handle
             end
         end
         
+        function varargout = addDirectory(obj,varargin)
+            child = settingsDirectory(obj,varargin{:});
+            obj.addChild(child)
+            if nargout == 1
+                varargout{1} = child.Control;
+            end
+        end
+        
         function varargout = addEdit(obj,varargin)
             child = settingsUIControl(obj,varargin{:},'Style','edit');
             obj.addChild(child)

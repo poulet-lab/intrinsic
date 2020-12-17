@@ -36,8 +36,8 @@ classdef settingsPopupEdit < settingsLabelControl
                 'Callback', @obj.cb_remove);
 
             obj.Control.Position(1:2) = 1;
-            obj.Button(1).Position(2) = 1;
-            obj.Button(2).Position(2) = 1;
+            obj.Button(1).Position(2) = 0;
+            obj.Button(2).Position(2) = 0;
             obj.Panel.Position(4) = obj.Control.Position(4) + 2;
             
             % Deal with empty strings
@@ -56,11 +56,11 @@ classdef settingsPopupEdit < settingsLabelControl
             obj.Control.Position(3) = w;
             obj.Control.Position(4) = h;
             
-            obj.Button(1).Position(1)   = sum(obj.Control.Position([1 3])) + obj.Parent.Padding + 1;
-            obj.Button(1).Position(3:4) = [h h];
+            obj.Button(1).Position(1)   = sum(obj.Control.Position([1 3])) + obj.Parent.Padding;
+            obj.Button(1).Position(3:4) = [h+1 h+2];
             
             obj.Button(2).Position(1)   = sum(obj.Button(1).Position([1 3]));
-            obj.Button(2).Position(3:4) = [h h];
+            obj.Button(2).Position(3:4) = [h+1 h+2];
             
             obj.Label.Position(4) = obj.Control.Position(4) - 5;
         end
@@ -94,7 +94,9 @@ classdef settingsPopupEdit < settingsLabelControl
             end
             
             % execute control's callback
-            obj.Control.Callback(obj.Control,[])
+            if ~isempty(obj.Control.Callback)
+                obj.Control.Callback(obj.Control,[])
+            end
         end
         
         function cb_remove(obj,~,~)
@@ -129,7 +131,9 @@ classdef settingsPopupEdit < settingsLabelControl
             obj.Control.Value = 1;
             
             % execute control's callback
-            obj.Control.Callback(obj.Control,[])
+            if ~isempty(obj.Control.Callback)
+                obj.Control.Callback(obj.Control,[])
+            end
         end
     end
 end
