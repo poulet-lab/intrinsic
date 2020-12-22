@@ -1,17 +1,23 @@
 classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
+    properties (GetAccess = private, Constant)
+        DirBase	= fileparts(fileparts(mfilename('fullpath')));
+    end
+    
+    properties (GetAccess = private, SetAccess = immutable)
+        DirTemp
+    end
+    
     properties %(Access = private)
         Flags
 
         h               = [] 	% handles
 
-        DirBase         = fileparts(fileparts(mfilename('fullpath')));
         DirSave
         DirLoad         = [];
+        DirData
 
         VideoPreview
-
-        %Scale           = 0.5
 
         % The Q-Cam Needs a little time to deliver a high frame rate.
         % Therefore, we deliver a couple of "Warmup Triggers" at a lower
@@ -44,12 +50,19 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Scale
         Stimulus
         Green
+        Red
 
         StimIn
 
         ResponseTemporal
 
         PxPerCm
+    end
+    
+    properties (Access = private, SetObservable)
+        WinBaseline = [0 0]
+        WinControl  = [0 0]
+        WinResponse = [0 0]
     end
 
     properties (SetAccess = immutable, GetAccess = private)
@@ -102,6 +115,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             % Add submodules to path
             addpath(genpath(fullfile(obj.DirBase,'submodules')))
 
+            % Set directory for temporary data, check if empty
+            obj.DirTemp = fullfile(obj.DirBase,'tempdata');
+            if ~exist(obj.DirTemp,'dir')
+                mkdir(obj.DirTemp)
+            end
+            obj.checkTempData()
+            
             % Settings are loaded from / saved to disk
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
                 'Writable', true);
@@ -116,7 +136,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             addlistener(obj.Stimulus,'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);
             addlistener(obj.Camera,'Update',@obj.cbUpdatedCameraSettings);
             addlistener(obj.DAQ,'Update',@obj.cbUpdatedDAQSettings);
-                                    
+
             % LEGACY STUFF BELOW ------------------------------------------
 
             % Initialize some variables
@@ -157,6 +177,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         welcome(obj)
         settingsStimulus(obj,~,~)      	% Stimulus Settings
         settingsVideo(obj,~,~)
+        settingsGeneral(obj,~,~)
         fileSave(obj,~,~)
 
         greenCapture(obj,~,~)           % Capture reference ("GREEN IMAGE")
@@ -168,9 +189,66 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         cbUpdatedCameraSettings(obj,src,eventData)
         cbUpdatedDAQSettings(obj,src,eventData)
         cbUpdatedStimulusSettings(obj,src,eventData)
+        cbUpdatedTemporalWindow(obj,src,eventData)
+        
+        function new = forceWinResponse(obj,new)
+            validateattributes(new,{'numeric'},...
+                {'size',[1 2],'real','nonnan'})
+            
+            changes = diff([obj.WinResponse;new]);
+            tcam = obj.DAQ.OutputData.Trigger.Time(...
+                diff([0; obj.DAQ.OutputData.Trigger.Data])>0)';
+            
+            if ~diff(changes)
+                if new(1) < 0
+                    new = obj.WinResponse - obj.WinResponse(1);
+                elseif new(2) > obj.h.axes.temporal.XLim(2)
+                    new = obj.h.axes.temporal.XLim(2) - ...
+                        fliplr(obj.WinResponse - obj.WinResponse(1));
+                end
+            else
+                if new(1) < 0
+                    new(1) = 0;
+                end
+                if new(2) > obj.h.axes.temporal.XLim(2)
+                    new(2) = obj.h.axes.temporal.XLim(2);
+                end
+            end
+            
+            % snap to camera triggers
+            for ii = 1:2
+                if changes(ii)
+                    [~,tmp] = min(abs(tcam - new(ii)));
+                    new(ii) = tcam(tmp);
+                end
+            end
+            
+        end
+        
+        function checkTempData(obj)
+            if numel(dir(obj.DirTemp)) > 2
+                obj.notify('Ready');
+                str = sprintf(['The directory for temporary data is ' ...
+                    'not empty. This could be due to a crash in a ' ...
+                    'previous session. Please double-check and clear ' ...
+                    'the directory''s contents manually.\n\n%s'], ...
+                    obj.DirTemp);
+                tmp = errordlg(str,'Error');
+                uiwait(tmp)
+                if ispc
+                    winopen(obj.DirTemp);
+                end
+                error(str) %#ok<SPERR>
+            end
+        end
     end
 
     methods
+        function set.WinResponse(obj,in)
+            obj.WinResponse = obj.forceWinResponse(in);
+            obj.WinControl  = [0 -diff(obj.WinResponse)];
+        end
+        
         update_plots(obj)
     end
 
@@ -814,45 +892,6 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
                 end
             end
             obj.update_plots
-        end
-
-        function set.PxPerCm(obj,value)
-
-             obj.PxPerCm = value;
-
-            padding  = round(2 / obj.Scale);
-            margin   = round(15 / obj.Scale);
-            wBarPx   = round(5 / obj.Scale);
-            MinBarPx = round(100 / obj.Scale);
-            hBack    = round(18 / obj.Scale);
-
-            SInames  = {'fm','pm','nm',[char(181) 'm'],'mm','cm','m','km'};
-            SIexp    = [-15 -12 -9 -6 -3 -2 0 3];
-
-            pxPerUnit = value ./ power(10,-2-SIexp);
-            idxUnit   = find(pxPerUnit<=MinBarPx,1,'last');
-            strUnit   = SInames{idxUnit};
-
-            % define length of bar (SI and px)
-            tmp       = reshape([1 2 5]'.*10.^(0:3),1,[]);
-            lBarSI    = tmp(find(pxPerUnit(idxUnit).*tmp<MinBarPx,1,'last'));
-            lBarPx    = lBarSI * pxPerUnit(idxUnit);
-
-            ha = obj.h.axes.green;
-            hs = obj.h.scalebar.green;
-            set(hs.bar, ...
-                'Position',     [ha.XLim(2)-lBarPx-margin ...
-                    ha.YLim(2)-wBarPx-margin lBarPx wBarPx]);
-            set(hs.background, ...
-                'Position',     hs.bar.Position+[-padding -hBack+padding 2*padding hBack]);
-            set(hs.label, ...
-                'Position',     [hs.bar.Position(1)+hs.bar.Position(3)/2 ...
-                    hs.bar.Position(2)-0 0], ...
-                'Interpreter',  'tex', ...
-                'String',       sprintf('%d %s',lBarSI,strUnit));
-
-            obj.update_plots
-
         end
 
         function status(obj,in)

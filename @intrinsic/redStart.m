@@ -1,5 +1,14 @@
 function redStart(obj,~,~)
 
+%% check if tempdata folder is empty
+obj.checkTempData()
+
+%% Just for testing
+obj.Red = imageRed(obj);
+
+return
+%%
+
 
 ntrig = obj.DAQ.nTrigger;
 ovs   = obj.Camera.Downsample;

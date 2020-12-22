@@ -1,18 +1,28 @@
 function GUImain(obj)
 
+
+hDrag  = [];
+xStart = NaN; %#ok<SETNU>
+
 obj.h.fig.main = figure( ...
-    'Visible',          'off', ...
-    'Menu',             'none', ...
-    'NumberTitle',      'off', ...
-    'Resize',           'on', ...
-    'DockControls',     'off', ...
-    'HandleVisibility', 'off', ...
-    'Color',            'w', ...
-    'Name',             'Intrinsic Imaging', ...
-    'Position',         [30 30 500 300], ...
-    'Units',            'normalized', ...
-    'CloseRequestFcn',  @obj.close, ...
-    'SizeChangedFcn',   @figResize);
+    'Visible',              'off', ...
+    'Menu',                 'none', ...
+    'NumberTitle',          'off', ...
+    'Resize',               'on', ...
+    'DockControls',         'off', ...
+    'HandleVisibility',     'off', ...
+    'Color',                'w', ...
+    'Name',                 'Intrinsic Imaging', ...
+    'Position',             [30 30 500 300], ...
+    'Units',                'normalized', ...
+    'CloseRequestFcn',      @obj.close, ...
+    'SizeChangedFcn',       @figureResize, ...
+    'WindowButtonUpFcn',    @temporalDrop, ...
+    'WindowButtonMotionFcn',@temporalMove);
+
+%% Listen for changes in temporal windows
+addlistener(obj,{'WinBaseline','WinControl','WinResponse'}, ...
+    'PostSet',@updatedTemporalWindow);
 
 %% Toolbar
 obj.h.toolbar = uitoolbar(obj.h.fig.main);
@@ -102,23 +112,22 @@ obj.h.menu.winPos = uimenu(obj.h.menu.settings, ...
     'Separator',        'on', ...
     'Callback',         {@obj.saveWindowPositions});
 
-
-obj.h.menu.view = uimenu(obj.h.fig.main, ...
-    'Label',            '&View', ...
-    'Accelerator',      'V', ...
-    'Callback',         {@obj.updateMenuView});
-
-obj.h.menu.debug = uimenu(obj.h.fig.main, ...
-    'Label',            '&Debug', ...
-    'Accelerator',      'D');
-obj.h.menu.debugKeyboard = uimenu(obj.h.menu.debug, ...
-    'Label',            '&Keyboard', ...
-    'Accelerator',      'K', ...
-    'Callback',         {@(~,~,obj) keyboard,obj});
-obj.h.menu.debugTestdata = uimenu(obj.h.menu.debug, ...
-    'Label',            'Generate &Test Data', ...
-    'Accelerator',      'T', ...
-    'Callback',         {@obj.test_data});
+% obj.h.menu.view = uimenu(obj.h.fig.main, ...
+%     'Label',            '&View', ...
+%     'Accelerator',      'V', ...
+%     'Callback',         {@obj.updateMenuView});
+% 
+% obj.h.menu.debug = uimenu(obj.h.fig.main, ...
+%     'Label',            '&Debug', ...
+%     'Accelerator',      'D');
+% obj.h.menu.debugKeyboard = uimenu(obj.h.menu.debug, ...
+%     'Label',            '&Keyboard', ...
+%     'Accelerator',      'K', ...
+%     'Callback',         {@(~,~,obj) keyboard,obj});
+% obj.h.menu.debugTestdata = uimenu(obj.h.menu.debug, ...
+%     'Label',            'Generate &Test Data', ...
+%     'Accelerator',      'T', ...
+%     'Callback',         {@obj.test_data});
 
 %% Menu Icons
 setIcon = @(h,fn) setMenuIcon(obj.h.menu.(h),fullfile(obj.DirBase,'icons',fn));
@@ -133,8 +142,8 @@ setIcon('settingsDAQ',              'settings_daq.png')
 setIcon('settingsStimulus',         'settings_stimulus.png')
 setIcon('settingsMagnification',  	'settings_magnification.png')
 setIcon('winPos',                   'settings_windowpos.png')
-setIcon('debugKeyboard',            'debug_keyboard.png')
-setIcon('debugTestdata',            'debug_testdata.png')
+% setIcon('debugKeyboard',            'debug_keyboard.png')
+% setIcon('debugTestdata',            'debug_testdata.png')
 
 
 %% Prepare Axes & plots
@@ -143,7 +152,6 @@ obj.h.axes.temporalBg = axes(...
     'Visible',          'off', ...
     'NextPlot',         'add', ...
     'ClippingStyle',    'rectangle', ...
-    'ButtonDownFcn',    @temporalClick, ...
     'YLim',             [0 1], ...
     'NextPlot',         'add');
 obj.h.axes.stimulus = axes(...
@@ -170,18 +178,58 @@ obj.h.axes.temporal = axes(...
 linkaxes([obj.h.axes.temporal obj.h.axes.stimulus obj.h.axes.temporalBg],'x')
 linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position','InnerPosition'});
 
-% Temporal response: markers for t=0 and camera triggers
-tmp3 = patch(obj.h.axes.temporalBg,[0 0 1 1],[1 0 0 1],[.95 .95 1], ...
-    'EdgeColor', 'none');
-xline(obj.h.axes.temporalBg,0, ...
+
+%% Temporal Response
+
+% indicate temporal windows
+obj.h.patch.winBaseline = patch(obj.h.axes.temporalBg, ...
+    'XData',            [0 0 0 0], ...
+    'YData',            [1 0 0 1], ...
+    'FaceColor',        [1 .95 .95], ...
+    'EdgeColor',        'none');
+obj.h.patch.winControl = patch(obj.h.axes.temporalBg, ...
+    'XData',            [0 0 0 0], ...
+    'YData',            [1 0 0 1], ...
+    'FaceColor',        [.95 1 .95], ...
+    'EdgeColor',        'none');
+obj.h.patch.winResponse = patch(obj.h.axes.temporalBg, ...
+    'XData',            [0 0 0 0], ...
+    'YData',            [1 0 0 1], ...
+    'FaceColor',        [.95 .95 1], ...
+    'EdgeColor',        'none', ...
+    'ButtonDownFcn',	@temporalDrag);
+obj.h.xline.winResponse(1) = xline(obj.h.axes.temporalBg,0);
+obj.h.xline.winResponse(2) = xline(obj.h.axes.temporalBg,0);
+set(obj.h.xline.winResponse, ...
+    'Color',          	'b', ...
+    'ButtonDownFcn',  	@temporalDrag)
+obj.WinBaseline = [obj.DAQ.OutputData.Time(1) 0];
+obj.WinResponse = [0 1];
+
+% pointer manager for temporal windows
+pb(1).enterFcn    = @pointerEnterTemporalROIborder;
+pb(2).enterFcn    = @pointerEnterTemporalROIarea;
+pb(1).exitFcn     = @pointerExitTemporalROI;
+pb(2).exitFcn     = @pointerExitTemporalROI;
+pb(2).traverseFcn = @pointerEnterTemporalROIarea;
+pb(3).traverseFcn = @pointerExitTemporalROI;
+iptSetPointerBehavior(obj.h.xline.winResponse,pb(1));
+iptSetPointerBehavior(obj.h.patch.winResponse,pb(2));
+iptSetPointerBehavior(obj.h.fig.main,pb(3));
+iptPointerManager(obj.h.fig.main,'enable')
+
+% indicate t=0
+obj.h.xline.tZero = xline(obj.h.axes.temporalBg,0, ...
     'Color',                [.8 .8 .8], ...
-    'PickableParts',        'none')
+    'PickableParts',        'none');
+
+% indicate camera triggers
 obj.h.plot.grid = plot(obj.h.axes.temporalBg,NaN,NaN,'k',...
     'PickableParts',        'none', ...
     'AlignVertexCenters',   'on');
 obj.plotCameraTrigger()
 
-% Temporal response: stimulus
+% stimulus plot
 obj.h.plot.stimulus = area(obj.h.axes.stimulus,NaN,NaN, ...
     'FaceColor',        'r', ...
     'EdgeColor',        'none', ...
@@ -189,7 +237,7 @@ obj.h.plot.stimulus = area(obj.h.axes.stimulus,NaN,NaN, ...
 ylabel(obj.h.axes.stimulus,'Stimulus (V)')
 obj.plotStimulus()
 
-% Temporal response: the actual response
+% response plot
 title(obj.h.axes.temporal,'Temporal Response')
 xlabel(obj.h.axes.temporal,'Time (s)')
 ylabel(obj.h.axes.temporal,'\DeltaF/F')
@@ -210,6 +258,12 @@ yline(obj.h.axes.temporal,0, ...
     'Color',            [.8 .8 .8], ...
     'pickableparts',    'none');
 
+% legend
+obj.h.legend.temporal = legend(obj.h.axes.temporal, ...
+    [obj.h.plot.temporal obj.h.plot.stimulus obj.h.patch.winBaseline obj.h.patch.winControl obj.h.patch.winResponse], ...
+    {'Signal', 'Stimulus', 'Baseline Window', 'Control Window', 'Response Window'});
+
+
 % Spatial response
 obj.h.axes.spatial = axes(...
     'OuterPosition',   	[.5 .02 .5 .96], ...
@@ -225,118 +279,100 @@ title(obj.h.axes.spatial,'Spatial Cross-Section')
 xlabel(obj.h.axes.spatial,'Distance (cm)')
 ylabel(obj.h.axes.spatial,'\DeltaF/F')
 
-
-
 %% Restore position and make visible
 obj.restoreWindowPositions('main')
 obj.h.fig.main.Visible = 'on';
 
 
-% TODO: add ROI
-set(obj.h.fig.main, ...
-    'WindowButtonUpFcn',    @temporalDrop, ...
-    'WindowButtonMotionFcn',@temporalMove)
-tmp1 = xline(obj.h.axes.temporalBg,0.1, ...
-    'Color', 'b', ...
-    'ButtonDownFcn',@temporalDrag);
-tmp2 = xline(obj.h.axes.temporalBg,0.2, ...
-    'Color', 'b', ...
-    'ButtonDownFcn',@temporalDrag);
-hDrag = [];
 
-% pointer manager
-pb1.enterFcn    = @(hFig,currentPoint) set(hFig,'Pointer','left');
-pb1.exitFcn     = @(hFig,currentPoint) set(hFig,'Pointer','arrow');
-pb1.traverseFcn = [];
-iptSetPointerBehavior([tmp1 tmp2],pb1);
-pb2.enterFcn    = @(hFig,currentPoint) set(hFig,'Pointer','hand');
-pb2.exitFcn     = @(hFig,currentPoint) set(hFig,'Pointer','arrow');
-pb2.traverseFcn = [];
-iptSetPointerBehavior(tmp3,pb2);
-iptPointerManager(obj.h.fig.main)
+
+
+    %% Local functions for controlling drag & drop of temporal ROI
+    function pointerEnterTemporalROIborder(~,~)
+        if ~isempty(hDrag)
+            return
+        end
+        set(obj.h.fig.main,'Pointer','left')
+        set(obj.h.xline.winResponse,'Color',[.75 .75 1]);
+    end
+
+    function pointerEnterTemporalROIarea(~,~)
+        if ~isempty(hDrag)
+            return
+        end
+        set(obj.h.fig.main,'Pointer','hand')
+        set(obj.h.xline.winResponse,'Color',[.75 .75 1]);
+    end
+
+    function pointerExitTemporalROI(~,~)
+        if ~isempty(hDrag)
+            return
+        end
+        set(obj.h.fig.main,'Pointer','arrow')
+        set(obj.h.xline.winResponse,'Color',[.95 .95 1]);
+    end
 
     function temporalDrag(hObject,~)
-        if strcmp(obj.h.fig.main.SelectionType,'normal')
-            hDrag = hObject;
-            hDrag.Color = [.75 .75 1];
+        if ~strcmp(obj.h.fig.main.SelectionType,'normal')
+            return
         end
+        xStart = obj.h.axes.temporalBg.CurrentPoint(1);
+        hDrag  = hObject;
     end
+
     function temporalDrop(~,~)
-        if ~isempty(hDrag)
-            
-            tcam = obj.DAQ.OutputData.Trigger.Time(...
-                diff([0; obj.DAQ.OutputData.Trigger.Data])>0)';
-            [~,tmp] = min(abs(tcam - hDrag.Value));
-            newX = tcam(tmp);
-            
-            hDrag.Value = newX;
-            if isequal(hDrag,tmp1)
-                tmp3.XData(1:2) = newX;
-            else
-                tmp3.XData(3:4) = newX;
-            end
-            
-            hDrag.Color = [.95 .95 1];
-            hDrag = [];
+        if isempty(hDrag)
+            return
         end
+        obj.WinResponse = [obj.h.xline.winResponse.Value];
+        hDrag = [];
+        
+        % TODO:
+        % obj.update_redImage
+        % obj.update_plots
+        % obj.redView(obj.h.popup.redView);
+        % figure(obj.h.fig.red)
     end
+
     function temporalMove(~,~)
         if isempty(hDrag)
             return
         end
+        
         newX = obj.h.axes.temporalBg.CurrentPoint(1);
-        
-        tcam = obj.DAQ.OutputData.Trigger.Time(...
-            diff([0; obj.DAQ.OutputData.Trigger.Data])>0)';
-        [~,tmp] = min(abs(tcam - newX));
-        newX = tcam(tmp);
-            
-        if isequal(hDrag,tmp1)
-            newX = max([0 newX]);
-            newX = min([newX tmp2.Value]);
-            tmp3.XData(1:2) = newX;
+        if isequal(hDrag,obj.h.xline.winResponse(1))
+            newX = obj.forceWinResponse([newX obj.WinResponse(2)]);
+            obj.h.patch.winResponse.XData(1:2) = newX(1);
+            hDrag.Value = newX(1);
+        elseif isequal(hDrag,obj.h.xline.winResponse(2))
+            newX = obj.forceWinResponse([obj.WinResponse(1) newX]);
+            obj.h.patch.winResponse.XData(3:4) = newX(2);
+            hDrag.Value = newX(2);
         else
-            newX = max([tmp1.Value newX]);
-            newX = min([newX obj.h.axes.temporal.XLim(2)]);
-            tmp3.XData(3:4) = newX;
+            newX = obj.forceWinResponse(obj.WinResponse + diff([xStart newX]));
+            obj.h.patch.winResponse.XData = reshape(newX.*[1 1]',1,[]);
+            obj.h.xline.winResponse(1).Value = newX(1);
+            obj.h.xline.winResponse(2).Value = newX(2);
         end
-        hDrag.Value = newX;
     end
 
-
-    function temporalClick(~,~)
-
-        if isempty(obj.Stack)
-            return
+    function updatedTemporalWindow(src,~)
+        switch src.Name
+            case 'WinBaseline'
+                obj.h.patch.winBaseline.XData = ...
+                    reshape(obj.WinBaseline.*[1 1]',1,[]);
+            case 'WinControl'
+                obj.h.patch.winControl.XData = ...
+                    reshape(obj.WinControl.*[1 1]',1,[]);
+            case 'WinResponse'
+                obj.h.patch.winResponse.XData = ...
+                    reshape(obj.WinResponse.*[1 1]',1,[]);
+                obj.h.xline.winResponse(1).Value = obj.WinResponse(1);
+                obj.h.xline.winResponse(2).Value = obj.WinResponse(2);
         end
-        
-        % get two X/Y pairs that define a rectangle
-        pos(1,1:2) = obj.h.axes.temporal.CurrentPoint(1,1:2);
-        rbbox;
-        pos(2,1:2) = obj.h.axes.temporal.CurrentPoint(1,1:2);
- 
-        % section of the temporal response that is within the rectangle
-        x = sort(pos(:,1));
-        y = sort(pos(:,2));
-        inBox = inpolygon(obj.ResponseTemporal.x,obj.ResponseTemporal.y,...
-            [x(1) x(1) x(2) x(2)],[y(1) y(2) y(2) y(1)]);
-
-        % set the temporal ROI (only positive times are allowed)
-        if any(inBox)
-            tmp = false(size(obj.Time));
-            tmp(find(inBox,1):find(inBox,1,'last')) = true;
-            obj.IdxStimROI = obj.Time>=0 & tmp;
-        else
-            obj.IdxStimROI = obj.Time>=0;
-        end
-
-        obj.update_redImage
-        obj.update_plots
-        obj.redView(obj.h.popup.redView);
-        figure(obj.h.fig.red)
     end
 
-    function figResize(~,~,~)
+    function figureResize(~,~,~)
         obj.h.fig.main.Units = 'pixels';
         figSize = obj.h.fig.main.Position;
         px2norm = @(px) px./figSize(3:4);
