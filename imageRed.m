@@ -36,6 +36,27 @@ classdef imageRed < imageGeneric
             colormap(obj.Figure,'gray')
             obj.Figure.Name = 'Red Image';
             obj.ROI = roi_intrinsic(obj.Axes);
+            obj.ROI.Outline.Visible = 'off';
+            obj.Figure.WindowButtonMotionFcn = @obj.pointerMovement;
+        end
+    end
+    
+    methods (Access = private)
+        function pointerMovement(obj,~,~)
+            persistent visible
+            if isempty(visible)
+                visible = false;
+            end
+            
+            pointer = obj.Axes.CurrentPoint(2,1:2)';
+            limits  = [obj.Axes.XLim; obj.Axes.YLim];
+            inaxes  = all(pointer>=limits(:,1) & pointer<=limits(:,2));
+            
+            if xor(inaxes,visible)
+                visible = ~visible;
+                obj.ROI.Outline.Visible = visible;
+                obj.ROI.Extent.Visible  = visible;
+            end
         end
     end
     
