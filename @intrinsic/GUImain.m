@@ -1,5 +1,10 @@
 function GUImain(obj)
 
+%% Color definitions
+c.winBaseline =  [.95 .95 1];
+c.winControl =   [.95 1 .95];
+c.winResponse =  [1 .95 .95];
+c.edgeResponse = [1 .75 .75];
 
 hDrag  = [];
 xStart = NaN; %#ok<SETNU>
@@ -185,23 +190,23 @@ linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position','InnerPosition'
 obj.h.patch.winBaseline = patch(obj.h.axes.temporalBg, ...
     'XData',            [0 0 0 0], ...
     'YData',            [1 0 0 1], ...
-    'FaceColor',        [1 .95 .95], ...
+    'FaceColor',        c.winBaseline, ...
     'EdgeColor',        'none');
 obj.h.patch.winControl = patch(obj.h.axes.temporalBg, ...
     'XData',            [0 0 0 0], ...
     'YData',            [1 0 0 1], ...
-    'FaceColor',        [.95 1 .95], ...
+    'FaceColor',        c.winControl, ...
     'EdgeColor',        'none');
 obj.h.patch.winResponse = patch(obj.h.axes.temporalBg, ...
     'XData',            [0 0 0 0], ...
     'YData',            [1 0 0 1], ...
-    'FaceColor',        [.95 .95 1], ...
+    'FaceColor',        c.winResponse, ...
     'EdgeColor',        'none', ...
     'ButtonDownFcn',	@temporalDrag);
 obj.h.xline.winResponse(1) = xline(obj.h.axes.temporalBg,0);
 obj.h.xline.winResponse(2) = xline(obj.h.axes.temporalBg,0);
 set(obj.h.xline.winResponse, ...
-    'Color',          	'b', ...
+    'Color',          	c.edgeResponse, ...
     'ButtonDownFcn',  	@temporalDrag)
 obj.WinBaseline = [obj.DAQ.OutputData.Time(1) 0];
 obj.WinResponse = [0 1];
@@ -261,7 +266,7 @@ yline(obj.h.axes.temporal,0, ...
 % legend
 obj.h.legend.temporal = legend(obj.h.axes.temporal, ...
     [obj.h.plot.temporal obj.h.plot.stimulus obj.h.patch.winBaseline obj.h.patch.winControl obj.h.patch.winResponse], ...
-    {'Signal', 'Stimulus', 'Baseline Window', 'Control Window', 'Response Window'});
+    {'intrinsic signal', 'stimulus', 'baseline window', 'control window', 'response window'});
 
 
 % Spatial response
@@ -293,7 +298,7 @@ obj.h.fig.main.Visible = 'on';
             return
         end
         set(obj.h.fig.main,'Pointer','left')
-        set(obj.h.xline.winResponse,'Color',[.75 .75 1]);
+        set(obj.h.xline.winResponse,'Color',c.edgeResponse);
     end
 
     function pointerEnterTemporalROIarea(~,~)
@@ -301,7 +306,7 @@ obj.h.fig.main.Visible = 'on';
             return
         end
         set(obj.h.fig.main,'Pointer','hand')
-        set(obj.h.xline.winResponse,'Color',[.75 .75 1]);
+        set(obj.h.xline.winResponse,'Color',c.edgeResponse);
     end
 
     function pointerExitTemporalROI(~,~)
@@ -309,7 +314,7 @@ obj.h.fig.main.Visible = 'on';
             return
         end
         set(obj.h.fig.main,'Pointer','arrow')
-        set(obj.h.xline.winResponse,'Color',[.95 .95 1]);
+        set(obj.h.xline.winResponse,'Color',c.winResponse);
     end
 
     function temporalDrag(hObject,~)
@@ -339,20 +344,24 @@ obj.h.fig.main.Visible = 'on';
             return
         end
         
-        newX = obj.h.axes.temporalBg.CurrentPoint(1);
+        mouseX = obj.h.axes.temporalBg.CurrentPoint(1);
         if isequal(hDrag,obj.h.xline.winResponse(1))
-            newX = obj.forceWinResponse([newX obj.WinResponse(2)]);
+            newX = obj.forceWinResponse([mouseX obj.WinResponse(2)]);
             obj.h.patch.winResponse.XData(1:2) = newX(1);
             hDrag.Value = newX(1);
         elseif isequal(hDrag,obj.h.xline.winResponse(2))
-            newX = obj.forceWinResponse([obj.WinResponse(1) newX]);
+            newX = obj.forceWinResponse([obj.WinResponse(1) mouseX]);
             obj.h.patch.winResponse.XData(3:4) = newX(2);
             hDrag.Value = newX(2);
         else
-            newX = obj.forceWinResponse(obj.WinResponse + diff([xStart newX]));
+            newX = obj.forceWinResponse(obj.WinResponse + diff([xStart mouseX]));
             obj.h.patch.winResponse.XData = reshape(newX.*[1 1]',1,[]);
             obj.h.xline.winResponse(1).Value = newX(1);
             obj.h.xline.winResponse(2).Value = newX(2);
+        end
+        
+        if true %TODO: only when using control window
+            obj.h.patch.winControl.XData = reshape([-diff(newX) 0].*[1 1]',1,[]);
         end
     end
 

@@ -195,34 +195,50 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             validateattributes(new,{'numeric'},...
                 {'size',[1 2],'real','nonnan'})
             
+
+            
             changes = diff([obj.WinResponse;new]);
             tcam = obj.DAQ.OutputData.Trigger.Time(...
                 diff([0; obj.DAQ.OutputData.Trigger.Data])>0)';
+            camRate = min(diff(tcam));
+            tcam = [tcam tcam(end)+camRate];
             
-            if ~diff(changes)
+%             [~,idxOld] = arrayfun(@(x) min(abs(tcam-x)),obj.WinResponse)
+%             [~,idxNew] = arrayfun(@(x) min(abs(tcam-x)),new)
+            
+            if any(changes)
+                changes = round(changes/camRate)*camRate;
+            else
+                new = obj.WinResponse;
+                return;
+            end
+            
+            if ~diff(changes)   % if the response window was MOVED ...
                 if new(1) < 0
                     new = obj.WinResponse - obj.WinResponse(1);
                 elseif new(2) > obj.h.axes.temporal.XLim(2)
                     new = obj.h.axes.temporal.XLim(2) - ...
                         fliplr(obj.WinResponse - obj.WinResponse(1));
                 end
-            else
+            else                % if the response window was RESIZED ...
                 if new(1) < 0
                     new(1) = 0;
                 end
                 if new(2) > obj.h.axes.temporal.XLim(2)
                     new(2) = obj.h.axes.temporal.XLim(2);
                 end
-            end
-            
-            % snap to camera triggers
-            for ii = 1:2
-                if changes(ii)
-                    [~,tmp] = min(abs(tcam - new(ii)));
-                    new(ii) = tcam(tmp);
+                if diff(new) < min(diff(tcam))
+                    if changes(1)
+                        new(1) = new(2) - camRate;
+                    else
+                        new(2) = new(1) + camRate;
+                    end
                 end
             end
             
+            % snap to camera triggers
+            [~,idxNew] = arrayfun(@(x) min(abs(tcam-x)),new);
+            new = tcam(idxNew);
         end
         
         function checkTempData(obj)
@@ -394,13 +410,13 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             % Load from settings file
             out = obj.loadVar('DirSave',[]);
-            if isdir(out)
+            if isfolder(out)
                 return
             end
 
             % Let user pick directory
             out = uigetdir('/','Select Data Directory');
-            if isdir(out)
+            if isfolder(out)
                 obj.Settings.DirSave = out;
             end
 
