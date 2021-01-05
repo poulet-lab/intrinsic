@@ -50,6 +50,7 @@ classdef imageGeneric < handle
         PrivateVisible  = 'off'
         PrivateZoom     = 1
         ScaleListener
+        CDataListener
     end
     
     properties (Access = protected)
@@ -67,8 +68,11 @@ classdef imageGeneric < handle
             obj.Camera          = parent.Camera;
             obj.Adaptor         = parent.Camera.Adaptor;
             obj.DeviceName      = parent.Camera.DeviceName;
+            
             obj.ScaleListener   = ...
                 event.listener(parent.Scale,'Update',@obj.scaleChanged);
+            obj.CDataListener   = ...
+                addlistener(obj,'CData','PostSet',@obj.scaleChanged);
             
             obj.dummyCData;
         end
