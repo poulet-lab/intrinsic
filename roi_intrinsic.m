@@ -1,6 +1,6 @@
 classdef roi_intrinsic < handle
 
-    properties %(SetAccess = private)
+    properties (SetAccess = private)
         Center          % point region-of-interest: center 
         Extent          % point region-of-interest: extent
         Outline         % patch: outline
@@ -22,16 +22,22 @@ classdef roi_intrinsic < handle
         pt1_rel
     end
     
+    events
+        Updated
+    end
+    
     methods
         function obj = roi_intrinsic(hax)
             % create objects
             XYLim = [hax.XLim; hax.YLim];
             obj.Center = images.roi.Point(hax, ...
                 'Position',	XYLim(:,1)' + .5*diff(XYLim,[],2)',...
-                'Color',  	'r');
+                'Color',  	'r', ...
+                'Deletable', false);
             obj.Extent = images.roi.Point(hax, ...
                 'Position',	XYLim(:,1)' + [1/3 .5] .* diff(XYLim,[],2)',...
-                'Color', 	'c');
+                'Color', 	'c', ...
+                'Deletable', false);
             obj.Line = line(hax,...
                 'LineWidth',            2,...
                 'Color',                'k',...
@@ -58,8 +64,8 @@ classdef roi_intrinsic < handle
             obj.Radius = .1*min(diff(XYLim,[],2));
         end
         
-        function BW = mask(obj,m,n)
-            BW = poly2mask(obj.Outline.XData,obj.Outline.YData,m,n);
+        function BW = mask(obj,s)
+            BW = poly2mask(obj.Outline.XData,obj.Outline.YData,s(1),s(2));
         end
         
         function out = get.coordsLine(obj)
@@ -70,7 +76,7 @@ classdef roi_intrinsic < handle
         function out = get.coordsCenter(obj)
             out = obj.Center.Position;
         end
-        
+
         function set.Radius(obj,value)
             obj.Radius = value;
             obj.reshape()
@@ -85,6 +91,8 @@ classdef roi_intrinsic < handle
 
             obj.Outline.XData = [xy(1,1)-obj.x_rel xy(2,1)+obj.x_rel];
             obj.Outline.YData = [xy(1,2)-obj.y_rel xy(2,2)+obj.y_rel];
+            
+            notify(obj,'Updated');
         end
         
         function reshape(obj,~,~)
@@ -92,8 +100,9 @@ classdef roi_intrinsic < handle
             m   = atan2(dxy(2),dxy(1)) + deg2rad(-90:5:90);
             obj.x_rel   = obj.Radius.*cos(m);
             obj.y_rel   = obj.Radius.*sin(m);
-            
+
             obj.pt1_rel = obj.Extent.Position - obj.Center.Position;
+            
             obj.translate()
         end
     end
