@@ -27,6 +27,17 @@ classdef imageRed < imageGeneric
             
             % Create GUI
             obj.Visible = 'on';
+            obj.updateCrossSection;
+
+            % Listeners
+            addlistener(obj,'CData','PostSet',@obj.updateCrossSection);
+            addlistener(obj.ROI,'Updated',@obj.updateCrossSection);
+            
+            % JUST FOR TESTING
+            tmp = double(imread('test.jpg'));
+            tmp = tmp(:,:,1);
+            tmp = tmp - median(tmp(:));
+            obj.CData = tmp;
         end
     end
     
@@ -37,26 +48,40 @@ classdef imageRed < imageGeneric
             obj.Figure.Name = 'Red Image';
             obj.ROI = roi_intrinsic(obj.Axes);
             obj.ROI.Outline.Visible = 'off';
-            obj.Figure.WindowButtonMotionFcn = @obj.pointerMovement;
+            
+            % pointer manager for ROI visibility
+            pb.enterFcn = @pointerEnter;
+            pb.exitFcn  = @pointerExit;
+            pb.traverseFcn = [];
+            iptSetPointerBehavior(obj.Axes,pb);
+            iptPointerManager(obj.Figure,'enable')
+            
+            function pointerEnter(~,~)
+                obj.ROI.Outline.Visible = 'on';
+                %obj.ROI.Outline.EdgeAlpha = 1;
+                obj.ROI.Extent.Visible  = 'on';
+            end
+            function pointerExit(~,~)
+                obj.ROI.Outline.Visible = 'off';
+                %obj.ROI.Outline.EdgeAlpha = 0.2;
+                obj.ROI.Extent.Visible  = 'off';
+            end
         end
-    end
-    
-    methods (Access = private)
-        function pointerMovement(obj,~,~)
-            persistent visible
-            if isempty(visible)
-                visible = false;
-            end
+        
+        function updateCrossSection(obj,~,~)
+            [xi,yi,y] = improfile(obj.CData,...
+                obj.ROI.Line.XData,obj.ROI.Line.YData,'nearest');
+            x         = sqrt((xi-obj.ROI.Center.Position(1)).^2+ ...
+                (yi-obj.ROI.Center.Position(2)).^2);
+            tmp       = 1:floor(length(x)/2);
+            x(tmp)    = -x(tmp);
+            x         = x / obj.Scale.PxPerCm;
+            obj.Parent.h.plot.spatialAverage.XData = x;
+            obj.Parent.h.plot.spatialAverage.YData = y;
+            obj.Parent.h.axes.spatial.XLim = x([1 end]);
             
-            pointer = obj.Axes.CurrentPoint(2,1:2)';
-            limits  = [obj.Axes.XLim; obj.Axes.YLim];
-            inaxes  = all(pointer>=limits(:,1) & pointer<=limits(:,2));
-            
-            if xor(inaxes,visible)
-                visible = ~visible;
-                obj.ROI.Outline.Visible = visible;
-                obj.ROI.Extent.Visible  = visible;
-            end
+            mask = obj.ROI.mask(obj.Size);
+            obj.CLim = [min(obj.CData(mask(:))) max(obj.CData(mask(:)))];
         end
     end
     

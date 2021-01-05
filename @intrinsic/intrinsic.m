@@ -546,14 +546,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Generate Test Data
         function test_data(obj,~,~)
 
-            obj.clearData
+            %obj.clearData
 
-            imSize      = fliplr(obj.ROISize);
-            if isempty(imSize)
-                imSize = [200 200];
-            end
-            val_mean    = 2^(obj.VideoBits-1);
-            n_frames    = length(obj.Time);
+            imSize      = obj.Camera.ROI;
+            val_mean    = power(2,obj.Camera.BitDepth-1);
+            n_frames    = obj.DAQ.nTrigger;
             n_trials    = 2;
             amp_noise   = 50;
 
@@ -583,7 +580,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             data_stim = repmat((gauss-gauss2)./3,1,1,n_frames);
             lambda    = 3;
             mu        = 3;
-            tmp       = obj.Time;
+            tmp       = obj.DAQ.OutputData.Trigger.Time([1; find(diff(obj.DAQ.OutputData.Trigger.Data)>0)+1])';
+            %tmp       = obj.DAQ.OutputData.Trigger.Time(obj.DAQ.OutputData.Trigger.Data>0)';
             x         = tmp(tmp>0);
             amp_stim  = (lambda./(2*pi*x.^3)).^.5 .* exp((-lambda*(x-mu).^2)./(2*mu^2*x));
             amp_stim  = -[zeros(size(tmp(tmp<=0))) amp_stim] * 50;
@@ -606,21 +604,50 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
         % Process image stack (averaging, spatial filtering)
         function processStack(obj)
-            % create red GUI if necessary
-            if ~isfield(obj.h.fig,'red')
-                obj.GUIred
-            end
+%             % create red GUI if necessary
+%             if ~isfield(obj.h.fig,'red')
+%                 obj.GUIred
+%             end
 
             % reduce size of stack to recorded data
-            if obj.nTrials > 1
+            if size(obj.Stack,2) > 1
+                %%
+                tic
                 stack = mean(cat(4,obj.Stack{:}),4);
+                tmp = var(double(cat(4,obj.Stack{:})),0,4);
+                toc
             else
                 stack = double(obj.Stack{1});
             end
 
+            obj.Time = obj.DAQ.OutputData.Trigger.Time([1; find(diff(obj.DAQ.OutputData.Trigger.Data)>0)+1])';
+
+            
+            %%
+            myclass = 'double';
+            mymean = cast(obj.Stack{1},myclass);
+            myvar  = zeros(size(mymean),myclass);
+            
+            tic
+            data   = cast(obj.Stack{2},myclass);
+            
+            w = 0;
+            n = 2;
+            mean1  = mymean + (data - mymean) / n;
+            norm   = n - ~w;
+            myvar  = (var0 .* (norm - 1) + (data - mymean) .* (data - mean1)) / norm;
+            mymean = mean1;
+            clear mean1
+            
+            toc
+            %%
+            
+            
+            
+            
             % obtain baseline & stimulus
             base = mean(stack(:,:,obj.Time<0),3);
-            stim = mean(stack(:,:,obj.IdxStimROI),3);
+            stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
 
             % obtain the average response (time res., baseline substracted)
             obj.SequenceRaw  = stack - base;
@@ -628,11 +655,11 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.ImageRedStim = stim;
 
             % apply temporal/spatial smoothing
-            obj.update_redImage
-            obj.processSubStack
-            obj.update_stimDisp
-            obj.redView(obj.h.popup.redView);
-            figure(obj.h.fig.red)
+%             obj.update_redImage
+%             obj.processSubStack
+%             obj.update_stimDisp
+%             obj.redView(obj.h.popup.redView);
+%             figure(obj.h.fig.red)
         end
 
         function processSubStack(obj,~,~)

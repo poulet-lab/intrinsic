@@ -23,8 +23,7 @@ nruns = 10;
 
 
 %% RUN
-%tmp    = obj.Settings.Stimulus;
-dpause = round(tmp.inter-tmp.pre-tmp.post);
+dPause = round(tmp.inter-tmp.pre-tmp.post);
 
 obj.Flags.Running = true;
 for ii = 1:nruns
@@ -43,12 +42,12 @@ for ii = 1:nruns
     obj.processStack
 
     % format figure title
-    for pp = 1:dpause
+    for pp = 1:dPause
         if ~obj.Flags.Running
             obj.status
             return
         else
-            obj.status(sprintf('Waiting (%ds)',dpause-pp))
+            obj.status(sprintf('Waiting (%ds)',dPause-pp))
             pause(1)
         end
     end
