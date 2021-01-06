@@ -1,6 +1,6 @@
 classdef subsystemGeneric < handle
     
-    properties (Access = protected)
+    properties (GetAccess = protected, SetAccess = immutable)
         Parent
     end
     
