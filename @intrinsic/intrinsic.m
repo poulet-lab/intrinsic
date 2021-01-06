@@ -168,6 +168,9 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
 
             figure(obj.h.fig.main)
             obj.updateEnabled       % Update availability of UI elements
+            if ~nargout
+                clearvars
+            end
         end
     end
 
