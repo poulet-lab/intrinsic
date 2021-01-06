@@ -23,7 +23,7 @@ classdef roi_intrinsic < handle
     end
     
     events
-        Updated
+        Update
     end
     
     methods
@@ -92,7 +92,7 @@ classdef roi_intrinsic < handle
             obj.Outline.XData = [xy(1,1)-obj.x_rel xy(2,1)+obj.x_rel];
             obj.Outline.YData = [xy(1,2)-obj.y_rel xy(2,2)+obj.y_rel];
             
-            notify(obj,'Updated');
+            notify(obj,'Update');
         end
         
         function reshape(obj,~,~)

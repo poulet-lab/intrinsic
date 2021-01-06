@@ -31,7 +31,7 @@ classdef imageRed < imageGeneric
 
             % Listeners
             addlistener(obj,'CData','PostSet',@obj.updateCrossSection);
-            addlistener(obj.ROI,'Updated',@obj.updateCrossSection);
+            addlistener(obj.ROI,'Update',@obj.updateCrossSection);
             
             % JUST FOR TESTING
             tmp = double(imread('test.jpg'));
