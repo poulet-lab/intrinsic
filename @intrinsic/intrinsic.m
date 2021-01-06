@@ -51,6 +51,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         Stimulus
         Green
         Red
+        Data
 
         StimIn
 
@@ -139,6 +140,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.Camera   = subsystemCamera(obj);
             obj.DAQ      = subsystemDAQ(obj);
             obj.Scale    = subsystemScale(obj);
+            obj.Data     = subsystemData(obj);
 
             % Initialize listeners
             addlistener(obj.Stimulus,'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);

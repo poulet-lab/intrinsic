@@ -29,9 +29,12 @@ classdef subsystemCamera < subsystemGeneric
         MatPrefix = 'camera_'
     end
 
+    properties (GetAccess = {?intrinsic}, SetAccess = private, Transient)
+        Data
+    end
+    
     properties (Access = private, Transient)
         Figure
-        Data
     end
     
 
@@ -181,7 +184,8 @@ classdef subsystemCamera < subsystemGeneric
             stop(obj.Input.Red)
             nframes = obj.Input.Red.FramesAvailable;
             obj.Parent.message('Obtaining %d frames from camera',nframes)
-            obj.Data = getdata(obj.Input.Red,nframes);
+            [data,~,metadata] = getdata(obj.Input.Red,nframes);
+            obj.Parent.Data.addCameraData(data,metadata);
         end
         
         function save(obj,fn)

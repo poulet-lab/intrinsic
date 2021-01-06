@@ -3,10 +3,10 @@ function redStart(obj,~,~)
 %% check if tempdata folder is empty
 obj.checkTempData()
 
-%% Just for testing
-obj.Red = imageRed(obj);
-
-return
+% %% Just for testing
+% obj.Red = imageRed(obj);
+% 
+% return
 %%
 
 
@@ -28,13 +28,13 @@ dPause = round(tmp.inter-tmp.pre-tmp.post);
 obj.Flags.Running = true;
 for ii = 1:nruns
 
-    fn = fullfile(obj.DirBase,'datastore',sprintf('data%03d.tif',ii));
+    fn = fullfile(obj.DirTemp,sprintf('data%03d.tif',ii));
     
     obj.DAQ.queueData()
     obj.Camera.start()
     obj.DAQ.run()
     obj.Camera.stop();
-    obj.Camera.save(fn)
+    %obj.Camera.save(fn)
 
     %data = imageDatastore(fullfile(obj.DirBase,'datastore'),'FileExtensions','.tif')
     
@@ -64,5 +64,12 @@ obj.DAQsession = [];
             [ii nruns floor(100*obj.VideoInputRed.FramesAvailable/ ...
             (obj.VideoInputRed.TriggerRepeat+1))]);
         obj.status(asd)
+    end
+
+    function [mean1, var1] = runMeanVar(mean0,var0,data,n)
+        % Welford's online algorithm
+        norm  = n - 1;
+        mean1 = mean0 + (data - mean0) / n;
+        var1  = (var0 .* (norm-1) + (data-mean0) .* (data-mean1)) / norm;
     end
 end
