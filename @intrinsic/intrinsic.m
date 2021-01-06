@@ -86,6 +86,14 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Class Constructor
         function obj = intrinsic(varargin)
 
+            % Start a new diary file
+            diary off
+            tmp = fullfile(obj.DirBase,'diary.txt');
+            if exist(tmp,'file')
+                delete(tmp);
+            end
+            diary(tmp)
+            
             % intrinsic requires MATLAB 2018b or newer
             if verLessThan('matlab','9.5')
                 errordlg(['This software requires MATLAB version ' ...
@@ -498,6 +506,7 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
             obj.VideoPreview.Preview = false;
             pause(.1)
             structfun(@delete,obj.h.fig)
+            diary off
         end
 
         function update_redImage(obj,~,~)
