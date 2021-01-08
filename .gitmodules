@@ -7,6 +7,3 @@
 [submodule "submodules/matlab-goodies"]
 	path = submodules/matlab-goodies
 	url = https://github.com/bimac/matlab-goodies.git
-[submodule "submodules/setMenuIcon"]
-	path = submodules/setMenuIcon
-	url = https://github.com/bimac/setMenuIcon
