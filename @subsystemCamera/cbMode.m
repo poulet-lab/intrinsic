@@ -43,7 +43,7 @@ setappdata(obj.Figure,'resolution',resolution);
 
 % fill binning (only on supported cameras)
 if ~isempty(mode)
-    if ismember(adaptor,{'qimaging'}) && ismember(deviceName,{'QICam B'})
+    if ismember(adaptor,{'qimaging','mwqimagingimaq'}) && ismember(deviceName,{'QICam B'})
         tmp = getappdata(obj.Figure,'modes');
         tmp = regexpi(tmp,'^\w*_(\d)*x\d*$','tokens','once');
         bin = max(cellfun(@str2double,[tmp{:}])) / resolution(1);
