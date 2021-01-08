@@ -8,7 +8,7 @@ adaptor    = getappdata(obj.Figure,'adaptor');
 deviceName = getappdata(obj.Figure,'deviceName');
 
 % limit rates for qimaging QICam B
-if strcmpi(adaptor,'qimaging') && strcmpi(deviceName,'QICam B')
+if ismember(adaptor,{'qimaging','mwqimagingimaq'}) && strcmpi(deviceName,'QICam B')
     res = getappdata(obj.Figure,'resolution');
     switch res(2)
         case 130

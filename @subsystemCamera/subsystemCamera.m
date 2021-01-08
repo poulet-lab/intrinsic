@@ -111,7 +111,7 @@ classdef subsystemCamera < subsystemGeneric
 
         function out = get.Supported(obj)
             % is the combination of adaptor + device tested & "supported"?
-            sup = {'qimagingQICam B'};
+            sup = {'qimagingQICam B','mwqimagingimaqQICam B'};
             out = any(strcmpi(sup,[obj.Adaptor obj.DeviceName]));
         end
 
