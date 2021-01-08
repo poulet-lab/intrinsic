@@ -26,10 +26,13 @@ nruns = 10;
 dPause = round(tmp.inter-tmp.pre-tmp.post);
 
 obj.Flags.Running = true;
-for ii = 1:nruns
+ii = 0;
+while true
+    ii = ii + 1;
 
     fn = fullfile(obj.DirTemp,sprintf('data%03d.tif',ii));
     
+
     obj.DAQ.queueData()
     obj.Camera.start()
     obj.DAQ.run()

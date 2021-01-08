@@ -186,6 +186,7 @@ classdef subsystemCamera < subsystemGeneric
             obj.Parent.message('Obtaining %d frames from camera',nframes)
             [data,~,metadata] = getdata(obj.Input.Red,nframes);
             obj.Parent.Data.addCameraData(data,metadata);
+            data = [];
         end
         
         function save(obj,fn)

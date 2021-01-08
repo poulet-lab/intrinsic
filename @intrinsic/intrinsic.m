@@ -1,4 +1,4 @@
-classdef intrinsic < handle & matlab.mixin.CustomDisplay
+classdef (Sealed) intrinsic < handle
 
     properties (GetAccess = private, Constant)
         DirBase	= fileparts(fileparts(mfilename('fullpath')));
@@ -87,6 +87,8 @@ classdef intrinsic < handle & matlab.mixin.CustomDisplay
         % Class Constructor
         function obj = intrinsic(varargin)
 
+            % TODO: Single Instance
+                        
             % Start a new diary file
             diary off
             tmp = fullfile(obj.DirBase,'diary.txt');
