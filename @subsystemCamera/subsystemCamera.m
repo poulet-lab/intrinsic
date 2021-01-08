@@ -165,7 +165,7 @@ classdef subsystemCamera < subsystemGeneric
             
             % TODO: move trigger configuration to setup
             switch obj.Adaptor
-                case 'qimaging'
+                case {'qimaging','mwqimagingimaq'}
                     triggerconfig(obj.Input.Red,'hardware','risingEdge','TTL')
                 case 'hamamatsu'
                     triggerconfig(obj.Input.Red,'hardware','risingEdge','EdgeTrigger')
