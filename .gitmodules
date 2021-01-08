@@ -1,3 +1,0 @@
-[submodule "video-preview"]
-	path = submodules/video-preview
-	url = https://github.com/poulet-lab/video-preview.git
