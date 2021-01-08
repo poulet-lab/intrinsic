@@ -57,7 +57,11 @@ classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
         end
 
         function out = get.PxPerCm(obj)
-            out = obj.Data.(obj.DeviceString).(obj.Magnification);
+            if ~isempty(obj.Magnification)
+                out = obj.Data.(obj.DeviceString).(obj.Magnification);
+            else
+                out = NaN;
+            end
         end
 
         function out = get.DeviceData(obj)
