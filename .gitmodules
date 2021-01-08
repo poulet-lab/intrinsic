@@ -1,6 +1,3 @@
-[submodule "BrewerMap"]
-	path = submodules/BrewerMap
-	url = https://github.com/DrosteEffect/BrewerMap.git
 [submodule "video-preview"]
 	path = submodules/video-preview
 	url = https://github.com/poulet-lab/video-preview.git
