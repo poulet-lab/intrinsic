@@ -178,6 +178,7 @@ classdef subsystemCamera < subsystemGeneric
         function stop(obj)
             obj.Parent.status
             stop(obj.Input.Red)
+            pause(.2)
         end
         
 %         function [data,metadata] = getData(obj)
@@ -254,8 +255,9 @@ classdef subsystemCamera < subsystemGeneric
         end
         
         function displayFrameCount(obj,~,~)
-            string = sprintf('Acquired Frame %d/%d', ...
-                obj.Input.Red.FramesAvailable,obj.Parent.DAQ.nTrigger);
+            string = sprintf('Trial %d, acquiring frame %d/%d', ...
+                obj.Parent.Data.n+1,obj.Input.Red.FramesAvailable,...
+                obj.Parent.DAQ.nTrigger);
             obj.Parent.status(string)
         end
     end

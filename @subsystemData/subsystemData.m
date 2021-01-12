@@ -17,6 +17,8 @@ classdef subsystemData < subsystemGeneric
         Control
         Stimulus
         Running = false;
+        Unsaved = false;
+        TIFFnames = {}
     end
 
     properties (Dependent)
@@ -56,8 +58,14 @@ classdef subsystemData < subsystemGeneric
     
     methods (Access = private)
         function save2tiff(obj,data,timestamp,adaptor,deviceName)
-            obj.Parent.message('Saving image data to disk')
-            tiff = Tiff(fn,'w');
+            
+            % Filename
+            fn = sprintf('%03d_%s.tif',obj.n,...
+                datestr(timestamp,'yymmdd_HHMMSS'));
+            obj.Parent.message('Saving image data to disk: %s',fn)
+            obj.TIFFnames = [obj.TIFFnames fn];
+            
+            tiff = Tiff(fullfile(obj.DirTemp,fn),'w');
             options = struct( ...
                 'ImageWidth',          size(data,2), ...
                 'ImageLength',         size(data,1), ...
@@ -69,7 +77,7 @@ classdef subsystemData < subsystemGeneric
                 'XResolution',         round(obj.Parent.Scale.PxPerCm), ...
                 'YResolution',         round(obj.Parent.Scale.PxPerCm), ...
                 'ResolutionUnit',      Tiff.ResolutionUnit.Centimeter, ...
-                'Software',            'Intrinsic Imaging', ...
+                'Software',            sprintf('Intrinsic Imaging %s',intrinsic.version'), ...
                 'Make',                adaptor, ...
                 'Model',               deviceName, ...
                 'DateTime',            datestr(timestamp,'yyyy:mm:dd HH:MM:SS'), ...
@@ -82,21 +90,17 @@ classdef subsystemData < subsystemGeneric
                     'unit=cm\n' ...
                     'finterval=%0.5f\n' ...
                     'fps=%0.5f\n'], ...
-                size(data,4),size(data,4),1/obj.FrameRate,obj.FrameRate), ...
+                size(data,4),size(data,4),1/5,5), ...% FRAMERATE!!
                 'SampleFormat',        Tiff.SampleFormat.UInt, ...
                 'RowsPerStrip',        512);
-            tic
-            for frame = 1:size(obj.Data,4)
+            for frame = 1:size(data,4)
                 tiff.setTag(options);
-                tiff.write(obj.Data(:, :, :, frame));
-                if frame < size(obj.Data,4)
+                tiff.write(data(:, :, :, frame));
+                if frame < size(data,4)
                     tiff.writeDirectory();
                 end
             end
             tiff.close()
-            toc
-            
-            obj.Data = [];
         end
         
         function cbUpdatedMean(obj,~,~)

@@ -1,5 +1,7 @@
 function getDataFromCamera(obj)
 
+obj.Unsaved = true;
+
 % Get data and metadata from the camera
 nframes = obj.Parent.Camera.Input.Red.FramesAvailable;
 if ~nframes
@@ -11,16 +13,16 @@ obj.Parent.message('Obtaining %d frames from camera',nframes)
 % increment n
 obj.n = obj.n + 1;
 
-%             % TODO: save raw data to TIFF
-%             obj.save2tiff( ...
-%                 data, ...                       % raw data from camera
-%                 metadata(1).AbsTime, ...        % timestamp of first frame
-%                 obj.Parent.Camera.Adaptor, ...  % name of imaging adaptor
-%                 obj.Parent.Camera.DeviceName)   % name of imaging device)
-
 % Save timestamps
 obj.TimestampsCamera = [obj.TimestampsCamera ...
     datenum(vertcat(metadata.AbsTime))];
+
+% TODO: save raw data to TIFF
+obj.save2tiff( ...
+    data, ...                       % raw data from camera
+    obj.TimestampsCamera(1,end), ...% timestamp of first frame
+    obj.Parent.Camera.Adaptor, ...  % name of imaging adaptor
+    obj.Parent.Camera.DeviceName)   % name of imaging device)
 
 % Cast to desired class
 data = cast(data,obj.DataType);

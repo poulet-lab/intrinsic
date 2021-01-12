@@ -3,6 +3,12 @@ function start(obj,~,~)
 % Check if tempdata is empty
 obj.checkDirTemp()
 
+% Check for unsaved data
+if obj.Unsaved
+    warndlg('Unsaved data!')
+    return
+end
+
 % Check for ongoing acquisition
 if obj.Running
     return
@@ -26,6 +32,7 @@ while true
     obj.Parent.DAQ.queueData()
     obj.Parent.Camera.start()
     obj.Parent.DAQ.start()
+    
     obj.Parent.Camera.stop()
     if obj.Running
         obj.getDataFromCamera()
