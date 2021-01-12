@@ -28,10 +28,6 @@ classdef subsystemCamera < subsystemGeneric
     properties (Constant = true, Access = protected)
         MatPrefix = 'camera_'
     end
-
-    properties (GetAccess = {?intrinsic}, SetAccess = private, Transient)
-        Data
-    end
     
     properties (Access = private, Transient)
         Figure
@@ -155,10 +151,10 @@ classdef subsystemCamera < subsystemGeneric
         end
     end
     
-    methods (Access = {?intrinsic})
+    methods (Access = {?intrinsic,?subsystemData})
         function start(obj)
             if isrunning(obj.Input.Red)
-                error('The camera is already acquiring data.')
+                error('Camera is already acquiring data.')
             end
 
             obj.Parent.message('Arming image acquisition')
@@ -182,12 +178,18 @@ classdef subsystemCamera < subsystemGeneric
         function stop(obj)
             obj.Parent.status
             stop(obj.Input.Red)
-            nframes = obj.Input.Red.FramesAvailable;
-            obj.Parent.message('Obtaining %d frames from camera',nframes)
-            [data,~,metadata] = getdata(obj.Input.Red,nframes);
-            obj.Parent.Data.addCameraData(data,metadata);
-            data = [];
         end
+        
+%         function [data,metadata] = getData(obj)
+%             nframes = obj.Input.Red.FramesAvailable;
+%             if ~nframes
+%                 data = [];
+%                 metadata = [];
+%                 return
+%             end
+%             obj.Parent.message('Obtaining %d frames from camera',nframes)
+%             [data,~,metadata] = getdata(obj.Input.Red,nframes);
+%         end
         
         function save(obj,fn)
             if isempty(obj.Data)

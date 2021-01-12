@@ -37,6 +37,7 @@ classdef subsystemDAQ < subsystemGeneric
         TriggerAmplitude
         MaxStimulusAmplitude
         nTrigger
+        tTrigger
     end
 
     properties (Dependent = true, GetAccess = private)
@@ -109,16 +110,21 @@ classdef subsystemDAQ < subsystemGeneric
         end
         
         function out = get.nTrigger(obj)
-            out = nnz(diff([0; obj.OutputData.Trigger.Data])>0);
+            out = numel(obj.tTrigger);
         end
 
+        function out = get.tTrigger(obj)
+             out = obj.OutputData.Trigger.Time(...
+                diff([0; obj.OutputData.Trigger.Data])>0)';
+        end
+        
         varargout = setup(obj)
     end
 
-    methods (Access = {?intrinsic})
+    methods (Access = {?intrinsic,?subsystemData})
         queueData(obj)
         
-        function run(obj)
+        function start(obj)
             pause(1)
             intrinsic.message('Starting DAQ session')
             [data,~,~] = obj.Session.startForeground;
@@ -128,6 +134,14 @@ classdef subsystemDAQ < subsystemGeneric
             obj.InputData = ...
                 timeseries(data,obj.OutputData.Stimulus.Time, ...
                 'Name','Camera Sync');
+        end
+        
+        function stop(obj)
+            if ~obj.Session.IsRunning()
+                return
+            end
+            intrinsic.message('Stopping DAQ session')
+            obj.Session.stop()
         end
     end
     

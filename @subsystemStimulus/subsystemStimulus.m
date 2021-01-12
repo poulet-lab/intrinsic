@@ -30,7 +30,7 @@ classdef subsystemStimulus < subsystemGeneric
             p.Duration      = obj.loadVar('Duration',2);
             p.PreStimulus   = obj.loadVar('PreStimulus',5);
             p.PostStimulus  = obj.loadVar('PostStimulus',10);
-            p.InterStimulus = obj.loadVar('InterStimulus',20);
+            p.InterTrial    = obj.loadVar('InterTrial',20);
             obj.Parameters  = p;
         end
         

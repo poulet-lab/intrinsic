@@ -71,9 +71,13 @@ for ii = 2:numel(menuStack)
         pause(0.05)
         javax.swing.MenuSelectionManager.defaultManager.clearSelectedPath;
     end
-    tmp       = jMenuItem.getMenuComponents;
-    tmp       = tmp(arrayfun(@(x) contains(class(x),'JMenu'),tmp));
-    jMenuItem = tmp(positions(ii));
+    try
+        tmp       = jMenuItem.getMenuComponents;
+        tmp       = tmp(arrayfun(@(x) contains(class(x),'JMenu'),tmp));
+        jMenuItem = tmp(positions(ii));
+    catch
+        keyboard
+    end
 end
 
 % add icon to jMenuItem

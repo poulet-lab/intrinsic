@@ -2,22 +2,44 @@ classdef subsystemData < subsystemGeneric
     
     properties (Constant = true, Access = protected)
         MatPrefix = 'data_'
+        DataType = 'double'
+    end
+
+    properties (GetAccess = private, SetAccess = immutable)
+        DirTemp
     end
     
-    properties (SetAccess = private)
+    properties (SetAccess = private, SetObservable, AbortSet)
         n = 0;
         Mean
         Var
+        Baseline
+        Control
+        Stimulus
+        Running = false;
+    end
+
+    properties (Dependent)
+        idxBaseline
+        idxControl
+        idxStimulus
     end
     
     properties %(Access = private)
-        DataType = 'double';
-        TimestampsCamera;
+        TimestampsCamera
     end
     
     methods
         function obj = subsystemData(varargin)
             obj = obj@subsystemGeneric(varargin{:});
+            
+            % Set directory for temporary data
+            obj.DirTemp = fullfile(obj.Parent.DirBase,'tempdata');
+            if ~exist(obj.DirTemp,'dir')
+                mkdir(obj.DirTemp)
+            end
+            
+            %addlistener(obj,'Mean','PostSet',@obj.cbUpdatedMean);
         end
     end
     
@@ -76,43 +98,20 @@ classdef subsystemData < subsystemGeneric
             
             obj.Data = [];
         end
+        
+        function cbUpdatedMean(obj,~,~)
+%             tic
+%             base = mean(obj.Mean(:,:,1,obj.Parent.DAQ.tTrigger<0),4);
+%             %stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
+%             toc
+        end
+        
+        getDataFromCamera(obj)
+        checkDirTemp(obj)
     end
     
-    methods (Access = {?subsystemCamera})
-        function addCameraData(obj,data,metadata)
-            if obj.n
-                validateattributes(data,{'numeric'},{'size',size(obj.Mean)})
-            end
-            
-            % increment n
-            obj.n = obj.n + 1;
-            
-            % TODO: save raw data to TIFF
-            obj.save2tiff( ...
-                data, ...                       % raw data from camera
-                metadata(1).AbsTime, ...        % timestamp of first frame
-                obj.Parent.Camera.Adaptor, ...  % name of imaging adaptor
-                obj.Parent.Camera.DeviceName)   % name of imaging device)
-            
-            % Save timestamps
-            obj.TimestampsCamera = [obj.TimestampsCamera ...
-                datenum(vertcat(metadata.AbsTime))];
-            
-            % Calculate running mean and average
-            obj.Parent.message('Processing data (trial %d)\n',obj.n)
-            data = cast(data,obj.DataType);
-            if obj.n == 1
-                % Initialize Mean and Var
-                obj.Mean = data;
-                obj.Var  = zeros(size(data),obj.DataType);
-            else
-                % Update Mean and Var using Welford's online algorithm
-                norm     = obj.n - 1;
-                mean0    = obj.Mean;
-                obj.Mean = mean0 + (data - mean0) / obj.n;
-                obj.Var  = (obj.Var .* (norm-1) + (data-mean0) .* ...
-                    (data-obj.Mean)) / norm;
-            end
-        end
+    methods (Access = {?intrinsic})
+       start(obj,~,~)
+       stop(obj,~,~)
     end
 end

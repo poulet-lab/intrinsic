@@ -1,13 +1,9 @@
 classdef (Sealed) intrinsic < handle
 
-    properties (GetAccess = private, Constant)
+    properties (GetAccess = {?subsystemData}, Constant)
         DirBase	= fileparts(fileparts(mfilename('fullpath')));
     end
-    
-    properties (GetAccess = private, SetAccess = immutable)
-        DirTemp
-    end
-    
+
     properties %(Access = private)
         Flags
 
@@ -66,7 +62,7 @@ classdef (Sealed) intrinsic < handle
         WinResponse = [0 0]
     end
 
-    properties (SetAccess = immutable, GetAccess = private)
+    properties (SetAccess = immutable, GetAccess = {?subsystemData})
         Settings
     end
 
@@ -126,13 +122,6 @@ classdef (Sealed) intrinsic < handle
             % Add submodules to path
             addpath(genpath(fullfile(obj.DirBase,'submodules')))
 
-            % Set directory for temporary data, check if empty
-            obj.DirTemp = fullfile(obj.DirBase,'tempdata');
-            if ~exist(obj.DirTemp,'dir')
-                mkdir(obj.DirTemp)
-            end
-            obj.checkTempData()
-            
             % Settings are loaded from / saved to disk
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
                 'Writable', true);
@@ -197,7 +186,6 @@ classdef (Sealed) intrinsic < handle
 
         greenCapture(obj,~,~)           % Capture reference ("GREEN IMAGE")
         greenContrast(obj,~,~)          % Modify contrast of "GREEN IMAGE"
-        redStart(obj,~,~)
         updateEnabled(obj)
         varargout = generateStimulus(obj,varargin)
         
@@ -255,23 +243,6 @@ classdef (Sealed) intrinsic < handle
             [~,idxNew] = arrayfun(@(x) min(abs(tcam-x)),new);
             new = tcam(idxNew);
         end
-        
-        function checkTempData(obj)
-            if numel(dir(obj.DirTemp)) > 2
-                obj.notify('Ready');
-                str = sprintf(['The directory for temporary data is ' ...
-                    'not empty. This could be due to a crash in a ' ...
-                    'previous session. Please double-check and clear ' ...
-                    'the directory''s contents manually.\n\n%s'], ...
-                    obj.DirTemp);
-                tmp = errordlg(str,'Error');
-                uiwait(tmp)
-                if ispc
-                    winopen(obj.DirTemp);
-                end
-                error(str) %#ok<SPERR>
-            end
-        end
     end
 
     methods
@@ -290,152 +261,145 @@ classdef (Sealed) intrinsic < handle
 
         %% all things related to the RED image stack
 
-        function redClick(obj,h,~)
-            hfig    = h.Parent.Parent.Parent;
-            coord   = round(h.Parent.CurrentPoint(1,1:2));
-           	switch get(hfig,'SelectionType')
+%         function redClick(obj,h,~)
+%             hfig    = h.Parent.Parent.Parent;
+%             coord   = round(h.Parent.CurrentPoint(1,1:2));
+%            	switch get(hfig,'SelectionType')
+% 
+%                 % define point of interest
+%                 case 'normal'
+%                     obj.Point = coord;
+% 
+%                 % define spatial cross/section
+%                 case 'alt'
+%                     obj.Line  = coord;
+% 
+%                 % optimize contrast to region of interest
+%                 case 'extend'
+%                     % get coordinates of ROI
+%                     c(1,:) = round(obj.h.axes.red.CurrentPoint(1,1:2));
+%                     rbbox; pause(.1)
+%                     c(2,:) = round(obj.h.axes.red.CurrentPoint(1,1:2));
+% 
+%                     % sanitize & sort coordinates
+%                     c(c<1) = 1;
+%                     c(1,:) = min([c(1,:); obj.ROISize]);
+%                     c(2,:) = min([c(2,:); obj.ROISize]);
+%                     c      = [sort(c(:,1)) sort(c(:,2))];
+% 
+%                     % select image data depending on view mode
+%                     if regexpi(obj.redMode,'dF/F')
+%                         im  = obj.ImageRedDFF;
+%                     else
+%                         im  = obj.ImageRedDiff;
+%                     end
+% 
+%                     % find intensity maximum within ROI
+%                     tmp = im(c(1,2):c(2,2),c(1,1):c(2,1));
+%                     tmp = max(abs(tmp(:)));
+% 
+%                     % update figure
+%                     obj.h.axes.red.UserData = ...
+%                         sum(abs(im(:))<=tmp) / length(im(:));
+%                     redView(obj,obj.h.popup.redView)
+%                     figure(obj.h.fig.red)
+%                 otherwise
+%                     return
+%             end
+%         end
 
-                % define point of interest
-                case 'normal'
-                    obj.Point = coord;
-
-                % define spatial cross/section
-                case 'alt'
-                    obj.Line  = coord;
-
-                % optimize contrast to region of interest
-                case 'extend'
-                    % get coordinates of ROI
-                    c(1,:) = round(obj.h.axes.red.CurrentPoint(1,1:2));
-                    rbbox; pause(.1)
-                    c(2,:) = round(obj.h.axes.red.CurrentPoint(1,1:2));
-
-                    % sanitize & sort coordinates
-                    c(c<1) = 1;
-                    c(1,:) = min([c(1,:); obj.ROISize]);
-                    c(2,:) = min([c(2,:); obj.ROISize]);
-                    c      = [sort(c(:,1)) sort(c(:,2))];
-
-                    % select image data depending on view mode
-                    if regexpi(obj.redMode,'dF/F')
-                        im  = obj.ImageRedDFF;
-                    else
-                        im  = obj.ImageRedDiff;
-                    end
-
-                    % find intensity maximum within ROI
-                    tmp = im(c(1,2):c(2,2),c(1,1):c(2,1));
-                    tmp = max(abs(tmp(:)));
-
-                    % update figure
-                    obj.h.axes.red.UserData = ...
-                        sum(abs(im(:))<=tmp) / length(im(:));
-                    redView(obj,obj.h.popup.redView)
-                    figure(obj.h.fig.red)
-                otherwise
-                    return
-            end
-        end
-
-        function redView(obj,~,~)
-            modus = obj.redMode;                % get current image mode
-            ptile = obj.h.axes.red.UserData;    % scaling percentile
-            bit   = 8;                          % bit depth of the image
-
-            if regexpi(modus,'(diff)|(dF/F)')
-                obj.h.edit.redSigmaSpatial.Enable  = 'on';
-                obj.h.edit.redSigmaTemporal.Enable = 'on';
-                obj.h.edit.redRange.Enable         = 'on';
-                cmap = flipud(brewermap(2^bit,'PuOr'));
-
-                if regexpi(modus,'dF/F')
-                    im = obj.ImageRedDFF;
-                else
-                    im = obj.ImageRedDiff;
-                end
-                tmp  = sort(abs(im(:)));
-                scal = tmp(ceil(length(tmp) * ptile));
-                im   = floor(im ./ scal .* 2^(bit-1) + 2^(bit-1));
-                im(im>2^bit) = 2^bit;
-                im(im<1)     = 1;
-            else
-                obj.h.edit.redSigmaSpatial.Enable  = 'off';
-                obj.h.edit.redSigmaTemporal.Enable = 'off';
-                obj.h.edit.redRange.Enable         = 'off';
-                cmap = gray(2^bit);
-            end
-
-            if regexpi(modus,'neg')         % negative deflections
-                im(im>2^(bit-1)) = 2^(bit-1);
-            elseif regexpi(modus,'pos')     % positive deflections
-                im(im<2^(bit-1)) = 2^(bit-1);
-            elseif regexpi(modus,'(base)|(stim)')    % baseline
-
-                if regexpi(modus,'log')
-                    base = log(obj.ImageRedBase);
-                    stim = log(obj.ImageRedStim);
-                    tmp  = [base(:); stim(:)];
-                    tmp1 = min(tmp);
-                    tmp2 = max(tmp-tmp1);
-                    base = floor((base-tmp1)./tmp2*(2^bit-1))+1;
-                    stim = floor((stim-tmp1)./tmp2*(2^bit-1))+1;
-                else
-                    base  = obj.ImageRedBase;
-                    stim  = obj.ImageRedStim;
-                    tmp	  = [base(:); stim(:)];
-
-                    quant = [.01 .99];
-                    tmp   = sort(tmp(:));
-                    tmp   = tmp(round(length(tmp)*quant));
-
-                    base(base<tmp(1)) = tmp(1);
-                    base(base>tmp(2)) = tmp(2);
-                    stim(stim<tmp(1)) = tmp(1);
-                    stim(stim>tmp(2)) = tmp(2);
-
-                    base = round((base-tmp(1)) ./ diff(tmp) * (2^bit-1) + 1);
-                    stim = round((stim-tmp(1)) ./ diff(tmp) * (2^bit-1) + 1);
-                end
-
-                if regexpi(modus,'base')
-                    im = base;
-                elseif regexpi(modus,'stim')
-                    im = stim;
-                end
-            end
-
-            obj.processSubStack
-            obj.h.image.red.CData = ind2rgb(im,cmap);
-            obj.update_plots;
-        end
-
-        function redStop(obj,~,~)
-            obj.Flags.Running = false;
-            stop(obj.VideoInputRed)
-            obj.DAQsession.stop
-            obj.led(false)
-        end
-
-        function out = get.nTrials(obj)
-            out = length(obj.Stack);
-        end
-
-        % Return data directory
-        function out = get.DirSave(obj)
-
-            % Load from settings file
-            out = obj.loadVar('DirSave',[]);
-            if isfolder(out)
-                return
-            end
-
-            % Let user pick directory
-            out = uigetdir('/','Select Data Directory');
-            if isfolder(out)
-                obj.Settings.DirSave = out;
-            end
-
-        end
+%         function redView(obj,~,~)
+%             modus = obj.redMode;                % get current image mode
+%             ptile = obj.h.axes.red.UserData;    % scaling percentile
+%             bit   = 8;                          % bit depth of the image
+% 
+%             if regexpi(modus,'(diff)|(dF/F)')
+%                 obj.h.edit.redSigmaSpatial.Enable  = 'on';
+%                 obj.h.edit.redSigmaTemporal.Enable = 'on';
+%                 obj.h.edit.redRange.Enable         = 'on';
+%                 cmap = flipud(brewermap(2^bit,'PuOr'));
+% 
+%                 if regexpi(modus,'dF/F')
+%                     im = obj.ImageRedDFF;
+%                 else
+%                     im = obj.ImageRedDiff;
+%                 end
+%                 tmp  = sort(abs(im(:)));
+%                 scal = tmp(ceil(length(tmp) * ptile));
+%                 im   = floor(im ./ scal .* 2^(bit-1) + 2^(bit-1));
+%                 im(im>2^bit) = 2^bit;
+%                 im(im<1)     = 1;
+%             else
+%                 obj.h.edit.redSigmaSpatial.Enable  = 'off';
+%                 obj.h.edit.redSigmaTemporal.Enable = 'off';
+%                 obj.h.edit.redRange.Enable         = 'off';
+%                 cmap = gray(2^bit);
+%             end
+% 
+%             if regexpi(modus,'neg')         % negative deflections
+%                 im(im>2^(bit-1)) = 2^(bit-1);
+%             elseif regexpi(modus,'pos')     % positive deflections
+%                 im(im<2^(bit-1)) = 2^(bit-1);
+%             elseif regexpi(modus,'(base)|(stim)')    % baseline
+% 
+%                 if regexpi(modus,'log')
+%                     base = log(obj.ImageRedBase);
+%                     stim = log(obj.ImageRedStim);
+%                     tmp  = [base(:); stim(:)];
+%                     tmp1 = min(tmp);
+%                     tmp2 = max(tmp-tmp1);
+%                     base = floor((base-tmp1)./tmp2*(2^bit-1))+1;
+%                     stim = floor((stim-tmp1)./tmp2*(2^bit-1))+1;
+%                 else
+%                     base  = obj.ImageRedBase;
+%                     stim  = obj.ImageRedStim;
+%                     tmp	  = [base(:); stim(:)];
+% 
+%                     quant = [.01 .99];
+%                     tmp   = sort(tmp(:));
+%                     tmp   = tmp(round(length(tmp)*quant));
+% 
+%                     base(base<tmp(1)) = tmp(1);
+%                     base(base>tmp(2)) = tmp(2);
+%                     stim(stim<tmp(1)) = tmp(1);
+%                     stim(stim>tmp(2)) = tmp(2);
+% 
+%                     base = round((base-tmp(1)) ./ diff(tmp) * (2^bit-1) + 1);
+%                     stim = round((stim-tmp(1)) ./ diff(tmp) * (2^bit-1) + 1);
+%                 end
+% 
+%                 if regexpi(modus,'base')
+%                     im = base;
+%                 elseif regexpi(modus,'stim')
+%                     im = stim;
+%                 end
+%             end
+% 
+%             obj.processSubStack
+%             obj.h.image.red.CData = ind2rgb(im,cmap);
+%             obj.update_plots;
+%         end
+% 
+%         function out = get.nTrials(obj)
+%             out = length(obj.Stack);
+%         end
+% 
+%         % Return data directory
+%         function out = get.DirSave(obj)
+% 
+%             % Load from settings file
+%             out = obj.loadVar('DirSave',[]);
+%             if isfolder(out)
+%                 return
+%             end
+% 
+%             % Let user pick directory
+%             out = uigetdir('/','Select Data Directory');
+%             if isfolder(out)
+%                 obj.Settings.DirSave = out;
+%             end
+% 
+%         end
 
         % Update checkmarks in the VIEW menu
         function updateMenuView(obj,h,~)
@@ -559,64 +523,64 @@ classdef (Sealed) intrinsic < handle
             obj.h.axes.stimulus.YTick = range;
         end
 
-        % Generate Test Data
-        function test_data(obj,~,~)
-
-            %obj.clearData
-
-            imSize      = obj.Camera.ROI;
-            val_mean    = power(2,obj.Camera.BitDepth-1);
-            n_frames    = obj.DAQ.nTrigger;
-            n_trials    = 2;
-            amp_noise   = 50;
-
-            sigma   = 150;
-            s       = sigma / imSize(1);
-            X0      = ((1:imSize(2))/ imSize(1))-.5;
-            Y0      = ((1:imSize(1))/ imSize(1))-.5;
-            [Xm,Ym] = meshgrid(X0, Y0);
-            gauss   = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
-
-            sigma   = 300;
-            s       = sigma / imSize(1)*2;
-            X0      = ((1:imSize(1)*2)/ imSize(1)*2)-.5;
-            Y0      = ((1:imSize(2)*2)/ imSize(2)*2)-.5;
-            [Xm,Ym] = meshgrid(X0, Y0);
-            gauss2  = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
-            gauss2  = gauss2(1:imSize(1),(1:imSize(2))+round(imSize(2)/5))./4;
-
-            %data_nostim = uint16(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
-            tmp = ceil(gcd(imSize(1),imSize(2))/2);
-            tmp = checkerboard(tmp,1,1)>0.5;
-            tmp = int32(tmp * 20);
-
-            noise_stim  = int32(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
-            noise_stim  = noise_stim + repmat(tmp,1,1,n_frames,n_trials);
-
-            data_stim = repmat((gauss-gauss2)./3,1,1,n_frames);
-            lambda    = 3;
-            mu        = 3;
-            tmp       = obj.DAQ.OutputData.Trigger.Time([1; find(diff(obj.DAQ.OutputData.Trigger.Data)>0)+1])';
-            %tmp       = obj.DAQ.OutputData.Trigger.Time(obj.DAQ.OutputData.Trigger.Data>0)';
-            x         = tmp(tmp>0);
-            amp_stim  = (lambda./(2*pi*x.^3)).^.5 .* exp((-lambda*(x-mu).^2)./(2*mu^2*x));
-            amp_stim  = -[zeros(size(tmp(tmp<=0))) amp_stim] * 50;
-            for ii = 1:size(data_stim,3)
-                data_stim(:,:,ii) = data_stim(:,:,ii) * amp_stim(ii);
-            end
-            data_stim = int32(data_stim * 3);
-
-            data_stim = repmat(data_stim,1,1,1,n_trials);
-            data_stim = uint16(data_stim + noise_stim);
-            clear noise_stim
-
-            for ii = 1:size(data_stim,4)
-                obj.Stack{ii} = data_stim(:,:,:,ii);
-            end
-
-            obj.processStack
-            obj.TimeStamp = now;
-        end
+%         % Generate Test Data
+%         function test_data(obj,~,~)
+% 
+%             %obj.clearData
+% 
+%             imSize      = obj.Camera.ROI;
+%             val_mean    = power(2,obj.Camera.BitDepth-1);
+%             n_frames    = obj.DAQ.nTrigger;
+%             n_trials    = 2;
+%             amp_noise   = 50;
+% 
+%             sigma   = 150;
+%             s       = sigma / imSize(1);
+%             X0      = ((1:imSize(2))/ imSize(1))-.5;
+%             Y0      = ((1:imSize(1))/ imSize(1))-.5;
+%             [Xm,Ym] = meshgrid(X0, Y0);
+%             gauss   = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
+% 
+%             sigma   = 300;
+%             s       = sigma / imSize(1)*2;
+%             X0      = ((1:imSize(1)*2)/ imSize(1)*2)-.5;
+%             Y0      = ((1:imSize(2)*2)/ imSize(2)*2)-.5;
+%             [Xm,Ym] = meshgrid(X0, Y0);
+%             gauss2  = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
+%             gauss2  = gauss2(1:imSize(1),(1:imSize(2))+round(imSize(2)/5))./4;
+% 
+%             %data_nostim = uint16(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
+%             tmp = ceil(gcd(imSize(1),imSize(2))/2);
+%             tmp = checkerboard(tmp,1,1)>0.5;
+%             tmp = int32(tmp * 20);
+% 
+%             noise_stim  = int32(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
+%             noise_stim  = noise_stim + repmat(tmp,1,1,n_frames,n_trials);
+% 
+%             data_stim = repmat((gauss-gauss2)./3,1,1,n_frames);
+%             lambda    = 3;
+%             mu        = 3;
+%             tmp       = obj.DAQ.OutputData.Trigger.Time([1; find(diff(obj.DAQ.OutputData.Trigger.Data)>0)+1])';
+%             %tmp       = obj.DAQ.OutputData.Trigger.Time(obj.DAQ.OutputData.Trigger.Data>0)';
+%             x         = tmp(tmp>0);
+%             amp_stim  = (lambda./(2*pi*x.^3)).^.5 .* exp((-lambda*(x-mu).^2)./(2*mu^2*x));
+%             amp_stim  = -[zeros(size(tmp(tmp<=0))) amp_stim] * 50;
+%             for ii = 1:size(data_stim,3)
+%                 data_stim(:,:,ii) = data_stim(:,:,ii) * amp_stim(ii);
+%             end
+%             data_stim = int32(data_stim * 3);
+% 
+%             data_stim = repmat(data_stim,1,1,1,n_trials);
+%             data_stim = uint16(data_stim + noise_stim);
+%             clear noise_stim
+% 
+%             for ii = 1:size(data_stim,4)
+%                 obj.Stack{ii} = data_stim(:,:,:,ii);
+%             end
+% 
+%             obj.processStack
+%             obj.TimeStamp = now;
+%         end
 
         % Process image stack (averaging, spatial filtering)
         function processStack(obj)
@@ -625,42 +589,42 @@ classdef (Sealed) intrinsic < handle
 %                 obj.GUIred
 %             end
 
-            % reduce size of stack to recorded data
-            if size(obj.Stack,2) > 1
-                %%
-                tic
-                stack = mean(cat(4,obj.Stack{:}),4);
-                tmp = var(double(cat(4,obj.Stack{:})),0,4);
-                toc
-            else
-                stack = double(obj.Stack{1});
-            end
-
-            obj.Time = obj.DAQ.OutputData.Trigger.Time([1; find(diff(obj.DAQ.OutputData.Trigger.Data)>0)+1])';
-
-            
-            %%
-            myclass = 'double';
-            mymean = cast(obj.Stack{1},myclass);
-            myvar  = zeros(size(mymean),myclass);
-            
-            tic
-            data   = cast(obj.Stack{2},myclass);
-            
-            w = 0;
-            n = 2;
-            mean1  = mymean + (data - mymean) / n;
-            norm   = n - ~w;
-            myvar  = (var0 .* (norm - 1) + (data - mymean) .* (data - mean1)) / norm;
-            mymean = mean1;
-            clear mean1
-            
-            toc
-            %%
-            
-            
-            
-            
+%             % reduce size of stack to recorded data
+%             if size(obj.Stack,2) > 1
+%                 %%
+%                 tic
+%                 stack = mean(cat(4,obj.Stack{:}),4);
+%                 tmp = var(double(cat(4,obj.Stack{:})),0,4);
+%                 toc
+%             else
+%                 stack = double(obj.Stack{1});
+%             end
+% 
+%             obj.Time = obj.DAQ.OutputData.Trigger.Time([1; find(diff(obj.DAQ.OutputData.Trigger.Data)>0)+1])';
+% 
+%             
+%             %%
+%             myclass = 'double';
+%             mymean = cast(obj.Stack{1},myclass);
+%             myvar  = zeros(size(mymean),myclass);
+%             
+%             tic
+%             data   = cast(obj.Stack{2},myclass);
+%             
+%             w = 0;
+%             n = 2;
+%             mean1  = mymean + (data - mymean) / n;
+%             norm   = n - ~w;
+%             myvar  = (var0 .* (norm - 1) + (data - mymean) .* (data - mean1)) / norm;
+%             mymean = mean1;
+%             clear mean1
+%             
+%             toc
+%             %%
+%             
+%             
+%             
+%             
             % obtain baseline & stimulus
             base = mean(stack(:,:,obj.Time<0),3);
             stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
@@ -669,8 +633,8 @@ classdef (Sealed) intrinsic < handle
             obj.SequenceRaw  = stack - base;
             obj.ImageRedBase = base;
             obj.ImageRedStim = stim;
-
-            % apply temporal/spatial smoothing
+% 
+%             % apply temporal/spatial smoothing
 %             obj.update_redImage
 %             obj.processSubStack
 %             obj.update_stimDisp
@@ -746,28 +710,6 @@ classdef (Sealed) intrinsic < handle
             obj.ResponseTemporal.y = squeeze(subVol(c3,c4,:));
         end
 
-        % Load icon for toolbar
-        function img = icon(obj,filename)
-            validateattributes(filename,{'char'},{'vector'})
-
-            % read image, convert to double
-            iconpath = fullfile(obj.DirBase,'icons');
-            [img,~,alpha] = imread(fullfile(iconpath,filename));
-            img     = double(img) / 255;
-            alpha   = repmat(double(alpha) / 255,[1 1 3]);
-
-            % create background, multiply with alpha
-            bg      = repmat(240/255,size(img));
-            img     = immultiply(img,alpha);
-            bg      = immultiply(bg,1-alpha);
-
-            % merge background and image
-            img     = imadd(img,bg);
-
-            % remove completely transparent areas
-            img(~alpha) = NaN;
-        end
-
         %% Dependent Properties (GET)
         function out = get.Line(obj)
             if ~any(obj.LineCoords)
@@ -789,65 +731,65 @@ classdef (Sealed) intrinsic < handle
         end
 
         function fileOpen(obj,~,~)
-
-            % Let the user pick a directory to load data from
-            dn_data = uigetdir(obj.DirSave,'Select folder');
-            fn_data = fullfile(dn_data,'data.mat');
-            if isempty(dn_data)
-                return
-            elseif ~exist(fn_data,'file') || isempty(dir(fullfile(dn_data,'stack*.tiff')))
-                errordlg('This doesn''t seem to be a valid data directory!',...
-                    'Hold on!','modal')
-                return
-            else
-                obj.clearData
-                if isfield(obj.h.fig,'green')
-                    delete(obj.h.fig.green)
-                    obj.h.fig = rmfield(obj.h.fig,'green');
-                end
-                obj.DirLoad = dn_data;
-            end
-
-            % Load the image stack
-            for ii = 1:100
-                % define name of TIFF and check if it exists
-                fn = sprintf('stack%03d.tiff',ii);
-                if ~exist(fullfile(obj.DirLoad,fn),'file')
-                    break
-                end
-
-                % load TIFF to stack
-                obj.status(sprintf('Loading "%s" ... ',fn))
-                fprintf('Loading "%s" ... ',fn)
-                obj.Stack{ii} = loadtiff(fullfile(obj.DirLoad,fn));
-            end
-            obj.status
-
-            % Load green image
-            fn = fullfile(obj.DirLoad,'green.png');
-            if exist(fn,'file')
-                obj.GUIgreen
-                obj.ImageGreen          = imread(fn);
-            else
-                warning('Could not find green image')
-            end
-
-            % Load all remaining vars
-            tmp = load(fn_data);
-            for field = fieldnames(tmp)'
-                if ~isempty(tmp.(field{:}))
-                    obj.(field{:}) = tmp.(field{:});
-                end
-            end
-            obj.DirLoad = dn_data;
-            figure(obj.h.fig.green)
-            obj.greenContrast
-
-            % Process stack
-            obj.status('Processing ...')
-            obj.processStack
-            obj.updateEnabled
-            obj.status
+% 
+%             % Let the user pick a directory to load data from
+%             dn_data = uigetdir(obj.DirSave,'Select folder');
+%             fn_data = fullfile(dn_data,'data.mat');
+%             if isempty(dn_data)
+%                 return
+%             elseif ~exist(fn_data,'file') || isempty(dir(fullfile(dn_data,'stack*.tiff')))
+%                 errordlg('This doesn''t seem to be a valid data directory!',...
+%                     'Hold on!','modal')
+%                 return
+%             else
+%                 obj.clearData
+%                 if isfield(obj.h.fig,'green')
+%                     delete(obj.h.fig.green)
+%                     obj.h.fig = rmfield(obj.h.fig,'green');
+%                 end
+%                 obj.DirLoad = dn_data;
+%             end
+% 
+%             % Load the image stack
+%             for ii = 1:100
+%                 % define name of TIFF and check if it exists
+%                 fn = sprintf('stack%03d.tiff',ii);
+%                 if ~exist(fullfile(obj.DirLoad,fn),'file')
+%                     break
+%                 end
+% 
+%                 % load TIFF to stack
+%                 obj.status(sprintf('Loading "%s" ... ',fn))
+%                 fprintf('Loading "%s" ... ',fn)
+%                 obj.Stack{ii} = loadtiff(fullfile(obj.DirLoad,fn));
+%             end
+%             obj.status
+% 
+%             % Load green image
+%             fn = fullfile(obj.DirLoad,'green.png');
+%             if exist(fn,'file')
+%                 obj.GUIgreen
+%                 obj.ImageGreen          = imread(fn);
+%             else
+%                 warning('Could not find green image')
+%             end
+% 
+%             % Load all remaining vars
+%             tmp = load(fn_data);
+%             for field = fieldnames(tmp)'
+%                 if ~isempty(tmp.(field{:}))
+%                     obj.(field{:}) = tmp.(field{:});
+%                 end
+%             end
+%             obj.DirLoad = dn_data;
+%             figure(obj.h.fig.green)
+%             obj.greenContrast
+% 
+%             % Process stack
+%             obj.status('Processing ...')
+%             obj.processStack
+%             obj.updateEnabled
+%             obj.status
         end
 
         function clearData(obj,~,~)
@@ -965,18 +907,7 @@ classdef (Sealed) intrinsic < handle
         end
     end
 
-    methods (Access = 'protected')
-        function out = getPropertyGroups(obj)
-            out = matlab.mixin.util.PropertyGroup(struct);
-        end
-        function out = getHeader(obj)
-            out = sprintf('  %s\n',matlab.mixin.CustomDisplay.getClassNameForHeader(obj));
-        end
-    end
-
-    % Methods for accessing obj.Settings
     methods (Access = {?subsystemGeneric})
-
         function out = loadVar(obj,variableName,defaultValue)
             % Load variable from file, return defaults if not found
             out = defaultValue;
@@ -988,7 +919,7 @@ classdef (Sealed) intrinsic < handle
                 end
             end
         end
-
+        
         function saveVar(obj,variableName,data)
             % Save variable to file
             obj.Settings.(variableName) = data;
