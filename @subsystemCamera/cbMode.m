@@ -60,5 +60,4 @@ ctrl.btnOk.Enable =  tmp{isempty(mode)+1};
 % run dependent callbacks
 obj.cbROI()
 obj.cbFPS()
-obj.cbOVS()
 obj.bitrate()

@@ -7,7 +7,6 @@ classdef subsystemCamera < subsystemGeneric
         Mode         = '';                          % Selected video mode
         Input        = struct('Green',[],'Red',[]); % Video input objects
         FrameRate    = NaN                          % Frame rate
-        Downsample   = 1                            % Averaging of N consecutive frames
     end
 
     properties (Dependent = true)

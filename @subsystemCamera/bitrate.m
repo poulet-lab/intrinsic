@@ -14,7 +14,6 @@ end
 
 roi = getappdata(obj.Figure,'roi');
 fps = getappdata(obj.Figure,'rate');
-ovs = getappdata(obj.Figure,'downsample');
 
 ctrl.bitRate.String = sprintf('%0.1f',...
-    (bitdepth * prod(roi) * fps) / (ovs * 1E6));
+    (bitdepth * prod(roi) * fps) / 1E6);

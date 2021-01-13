@@ -38,7 +38,6 @@ ROI            = obj.loadVar('ROI',[NaN NaN]);
 ROI            = [floor((resolution-ROI)/2) ROI];
 obj.DeviceName = obj.loadVar('deviceName','');
 obj.FrameRate  = obj.loadVar('framerate',NaN);
-obj.Downsample = obj.loadVar('downsample',1);
 
 % create videoinput objects
 if ~isequal({adaptor,deviceID,mode,ROI(3:4)},{obj.Adaptor,obj.DeviceID, ...

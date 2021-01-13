@@ -18,14 +18,14 @@ if strcmpi(adaptor,'none')
         'Value',    1, ...
         'String',   {''}, ...
         'Enable',   'off');
-    set([ctrl.binning ctrl.ROI ctrl.FPS ctrl.oversmpl ctrl.bitRate],...
+    set([ctrl.binning ctrl.ROI ctrl.FPS ctrl.bitRate],...
         'String',   '', ...
         'Enable',   'off');
     ctrl.device.UserData = '';
     ctrl.btnOk.Enable = 'on';
     return
 else
-    set([ctrl.FPS ctrl.oversmpl],'Enable','On')
+    set(ctrl.FPS,'Enable','On')
 end
 
 % run imaqhwinfo (expensive), save results to appdata
