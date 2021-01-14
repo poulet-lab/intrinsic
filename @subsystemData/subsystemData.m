@@ -13,22 +13,22 @@ classdef subsystemData < subsystemGeneric
         n = 0;
         Mean
         Var
+        Trials
         Baseline
         Control
         Stimulus
         Running = false;
         Unsaved = false;
-        TIFFnames = {}
+    end
+    
+    properties (Access = private)
+        P
     end
 
-    properties (Dependent)
+    properties
         idxBaseline
         idxControl
         idxStimulus
-    end
-    
-    properties %(Access = private)
-        TimestampsCamera
     end
     
     methods
@@ -46,26 +46,18 @@ classdef subsystemData < subsystemGeneric
     end
     
     methods (Access = {?intrinsic})
-        function clearData(obj)
-            obj.Mean = [];
-            obj.Var = [];
-            obj.n = 0;
-            obj.TimestampsCamera = [];
-        end
-        
-        %function 
+        clearData(obj,force)
     end
     
     methods (Access = private)
-        function save2tiff(obj,data,timestamp,adaptor,deviceName)
+        function varargout = save2tiff(obj,data,timestamp)
             
             % Filename
             fn = sprintf('%03d_%s.tif',obj.n,...
                 datestr(timestamp,'yymmdd_HHMMSS'));
             obj.Parent.message('Saving image data to disk: %s',fn)
-            obj.TIFFnames = [obj.TIFFnames fn];
             
-            tiff = Tiff(fullfile(obj.DirTemp,fn),'w');
+            % TIFF options
             options = struct( ...
                 'ImageWidth',          size(data,2), ...
                 'ImageLength',         size(data,1), ...
@@ -78,8 +70,8 @@ classdef subsystemData < subsystemGeneric
                 'YResolution',         round(obj.Parent.Scale.PxPerCm), ...
                 'ResolutionUnit',      Tiff.ResolutionUnit.Centimeter, ...
                 'Software',            sprintf('Intrinsic Imaging %s',intrinsic.version'), ...
-                'Make',                adaptor, ...
-                'Model',               deviceName, ...
+                'Make',                obj.P.Camera.Adaptor, ...
+                'Model',               obj.P.Camera.DeviceName, ...
                 'DateTime',            datestr(timestamp,'yyyy:mm:dd HH:MM:SS'), ...
                 'ImageDescription',    sprintf([...
                     'ImageJ=\n' ...
@@ -90,9 +82,13 @@ classdef subsystemData < subsystemGeneric
                     'unit=cm\n' ...
                     'finterval=%0.5f\n' ...
                     'fps=%0.5f\n'], ...
-                size(data,4),size(data,4),1/5,5), ...% FRAMERATE!!
+                size(data,4),size(data,4),1/obj.P.Camera.FrameRate, ...
+                obj.P.Camera.FrameRate), ...
                 'SampleFormat',        Tiff.SampleFormat.UInt, ...
                 'RowsPerStrip',        512);
+            
+            % Save to TIFF
+            tiff = Tiff(fullfile(obj.DirTemp,fn),'w');
             for frame = 1:size(data,4)
                 tiff.setTag(options);
                 tiff.write(data(:, :, :, frame));
@@ -101,6 +97,11 @@ classdef subsystemData < subsystemGeneric
                 end
             end
             tiff.close()
+            
+            % Return filename (optionally)
+            if nargout > 0
+                varargout{1} = fn;
+            end
         end
         
         function cbUpdatedMean(obj,~,~)

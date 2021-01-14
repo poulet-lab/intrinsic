@@ -1,27 +1,29 @@
-function updateEnabled(obj)
+function updateEnabled(obj,~,~)
 
-IAQ = obj.Toolbox.ImageAcquisition.available;
-IP  = obj.Toolbox.ImageProcessing.available;
-DAQ = obj.Toolbox.DataAcquisition.available;
-VID = obj.Camera.Available;
-tmp = {'off', 'on'};
+% Helper function for converting bool values to 'on' / 'off'
+toggle = @(h,x) set(h,'Enable',subsref({'off','on'},substruct('{}',{x+1})));
 
-% UI elements depending on Image Acquisition Toolbox
-elem = obj.h.menu.settingsVideo;
-cond = IAQ;
-set(elem,'Enable',tmp{cond+1});
+% Toggle main figure's menu
+toggle(findobj(obj.h.fig.main,'Type','uimenu','Parent',obj.h.fig.main),...
+    ~obj.Data.Running)
 
-% UI elements depending on Image Acquisition Toolbox & valid video-input
-elem = [...
-    obj.h.push.capture, ...
-    obj.h.push.liveGreen, ...
-    obj.h.push.liveRed];
-cond = IAQ && VID;
-set(elem,'Enable',tmp{cond+1});
+% Toggle buttons for saving and printing the dataset
+toggle([obj.h.push.save obj.h.menu.fileSave obj.h.menu.filePrint],...
+    ~obj.Data.Running && obj.Data.Unsaved)
 
-% UI elements depending on all Toolboxes
-elem = [obj.h.push.start obj.h.push.stop];
-cond = IAQ && IP && DAQ && VID;
-set(elem,'Enable',tmp{cond+1});
+% Toggle buttons for creating and loading a dataset
+toggle([obj.h.push.new obj.h.push.open obj.h.menu.fileOpen ...
+    obj.h.menu.fileNew],~obj.Data.Running)
 
-end
+% Bool: all necessary subsystems available
+subsystems = obj.Camera.Available && obj.DAQ.Available;
+
+% Toggle toolbar buttons
+toggle([obj.h.push.liveGreen obj.h.push.capture obj.h.push.liveRed],...
+    ~obj.Data.Running && subsystems)
+
+% Toggle start button
+toggle(obj.h.push.start,~obj.Data.Running && ~obj.Data.Unsaved && subsystems)
+
+% Toggle stop button
+toggle(obj.h.push.stop,obj.Data.Running && subsystems)

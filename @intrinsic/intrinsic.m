@@ -9,18 +9,11 @@ classdef (Sealed) intrinsic < handle
 
         h               = [] 	% handles
 
-        DirSave
-        DirLoad         = [];
-        DirData
+%         DirSave
+%         DirLoad         = [];
+%         DirData
 
         VideoPreview
-
-        % The Q-Cam Needs a little time to deliver a high frame rate.
-        % Therefore, we deliver a couple of "Warmup Triggers" at a lower
-        % rate before switching to the actual trigger rate. These initial
-        % triggers will be skipped during the analysis
-        WarmupN         = 5     % Number of "Warmup Triggers" for Camera
-        WarmupRate      = 5     % Rate of "Warmup Triggers" (Hz)
 
         PointCoords     = nan(1,2)
         LineCoords      = nan(1,2)
@@ -41,13 +34,8 @@ classdef (Sealed) intrinsic < handle
         Toolbox
 
         % new objects
-        Camera
-        DAQ
-        Scale
-        Stimulus
         Green
         Red
-        Data
 
         StimIn
 
@@ -62,8 +50,24 @@ classdef (Sealed) intrinsic < handle
         WinResponse = [0 0]
     end
 
+    properties (SetAccess = immutable)
+        Camera
+        DAQ
+        Scale
+        Stimulus
+        Data
+    end
+    
     properties (SetAccess = immutable, GetAccess = {?subsystemData})
         Settings
+    end
+    
+    properties (SetAccess = immutable, GetAccess = private)
+        ListenerStimulus;
+        ListenerCamera;
+        ListenerDAQ;
+        ListenerDataRun;
+        ListenerDataUnsaved;
     end
 
     properties (Dependent = true)
@@ -134,9 +138,16 @@ classdef (Sealed) intrinsic < handle
             obj.Data     = subsystemData(obj);
 
             % Initialize listeners
-            addlistener(obj.Stimulus,'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);
-            addlistener(obj.Camera,'Update',@obj.cbUpdatedCameraSettings);
-            addlistener(obj.DAQ,'Update',@obj.cbUpdatedDAQSettings);
+            obj.ListenerStimulus = addlistener(obj.Stimulus,...
+                'Parameters','PostSet',@obj.cbUpdatedStimulusSettings);
+            obj.ListenerCamera =   addlistener(obj.Camera,...
+                'Update',@obj.cbUpdatedCameraSettings);
+            obj.ListenerDAQ =      addlistener(obj.DAQ,...
+                'Update',@obj.cbUpdatedDAQSettings);
+            obj.ListenerDataRun =  addlistener(obj.Data,...
+                'Running','PostSet',@obj.updateEnabled);
+            obj.ListenerDataUnsaved =  addlistener(obj.Data,...
+                'Unsaved','PostSet',@obj.updateEnabled);
 
             % LEGACY STUFF BELOW ------------------------------------------
 
@@ -158,7 +169,6 @@ classdef (Sealed) intrinsic < handle
             obj.GUImain             % Create main window
 
             figure(obj.h.fig.main)
-            obj.updateEnabled       % Update availability of UI elements
             if ~nargout
                 clearvars
             end
@@ -182,17 +192,19 @@ classdef (Sealed) intrinsic < handle
         settingsStimulus(obj,~,~)      	% Stimulus Settings
         settingsVideo(obj,~,~)
         settingsGeneral(obj,~,~)
+        fileNew(obj,~,~)
         fileSave(obj,~,~)
 
         greenCapture(obj,~,~)           % Capture reference ("GREEN IMAGE")
         greenContrast(obj,~,~)          % Modify contrast of "GREEN IMAGE"
-        updateEnabled(obj)
-        varargout = generateStimulus(obj,varargin)
+        
+        %varargout = generateStimulus(obj,varargin)
         
         cbUpdatedCameraSettings(obj,src,eventData)
         cbUpdatedDAQSettings(obj,src,eventData)
         cbUpdatedStimulusSettings(obj,src,eventData)
         cbUpdatedTemporalWindow(obj,src,eventData)
+        updateEnabled(obj,~,~)
         
         function new = forceWinResponse(obj,new)
             validateattributes(new,{'numeric'},...
@@ -473,6 +485,10 @@ classdef (Sealed) intrinsic < handle
 
         % Close the app
         function close(obj,~,~)
+            if obj.Data.Running
+                return
+            end
+            
             %obj.saveWindowPositions
             obj.VideoPreview.Preview = false;
             pause(.1)

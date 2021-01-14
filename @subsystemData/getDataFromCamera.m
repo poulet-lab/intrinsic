@@ -2,6 +2,9 @@ function getDataFromCamera(obj)
 
 obj.Unsaved = true;
 
+% increment n
+obj.n = obj.n + 1;
+
 % Get data and metadata from the camera
 nframes = obj.Parent.Camera.Input.Red.FramesAvailable;
 if ~nframes
@@ -10,25 +13,15 @@ end
 obj.Parent.message('Obtaining %d frames from camera',nframes)
 [data,~,metadata] = getdata(obj.Parent.Camera.Input.Red,nframes);
 
-% increment n
-obj.n = obj.n + 1;
+% Save raw data to TIFF
+fn = obj.save2tiff(data,datenum(metadata(1).AbsTime));
+obj.Trials(obj.n).Filename = fn;
 
 % Save timestamps
-obj.TimestampsCamera = [obj.TimestampsCamera ...
-    datenum(vertcat(metadata.AbsTime))];
+obj.Trials(obj.n).TimestampsCamera = datenum(vertcat(metadata.AbsTime));
 
-% TODO: save raw data to TIFF
-obj.save2tiff( ...
-    data, ...                       % raw data from camera
-    obj.TimestampsCamera(1,end), ...% timestamp of first frame
-    obj.Parent.Camera.Adaptor, ...  % name of imaging adaptor
-    obj.Parent.Camera.DeviceName)   % name of imaging device)
-
-% Cast to desired class
+% Cast data to desired class
 data = cast(data,obj.DataType);
-
-%             % Substract trial median before averaging
-%             data = data - median(data(:));
 
 % Calculate running mean and variance
 obj.Parent.message('Calculating running mean & variance')
@@ -45,6 +38,7 @@ else
         (data-obj.Mean)) / norm;
 end
 
+% hand over to separate function!
 obj.Parent.message('Calculating baseline mean & variance')
 idxBase = obj.Parent.DAQ.tTrigger < 0;
 meanBase = mean(obj.Mean(:,:,1,idxBase),4);
@@ -59,13 +53,12 @@ else
         var(obj.Mean(:,:,1,idxBase),[],4);
 end
 stdBase = sqrt(varBase);
-
-%             % obtain baseline & stimulus
-%             base = mean(stack(:,:,obj.Time<0),3);
-%             stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
-%
-%             % obtain the average response (time res., baseline substracted)
-%             obj.SequenceRaw  = stack - base;
-%             obj.ImageRedBase = base;
-%             obj.ImageRedStim = stim;
-end
+% 
+% % obtain baseline & stimulus
+% base = mean(stack(:,:,obj.Time<0),3);
+% stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
+% 
+% % obtain the average response (time res., baseline substracted)
+% SequenceRaw  = stack - base;
+% ImageRedBase = base;
+% ImageRedStim = stim;
