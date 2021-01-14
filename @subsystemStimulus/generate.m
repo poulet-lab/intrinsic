@@ -5,7 +5,7 @@ if ~exist('p','var') || isempty(p)
     p = obj.Parameters;
 end
 if ~exist('fs','var')
-    fs = obj.Parent.DAQ.Session.Rate;
+    fs = obj.Parent.DAQ.SamplingRate;
 end
 
 % create time axis
@@ -21,7 +21,7 @@ switch p.Type
     otherwise
         r = mod((0:fs*d-1) / fs * p.Frequency,1);
         s = r <= p.DutyCycle/100;
-        
+
         if p.Ramp > 0
             r = ones(1,ceil(1/p.Frequency*fs*p.Ramp/100*p.DutyCycle/100));
             s = conv(s,r)/length(r);

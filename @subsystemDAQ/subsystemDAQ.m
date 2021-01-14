@@ -111,7 +111,7 @@ classdef subsystemDAQ < subsystemGeneric
             if obj.Available
                 out = obj.Session.Rate;
             else
-                out = [];
+                out = 1000;
             end
         end
         
