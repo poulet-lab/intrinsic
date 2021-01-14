@@ -2,10 +2,10 @@ function queueData(obj)
 
 % Generate stimulus
 tsc = tscollection([],'Name','Output Data');
-tsc.Stimulus = obj.Parent.Stimulus.generate([],obj.Session.Rate);
+tsc.Stimulus = obj.Parent.Stimulus.generate([],obj.SamplingRate);
 
 % Prepare camera trigger
-fs   = obj.Session.Rate;
+fs   = obj.SamplingRate;
 rate = obj.Parent.Camera.FrameRate;
 tsc.Trigger = tsc.Stimulus;
 tsc.Trigger.Data = zeros(size(tsc.Trigger.Data));
@@ -42,4 +42,4 @@ warning('on',tmp)
 
 % Print message & fire notifier
 intrinsic.message('Queuing output data: %d samples at %d Hz (%g seconds)',...
-    obj.Session.NumberOfScans,obj.Session.Rate,obj.Session.DurationInSeconds)
+    obj.Session.NumberOfScans,obj.SamplingRate,obj.Session.DurationInSeconds)

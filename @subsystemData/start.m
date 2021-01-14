@@ -31,7 +31,7 @@ dPause = obj.P.Stimulus.InterTrial;
 ii = 0;
 while true
     ii = ii + 1;
-    
+
     % Acquire data
     intrinsic.message('Starting trial %d',ii)
     obj.Parent.DAQ.queueData()
@@ -41,7 +41,7 @@ while true
     if obj.Running
         obj.Parent.status('Processing ...')
         obj.getDataFromCamera()
-        obj.Trials(obj.n).InputData = obj.Parent.DAQ.InputData;
+        obj.Trials(obj.nTrials).InputData = obj.Parent.DAQ.InputData;
     end
 
     % Inter-trial pause

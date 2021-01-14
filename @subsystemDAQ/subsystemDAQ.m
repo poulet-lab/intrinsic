@@ -38,6 +38,9 @@ classdef subsystemDAQ < subsystemGeneric
         MaxStimulusAmplitude
         nTrigger
         tTrigger
+        SamplingRate
+        VendorName
+        VendorID
     end
 
     properties (Dependent = true, GetAccess = private)
@@ -47,6 +50,8 @@ classdef subsystemDAQ < subsystemGeneric
     methods
         function obj = subsystemDAQ(varargin)
             obj = obj@subsystemGeneric(varargin{:});
+            
+            %
             
             % check for Data Acquisition Toolbox
             if ~obj.Toolbox
@@ -68,15 +73,7 @@ classdef subsystemDAQ < subsystemGeneric
             obj.NChannelsIn  = sum(matches({obj.ChannelProp.flow},'in'));
             
             % check for supported & operational DAQ vendors
-            if isempty(obj.Vendors)
-                warning(['No operational DAQ vendors available. Use ' ...
-                    'MATLAB''s Add-On Explorer to install the ' ...
-                    'respective support packages.'])
-                return
-            end
-
-            % check for available devices
-            if isempty(obj.devices)
+            if isempty(obj.Vendors) || isempty(obj.devices)
                 warning('No supported data acquisition devices found.')
                 return
             end
@@ -86,10 +83,11 @@ classdef subsystemDAQ < subsystemGeneric
         end
 
         function out = get.Available(obj)
-            out = false;
             if isa(obj.Session,'daq.Session')
                 out = numel(obj.Session.Channels) == ...
                         obj.NChannelsOut + obj.NChannelsIn;
+            else
+                out = false;
             end
         end
 
@@ -109,13 +107,45 @@ classdef subsystemDAQ < subsystemGeneric
             out(~ismember({out.ID},obj.SupportedVendors)) = [];
         end
         
+        function out = get.SamplingRate(obj)
+            if obj.Available
+                out = obj.Session.Rate;
+            else
+                out = [];
+            end
+        end
+        
+        function out = get.VendorName(obj)
+            if obj.Available
+                out = obj.Session.Vendor.FullName;
+            else
+                out = [];
+            end
+        end
+        
+        function out = get.VendorID(obj)
+            if obj.Available
+                out = obj.Session.Vendor.ID;
+            else
+                out = [];
+            end
+        end
+        
         function out = get.nTrigger(obj)
-            out = numel(obj.tTrigger);
+            if obj.Available
+                out = numel(obj.tTrigger);
+            else
+                out = NaN;
+            end
         end
 
         function out = get.tTrigger(obj)
-             out = obj.OutputData.Trigger.Time(...
-                diff([0; obj.OutputData.Trigger.Data])>0)';
+            if obj.Available
+                out = obj.OutputData.Trigger.Time(...
+                    diff([0; obj.OutputData.Trigger.Data])>0)';
+            else
+                out = [];
+            end
         end
         
         varargout = setup(obj)

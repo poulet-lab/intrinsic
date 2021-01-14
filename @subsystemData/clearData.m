@@ -13,9 +13,9 @@ end
 intrinsic.message('Clearing temporary data')
 
 % Clear object's properties
-obj.Mean = [];
-obj.Var = [];
-obj.n = 0;
+obj.DataMean = [];
+obj.DataVar = [];
+obj.nTrials = 0;
 obj.Trials = [];
 obj.Unsaved = false;
 

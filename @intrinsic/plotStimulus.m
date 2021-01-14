@@ -1,10 +1,12 @@
 function plotStimulus(obj,p)
 
-if ~exist('p','var')
+if ~exist('p','var') && ~isempty(obj.DAQ.OutputData)
     ts = obj.DAQ.OutputData.Stimulus;
     p  = obj.Stimulus.Parameters;
-else
+elseif exist('p','var')
     ts = obj.Stimulus.generate(p);
+else
+    return
 end
 
 set(obj.h.plot.stimulus, ...

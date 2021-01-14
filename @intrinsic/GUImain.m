@@ -1,13 +1,13 @@
 function GUImain(obj)
 
-%% Color definitions
+% Color definitions
 c.winBaseline =  [.95 .95 1];
 c.winControl =   [.95 1 .95];
 c.winResponse =  [1 .95 .95];
 c.edgeResponse = [1 .75 .75];
 
 hDrag  = [];
-xStart = NaN; %#ok<SETNU>
+xStart = NaN;
 
 obj.h.fig.main = figure( ...
     'Visible',              'off', ...
@@ -208,7 +208,7 @@ obj.h.xline.winResponse(2) = xline(obj.h.axes.temporalBg,0);
 set(obj.h.xline.winResponse, ...
     'Color',          	c.edgeResponse, ...
     'ButtonDownFcn',  	@temporalDrag)
-obj.WinBaseline = [obj.DAQ.OutputData.Time(1) 0];
+obj.WinBaseline = [NaN 0];
 obj.WinResponse = [0 1];
 
 % pointer manager for temporal windows

@@ -27,11 +27,11 @@ classdef subsystemCamera < subsystemGeneric
     properties (Constant = true, Access = protected)
         MatPrefix = 'camera_'
     end
-    
+
     properties (Access = private, Transient)
         Figure
     end
-    
+
 
 
     methods
@@ -120,6 +120,8 @@ classdef subsystemCamera < subsystemGeneric
                 if out == 16 && strcmp(obj.DeviceName,'QICam B')
                     out = 12;
                 end
+            else
+                out = NaN;
             end
         end
 
@@ -149,7 +151,7 @@ classdef subsystemCamera < subsystemGeneric
             end
         end
     end
-    
+
     methods (Access = {?intrinsic,?subsystemData})
         function start(obj)
             if isrunning(obj.Input.Red)
@@ -157,7 +159,7 @@ classdef subsystemCamera < subsystemGeneric
             end
 
             obj.Parent.message('Arming image acquisition')
-            
+
             % TODO: move trigger configuration to setup
             switch obj.Adaptor
                 case {'qimaging','mwqimagingimaq'}
@@ -165,7 +167,7 @@ classdef subsystemCamera < subsystemGeneric
                 case 'hamamatsu'
                     triggerconfig(obj.Input.Red,'hardware','risingEdge','EdgeTrigger')
             end
-            
+
             flushdata(obj.Input.Red)
             obj.Input.Red.TriggerRepeat = Inf;
             obj.Input.Red.FramesPerTrigger = 1;
@@ -173,12 +175,12 @@ classdef subsystemCamera < subsystemGeneric
             obj.Input.Red.FramesAcquiredFcnCount = 1;
             start(obj.Input.Red)
         end
-        
+
         function stop(obj)
             stop(obj.Input.Red)
             pause(.1)
         end
-        
+
 %         function [data,metadata] = getData(obj)
 %             nframes = obj.Input.Red.FramesAvailable;
 %             if ~nframes
@@ -189,12 +191,12 @@ classdef subsystemCamera < subsystemGeneric
 %             obj.Parent.message('Obtaining %d frames from camera',nframes)
 %             [data,~,metadata] = getdata(obj.Input.Red,nframes);
 %         end
-        
+
         function save(obj,fn)
             if isempty(obj.Data)
                 return
             end
-            
+
             obj.Parent.message('Saving image data to disk')
             tiff = Tiff(fn,'w');
             options = struct( ...
@@ -251,10 +253,10 @@ classdef subsystemCamera < subsystemGeneric
             imaqreset
             pause(1)
         end
-        
+
         function displayFrameCount(obj,~,~)
             string = sprintf('Trial %d, acquiring frame %d/%d', ...
-                obj.Parent.Data.n+1,obj.Input.Red.FramesAvailable,...
+                obj.Parent.Data.nTrials+1,obj.Input.Red.FramesAvailable,...
                 obj.Parent.DAQ.nTrigger);
             obj.Parent.status(string)
         end

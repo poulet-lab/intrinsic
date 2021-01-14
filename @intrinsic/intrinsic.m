@@ -209,7 +209,9 @@ classdef (Sealed) intrinsic < handle
         function new = forceWinResponse(obj,new)
             validateattributes(new,{'numeric'},...
                 {'size',[1 2],'real','nonnan'})
-            
+            if isempty(obj.DAQ.OutputData)
+                return
+            end
 
             
             changes = diff([obj.WinResponse;new]);
