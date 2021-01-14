@@ -175,9 +175,8 @@ classdef subsystemCamera < subsystemGeneric
         end
         
         function stop(obj)
-            obj.Parent.status
             stop(obj.Input.Red)
-            pause(.2)
+            pause(.1)
         end
         
 %         function [data,metadata] = getData(obj)

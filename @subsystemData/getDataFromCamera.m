@@ -14,7 +14,10 @@ obj.Parent.message('Obtaining %d frames from camera',nframes)
 [data,~,metadata] = getdata(obj.Parent.Camera.Input.Red,nframes);
 
 % Save raw data to TIFF
-fn = obj.save2tiff(data,datenum(metadata(1).AbsTime));
+timestamp = datenum(metadata(1).AbsTime);
+fn = sprintf('%03d_%s.tif',obj.n,datestr(timestamp,'yymmdd_HHMMSS'));
+obj.Parent.message('Saving image data to disk: %s',fn)
+obj.save2tiff(fn,data,timestamp);
 obj.Trials(obj.n).Filename = fn;
 
 % Save timestamps
@@ -52,13 +55,3 @@ else
     varBase = mean(obj.Var(:,:,1,idxBase),4) + ...
         var(obj.Mean(:,:,1,idxBase),[],4);
 end
-stdBase = sqrt(varBase);
-% 
-% % obtain baseline & stimulus
-% base = mean(stack(:,:,obj.Time<0),3);
-% stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
-% 
-% % obtain the average response (time res., baseline substracted)
-% SequenceRaw  = stack - base;
-% ImageRedBase = base;
-% ImageRedStim = stim;
