@@ -180,8 +180,9 @@ classdef (Sealed) intrinsic < handle
         plotStimulus(obj,p)
     end
 
-    methods (Access = private)
+    methods %(Access = private)
         plotCameraTrigger(obj)
+        togglePlots(obj,visible)
 
 
         GUImain(obj)                    % Create MAIN GUI
