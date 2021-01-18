@@ -5,11 +5,11 @@ classdef subsystemData < subsystemGeneric
         DataType = 'double'
     end
 
-    properties (GetAccess = private, SetAccess = immutable)
+    properties (GetAccess = private, SetAccess = immutable, Transient)
         DirTemp
     end
 
-    properties (SetAccess = private, SetObservable, Transient)
+    properties (SetAccess = private, SetObservable, Transient, NonCopyable)
         DataMean
         DataVar
         
@@ -34,7 +34,7 @@ classdef subsystemData < subsystemGeneric
         Unsaved (1,:) logical = false;    % Bool: is there unsaved data?
     end
 
-    properties (Access = private)
+    properties %(Access = private)
         P
     end
 
@@ -49,8 +49,7 @@ classdef subsystemData < subsystemGeneric
             end
 
             % Create listeners
-            addlistener(obj.Parent.Stimulus,...
-                'Parameters','PostSet',@obj.getParameters);
+            addlistener(obj.Parent.Stimulus,'Update',@obj.getParameters);
             addlistener(obj.Parent.Camera,'Update',@obj.getParameters);
             addlistener(obj.Parent.DAQ,'Update',@obj.getParameters);
 

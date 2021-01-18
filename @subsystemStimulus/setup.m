@@ -3,20 +3,17 @@ function varargout = setup(obj)
 
 nargoutchk(0,1)
 
-obj.Parent.h.axes.temporalBg.Visible = 'Off';
+% local copy of object properties
+Parameters = struct(obj);
 
 % create settings window & panels
 window = settingsWindow(...
     'Name',             'Stimulus Settings', ...
     'Width',            260, ...
-    'CloseRequestFcn',  @cbClose, ...
-    'DeleteFcn',        @cbDelete);
-obj.Figure = window.Handle;
+    'CloseRequestFcn',  @cbClose);
+hFigure = window.Handle;
 panel(1)   = window.addPanel('Title','Waveform');
 panel(2)   = window.addPanel('Title','Timing');
-
-% local copy of parameter struct
-Parameters = obj.Parameters;
 
 % create UI controls
 Controls.Type = panel(1).addPopupmenu( ...
@@ -26,7 +23,7 @@ Controls.Type = panel(1).addPopupmenu( ...
 Controls.Type.Value = max([find(strcmp(Controls.Type.String,Parameters.Type)) 1]);
 Controls.Frequency = panel(1).addEdit( ...
     'Label',   	'Frequency (Hz)', ...
-    'Callback',	{@cbEdit,[0.01 obj.Parent.SamplingRate/2]}, ...
+    'Callback',	{@cbEdit,[0.01 500]}, ...
     'Value',	Parameters.Frequency);
 Controls.DutyCycle = panel(1).addEdit( ...
     'Label',   	'Duty Cycle (%)', ...
@@ -70,13 +67,11 @@ end
 
 % save appdata & initialize
 cbType(Controls.Type,[])
-setappdata(obj.Figure,'controls',Controls);
-setappdata(obj.Figure,'parameters',Parameters);
 window.Visible = 'on';
 
 % output arguments
 if nargout
-    varargout{1} = obj.Figure;
+    varargout{1} = hFigure;
 end
 
     function cbType(control,~)
@@ -93,14 +88,14 @@ end
                 Controls.DutyCycle.Enable = 'off';
                 Controls.Ramp.Enable = 'off';
             case 'Square'
-                Parameters.DutyCycle = obj.Parameters.DutyCycle;
+                Parameters.DutyCycle = obj.DutyCycle;
                 Parameters.Ramp = 0;
                 Controls.DutyCycle.Enable = 'on';
                 Controls.Ramp.Enable = 'on';
         end
         Controls.DutyCycle.String = Parameters.DutyCycle;
         Controls.Ramp.String = Parameters.Ramp;
-        updateLocalParameters()
+        plotStimulus()
     end
 
     function cbEdit(control,~,limits)
@@ -114,33 +109,30 @@ end
         control.String = sprintf('%g',value);
         control.Value  = str2double(control.String);
         Parameters.(control.Tag) = control.Value;
-        updateLocalParameters()
+        plotStimulus()
     end
 
-    function updateLocalParameters()
-        setappdata(obj.Figure,'parameters',Parameters);
+    function plotStimulus()
         obj.Parent.plotStimulus(Parameters)
     end
 
     function cbOkay(~,~,~)
-        Parameters = getappdata(obj.Figure,'parameters');
         for Var = fieldnames(Parameters)'
             obj.saveVar(Var{:},Parameters.(Var{:}))
         end
-        if ~isequaln(obj.Parameters,Parameters)
-            obj.Parameters = Parameters;
+        if ~isequaln(struct(obj),Parameters)
+            for Var = fieldnames(Parameters)'
+                obj.(Var{:}) = Parameters.(Var{:});
+            end
+            notify(obj,'Update')
         end
-        delete(obj.Figure)
+        delete(hFigure)
     end
 
     function cbClose(~,~,~)
-        if ~isequal(Parameters,obj.Parameters)
+        if ~isequal(Parameters,struct(obj))
             obj.Parent.plotStimulus;
         end
-        delete(obj.Figure)
-    end
-
-    function cbDelete(~,~,~)
-        obj.Parent.h.axes.temporalBg.Visible = 'Off';
+        delete(hFigure)
     end
 end

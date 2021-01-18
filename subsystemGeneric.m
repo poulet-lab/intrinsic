@@ -1,4 +1,4 @@
-classdef subsystemGeneric < handle
+classdef subsystemGeneric < handle & matlab.mixin.CustomDisplay
     
     properties (GetAccess = protected, SetAccess = immutable)
         Parent
@@ -17,6 +17,26 @@ classdef subsystemGeneric < handle
             validateattributes(parent,{'intrinsic'},{'scalar'});
             self.Parent = parent;
         end
+        
+        function out = struct(self)
+            props = properties(self);
+            out = struct();
+            for ii = 1:numel(props)
+                out.(props{ii}) = self.(props{ii});
+            end
+        end
+        
+%         function out = properties(obj)
+%             if nargout == 0
+%                 disp(builtin('properties',obj));
+%             else
+%                 out = sort(builtin('properties',obj));
+%             end
+%         end
+%         
+%         function out = fieldnames(obj)
+%             out = sort(builtin('fieldnames',obj));
+%         end
     end
        
     methods (Access = protected)
@@ -27,5 +47,9 @@ classdef subsystemGeneric < handle
         function saveVar(self,varName,data)
             self.Parent.saveVar([self.MatPrefix varName],data);
         end
+        
+%         function out = getPropertyGroups(obj)
+%             out = matlab.mixin.util.PropertyGroup(properties(obj));
+%         end
     end
 end

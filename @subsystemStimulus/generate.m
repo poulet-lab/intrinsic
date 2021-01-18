@@ -2,7 +2,7 @@ function ts = generate(obj,p,fs)
 
 % check arguments
 if ~exist('p','var') || isempty(p)
-    p = obj.Parameters;
+    p = struct(obj);
 end
 if ~exist('fs','var')
     fs = obj.Parent.DAQ.SamplingRate;

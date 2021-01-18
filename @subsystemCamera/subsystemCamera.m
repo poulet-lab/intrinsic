@@ -10,6 +10,7 @@ classdef subsystemCamera < subsystemGeneric
     end
 
     properties (Dependent = true)
+        Properties  % Property characteristics of image acquisition objects
         DataType    % Data type returned by the imaging adaptor
         BitDepth    % Bit depth of captured images
         Resolution  % Width and height of captured images
@@ -82,6 +83,17 @@ classdef subsystemCamera < subsystemGeneric
                 out = imaqhwinfo(obj.Input.Green).NativeDataType;
             else
                 out = NaN;
+            end
+        end
+        
+        function out = get.Properties(obj)
+            % return property characteristics of image acquisition objects
+            if obj.Available
+                out.Green = propinfo(obj.Input.Red);
+                out.Red   = propinfo(obj.Input.Red);
+            else
+                out.Green = struct();
+                out.Red   = struct();
             end
         end
 

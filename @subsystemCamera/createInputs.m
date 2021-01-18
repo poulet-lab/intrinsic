@@ -55,13 +55,14 @@ if ~isequal({adaptor,deviceID,mode,ROI(3:4)},{obj.Adaptor,obj.DeviceID, ...
         modes = modes(contains(modes,'MONO16'));
         [r,i] = sort(cellfun(@(x) sscanf(x,'MONO16_%dx%*d'),modes));
         obj.Input.Green = videoinput(adaptor,deviceID,modes{i(end)}, ...
-            'ROIPosition',ROI * r(end)/resolution(1));
+            'ROIPosition',ROI * r(end)/resolution(1),'FramesPerTrigger',1);
     else
         obj.Input.Green = videoinput(adaptor,deviceID,mode, ...
-            'ROIPosition',ROI);
+            'ROIPosition',ROI,'FramesPerTrigger',1);
     end
     
-    obj.Input.Red   = videoinput(adaptor,deviceID,mode,'ROIPosition',ROI);
+    obj.Input.Red   = videoinput(adaptor,deviceID,mode,...
+        'ROIPosition',ROI,'FramesPerTrigger',1);
     obj.Adaptor     = adaptor;
     obj.DeviceID    = deviceID;
     obj.Mode        = mode;

@@ -1,13 +1,18 @@
 classdef subsystemDAQ < subsystemGeneric
 
-    properties (SetAccess = private)
-        Session
-        OutputData
-        InputData
-    end
-
     properties (Access = private)
         Figure
+        Session
+    end
+    
+    properties (SetAccess = immutable, GetAccess = private)
+        ChannelProp
+        NChannelsOut
+        NChannelsIn
+    end
+
+    properties (Constant = true, Access = protected)
+        MatPrefix = 'DAQ_'
     end
 
     properties (Constant = true, Access = private)
@@ -21,30 +26,30 @@ classdef subsystemDAQ < subsystemGeneric
         ChannelTypesOut  = {'AnalogOutput','DigitalIO'};
         ChannelTypesIn   = {'AnalogInput','DigitalIO'};
     end
+    
+    properties (SetAccess = private, GetAccess = {?subsystemData,?intrinsic})
+        InputData
+        OutputData
+    end
 
-    properties (SetAccess = immutable, GetAccess = private)
-        ChannelProp
-        NChannelsOut
-        NChannelsIn
+    properties (Dependent = true, GetAccess = {?subsystemStimulus})
+        MaxStimulusAmplitude
     end
     
-    properties (Constant = true, Access = protected)
-        MatPrefix = 'DAQ_'
+    properties (Dependent = true, GetAccess = private)
+        TriggerAmplitude
+        Vendors
     end
 
-    properties (Dependent = true)
+    properties (Dependent = true, SetAccess = private)
         Available
-        TriggerAmplitude
-        MaxStimulusAmplitude
-        nTrigger
-        tTrigger
-        SamplingRate
         VendorName
         VendorID
-    end
-
-    properties (Dependent = true, GetAccess = private)
-        Vendors
+        DeviceName
+        DeviceID
+        SamplingRate
+        nTrigger
+        tTrigger
     end
 
     methods
@@ -123,9 +128,25 @@ classdef subsystemDAQ < subsystemGeneric
             end
         end
         
+        function out = get.DeviceName(obj)
+            if obj.Available
+                out = obj.Session.Channels(1).Device.Model;
+            else
+                out = [];
+            end
+        end
+        
         function out = get.VendorID(obj)
             if obj.Available
                 out = obj.Session.Vendor.ID;
+            else
+                out = [];
+            end
+        end
+
+    	function out = get.DeviceID(obj)
+            if obj.Available
+                out = obj.Session.Channels(1).Device.ID;
             else
                 out = [];
             end
@@ -155,12 +176,13 @@ classdef subsystemDAQ < subsystemGeneric
         queueData(obj)
         
         function start(obj)
-            pause(1)
+            pause(.5)
             intrinsic.message('Starting DAQ session')
             [data,~,~] = obj.Session.startForeground;
+            pause(.5)
             intrinsic.message('Releasing DAQ session')
             release(obj.Session)
-            pause(1)
+            pause(.5)
             obj.InputData = ...
                 timeseries(data,obj.OutputData.Stimulus.Time, ...
                 'Name','Camera Sync');
