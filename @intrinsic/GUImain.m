@@ -29,8 +29,8 @@ obj.h.panel.main = uipanel(obj.h.fig.main, ...
     'BackgroundColor',      'w');
 
 %% Listen for changes in temporal windows
-addlistener(obj,{'WinBaseline','WinControl','WinResponse'}, ...
-    'PostSet',@updatedTemporalWindow);
+addlistener(obj.Data,'IdxResponse','PostSet',@updatedTemporalWindow);
+addlistener(obj.Data,'UseControl','PostSet',@updatedUseControl);
 
 %% Toolbar
 obj.h.toolbar = uitoolbar(obj.h.fig.main);
@@ -191,17 +191,17 @@ linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position','InnerPosition'
 
 % indicate temporal windows
 obj.h.patch.winBaseline = patch(obj.h.axes.temporalBg, ...
-    'XData',            [0 0 0 0], ...
+    'XData',            obj.Data.WinBaseline([1 1 2 2]), ...
     'YData',            [1 0 0 1], ...
     'FaceColor',        c.winBaseline, ...
     'EdgeColor',        'none');
 obj.h.patch.winControl = patch(obj.h.axes.temporalBg, ...
-    'XData',            [0 0 0 0], ...
+    'XData',            obj.Data.WinControl([1 1 2 2]), ...
     'YData',            [1 0 0 1], ...
     'FaceColor',        c.winControl, ...
     'EdgeColor',        'none');
 obj.h.patch.winResponse = patch(obj.h.axes.temporalBg, ...
-    'XData',            [0 0 0 0], ...
+    'XData',            obj.Data.WinResponse([1 1 2 2]), ...
     'YData',            [1 0 0 1], ...
     'FaceColor',        c.winResponse, ...
     'EdgeColor',        'none', ...
@@ -211,8 +211,6 @@ obj.h.xline.winResponse(2) = xline(obj.h.axes.temporalBg,0);
 set(obj.h.xline.winResponse, ...
     'Color',          	c.edgeResponse, ...
     'ButtonDownFcn',  	@temporalDrag)
-obj.WinBaseline = [NaN 0];
-obj.WinResponse = [0 1];
 
 % pointer manager for temporal windows
 pb(1).enterFcn    = @pointerEnterTemporalROIborder;
@@ -228,8 +226,8 @@ iptPointerManager(obj.h.fig.main,'enable')
 
 % indicate t=0
 obj.h.xline.tZero = xline(obj.h.axes.temporalBg,0, ...
-    'Color',                [.8 .8 .8], ...
-    'PickableParts',        'none');
+    'Color',            [.8 .8 .8], ...
+    'PickableParts',  	'none');
 
 % indicate camera triggers
 obj.h.plot.grid = plot(obj.h.axes.temporalBg,NaN,NaN,'k',...
@@ -269,7 +267,7 @@ yline(obj.h.axes.temporal,0, ...
 % legend
 obj.h.legend.temporal = legend(obj.h.axes.temporal, ...
     [obj.h.plot.temporal obj.h.plot.stimulus obj.h.patch.winBaseline obj.h.patch.winControl obj.h.patch.winResponse], ...
-    {'intrinsic signal', 'stimulus', 'baseline window', 'control window', 'response window'},'Color','w');
+    {'intrinsic signal', 'stimulus', 'baseline window', 'control window', 'response window'},'Color','w','HitTest','off');
 
 
 % Spatial response
@@ -296,7 +294,8 @@ ylabel(obj.h.axes.spatial,'\DeltaF/F')
 
 %% Restore position and make visible
 obj.restoreWindowPositions('main')
-obj.updateEnabled();
+obj.updateEnabled()
+updatedUseControl()
 obj.h.fig.main.Visible = 'on';
 
 
@@ -340,7 +339,7 @@ obj.h.fig.main.Visible = 'on';
         if isempty(hDrag)
             return
         end
-        obj.WinResponse = [obj.h.xline.winResponse.Value];
+        obj.Data.WinResponse = [obj.h.xline.winResponse.Value];
         hDrag = [];
         
         % TODO:
@@ -357,39 +356,51 @@ obj.h.fig.main.Visible = 'on';
         
         mouseX = obj.h.axes.temporalBg.CurrentPoint(1);
         if isequal(hDrag,obj.h.xline.winResponse(1))
-            newX = obj.forceWinResponse([mouseX obj.WinResponse(2)]);
+            newX = obj.forceWinResponse([mouseX obj.Data.WinResponse(2)]);
             obj.h.patch.winResponse.XData(1:2) = newX(1);
             hDrag.Value = newX(1);
         elseif isequal(hDrag,obj.h.xline.winResponse(2))
-            newX = obj.forceWinResponse([obj.WinResponse(1) mouseX]);
+            newX = obj.forceWinResponse([obj.Data.WinResponse(1) mouseX]);
             obj.h.patch.winResponse.XData(3:4) = newX(2);
             hDrag.Value = newX(2);
         else
-            newX = obj.forceWinResponse(obj.WinResponse + diff([xStart mouseX]));
+            newX = obj.forceWinResponse(obj.Data.WinResponse + diff([xStart mouseX]));
             obj.h.patch.winResponse.XData = reshape(newX.*[1 1]',1,[]);
-            obj.h.xline.winResponse(1).Value = newX(1);
+            obj.h.xline.winResponse(1).Value = newX(1); 
             obj.h.xline.winResponse(2).Value = newX(2);
         end
         
-        if true %TODO: only when using control window
+        if obj.Data.UseControl
             obj.h.patch.winControl.XData = reshape([-diff(newX) 0].*[1 1]',1,[]);
+            obj.h.patch.winBaseline.XData = reshape([obj.Data.P.DAQ.tTrigger(1) -diff(newX)].*[1 1]',1,[]);
         end
     end
 
-    function updatedTemporalWindow(src,~)
-        switch src.Name
-            case 'WinBaseline'
-                obj.h.patch.winBaseline.XData = ...
-                    reshape(obj.WinBaseline.*[1 1]',1,[]);
-            case 'WinControl'
-                obj.h.patch.winControl.XData = ...
-                    reshape(obj.WinControl.*[1 1]',1,[]);
-            case 'WinResponse'
-                obj.h.patch.winResponse.XData = ...
-                    reshape(obj.WinResponse.*[1 1]',1,[]);
-                obj.h.xline.winResponse(1).Value = obj.WinResponse(1);
-                obj.h.xline.winResponse(2).Value = obj.WinResponse(2);
+    function updatedTemporalWindow(~,~)
+        obj.h.patch.winBaseline.XData = ...
+            reshape(obj.Data.WinBaseline.*[1 1]',1,[]);
+        obj.h.patch.winControl.XData = ...
+            reshape(obj.Data.WinControl.*[1 1]',1,[]);
+        obj.h.patch.winResponse.XData = ...
+            reshape(obj.Data.WinResponse.*[1 1]',1,[]);
+        obj.h.xline.winResponse(1).Value = obj.Data.WinResponse(1);
+        obj.h.xline.winResponse(2).Value = obj.Data.WinResponse(2);
+    end
+
+    function updatedUseControl(~,~)
+        delete(obj.h.legend.temporal);
+        hObj = [obj.h.plot.temporal obj.h.plot.stimulus ...
+            obj.h.patch.winBaseline obj.h.patch.winControl ...
+            obj.h.patch.winResponse];
+        str = {'Intrinsic Signal', 'Stimulus', 'Baseline Window', ...
+            'Control Window', 'Response Window'};
+        if ~obj.Data.UseControl
+            hObj(4) = [];
+            str(4) = [];
         end
+        obj.h.legend.temporal = legend(obj.h.axes.temporal,hObj,str,...
+            'Color',        'w', ...
+            'PickableParts','none');
     end
 
     function figureResize(~,~,~)

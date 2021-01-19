@@ -1,4 +1,4 @@
-function getParameters(obj,~,~)
+function getParameters(obj,src,~)
 % Collects relevant parameters from other objects. Used as a
 % callback for listener-functions - see constructor of
 % subsystemData.

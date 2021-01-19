@@ -43,12 +43,6 @@ classdef (Sealed) intrinsic < handle
 
         PxPerCm
     end
-    
-    properties (Access = private, SetObservable)
-        WinBaseline = [0 0]
-        WinControl  = [0 0]
-        WinResponse = [0 0]
-    end
 
     properties (SetAccess = immutable)
         Camera
@@ -215,41 +209,48 @@ classdef (Sealed) intrinsic < handle
             end
 
             
-            changes = diff([obj.WinResponse;new]);
-            tcam = obj.DAQ.OutputData.Trigger.Time(...
-                diff([0; obj.DAQ.OutputData.Trigger.Data])>0)';
+            changes = diff([obj.Data.WinResponse;new]);
+            tcam = obj.DAQ.tTrigger;
             camRate = min(diff(tcam));
             tcam = [tcam tcam(end)+camRate];
-            
-%             [~,idxOld] = arrayfun(@(x) min(abs(tcam-x)),obj.WinResponse)
-%             [~,idxNew] = arrayfun(@(x) min(abs(tcam-x)),new)
-            
+                        
             if any(changes)
                 changes = round(changes/camRate)*camRate;
             else
-                new = obj.WinResponse;
+                new = obj.Data.WinResponse;
                 return;
             end
             
             if ~diff(changes)   % if the response window was MOVED ...
                 if new(1) < 0
-                    new = obj.WinResponse - obj.WinResponse(1);
+                    new = obj.Data.WinResponse - obj.Data.WinResponse(1);
                 elseif new(2) > obj.h.axes.temporal.XLim(2)
                     new = obj.h.axes.temporal.XLim(2) - ...
-                        fliplr(obj.WinResponse - obj.WinResponse(1));
+                        fliplr(obj.Data.WinResponse - obj.Data.WinResponse(1));
                 end
             else                % if the response window was RESIZED ...
+                if obj.Data.UseControl
+                    maxWidth = abs(tcam(1))/2;
+                else
+                    maxWidth = abs(tcam(1));
+                end
                 if new(1) < 0
                     new(1) = 0;
                 end
                 if new(2) > obj.h.axes.temporal.XLim(2)
                     new(2) = obj.h.axes.temporal.XLim(2);
                 end
-                if diff(new) < min(diff(tcam))
+                if diff(new) < camRate
                     if changes(1)
                         new(1) = new(2) - camRate;
                     else
                         new(2) = new(1) + camRate;
+                    end
+                elseif diff(new) > maxWidth
+                    if changes(1)
+                        new(1) = new(2) - maxWidth;
+                    else
+                        new(2) = new(1) + maxWidth;
                     end
                 end
             end
@@ -261,10 +262,10 @@ classdef (Sealed) intrinsic < handle
     end
 
     methods
-        function set.WinResponse(obj,in)
-            obj.WinResponse = obj.forceWinResponse(in);
-            obj.WinControl  = [0 -diff(obj.WinResponse)];
-        end
+%         function set.WinResponse(obj,in)
+%             obj.WinResponse = obj.forceWinResponse(in);
+%             obj.WinControl  = [0 -diff(obj.WinResponse)];
+%         end
         
         update_plots(obj)
     end
@@ -812,6 +813,7 @@ classdef (Sealed) intrinsic < handle
         end
 
         function clearData(obj,~,~)
+            %obj.togglePlots('off')
             obj.PointCoords	= nan(1,2);
             obj.LineCoords  = nan(1,2);
             if isfield(obj.h.fig,'red')
