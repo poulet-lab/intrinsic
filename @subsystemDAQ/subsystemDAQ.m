@@ -50,6 +50,7 @@ classdef subsystemDAQ < subsystemGeneric
         SamplingRate
         nTrigger
         tTrigger
+        pTrigger
     end
 
     methods
@@ -149,6 +150,14 @@ classdef subsystemDAQ < subsystemGeneric
                 out = obj.Session.Channels(1).Device.ID;
             else
                 out = [];
+            end
+        end
+        
+        function out = get.pTrigger(obj)
+            if obj.Available
+                out = mode(diff(obj.tTrigger));
+            else
+                out = NaN;
             end
         end
         
