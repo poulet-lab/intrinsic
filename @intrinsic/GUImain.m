@@ -29,7 +29,8 @@ obj.h.panel.main = uipanel(obj.h.fig.main, ...
     'BackgroundColor',      'w');
 
 %% Listen for changes in temporal windows
-addlistener(obj.Data,'IdxResponse','PostSet',@updatedTemporalWindow);
+addlistener(obj.Data,{'IdxResponse','UseControl'},'PostSet',...
+    @updatedTemporalWindow);
 addlistener(obj.Data,'UseControl','PostSet',@updatedUseControl);
 
 %% Toolbar
@@ -356,15 +357,15 @@ obj.h.fig.main.Visible = 'on';
         
         mouseX = obj.h.axes.temporalBg.CurrentPoint(1);
         if isequal(hDrag,obj.h.xline.winResponse(1))
-            newX = obj.forceWinResponse([mouseX obj.Data.WinResponse(2)]);
+            newX = obj.Data.forceWinResponse([mouseX obj.Data.WinResponse(2)]);
             obj.h.patch.winResponse.XData(1:2) = newX(1);
             hDrag.Value = newX(1);
         elseif isequal(hDrag,obj.h.xline.winResponse(2))
-            newX = obj.forceWinResponse([obj.Data.WinResponse(1) mouseX]);
+            newX = obj.Data.forceWinResponse([obj.Data.WinResponse(1) mouseX]);
             obj.h.patch.winResponse.XData(3:4) = newX(2);
             hDrag.Value = newX(2);
         else
-            newX = obj.forceWinResponse(obj.Data.WinResponse + diff([xStart mouseX]));
+            newX = obj.Data.forceWinResponse(obj.Data.WinResponse + diff([xStart mouseX]));
             obj.h.patch.winResponse.XData = reshape(newX.*[1 1]',1,[]);
             obj.h.xline.winResponse(1).Value = newX(1); 
             obj.h.xline.winResponse(2).Value = newX(2);
@@ -377,6 +378,7 @@ obj.h.fig.main.Visible = 'on';
     end
 
     function updatedTemporalWindow(~,~)
+        disp('updatedTemporalWindow')
         obj.h.patch.winBaseline.XData = ...
             reshape(obj.Data.WinBaseline.*[1 1]',1,[]);
         obj.h.patch.winControl.XData = ...
@@ -388,6 +390,7 @@ obj.h.fig.main.Visible = 'on';
     end
 
     function updatedUseControl(~,~)
+        disp('updatedUseControl')
         delete(obj.h.legend.temporal);
         hObj = [obj.h.plot.temporal obj.h.plot.stimulus ...
             obj.h.patch.winBaseline obj.h.patch.winControl ...

@@ -13,9 +13,9 @@ classdef subsystemData < subsystemGeneric
         DataMean
         DataVar
         
-        Baseline
-        Control
-        Stimulus
+        DataMeanBaseline
+        DataMeanControl
+        DataMeanResponse
     end
     
     properties (SetAccess = private, SetObservable, AbortSet)
@@ -58,6 +58,7 @@ classdef subsystemData < subsystemGeneric
             addlistener(obj.Parent.Stimulus,'Update',@obj.getParameters);
             addlistener(obj.Parent.Camera,'Update',@obj.getParameters);
             addlistener(obj.Parent.DAQ,'Update',@obj.getParameters);
+            %addlistener(obj,'UseControl','PostSet',@updatedUseControl);
 
             % Get Parameters from subsystems
             obj.getParameters()
@@ -81,16 +82,32 @@ classdef subsystemData < subsystemGeneric
         end
 
         function set.WinResponse(obj,in)
-            tmp = obj.time2idx(in);
+            
+            % Define new window indices locally
+            Local.IdxResponse = obj.time2idx(obj.forceWinResponse(in));
             if obj.UseControl
-                obj.IdxControl = obj.time2idx(0) - 1 - (tmp(end) - tmp);
-                obj.IdxBaseline = 1:obj.IdxControl(1)-1;
+                Local.IdxControl  = obj.time2idx(0) - ...
+                    (Local.IdxResponse(end) - Local.IdxResponse) - 1;
+                Local.IdxBaseline = 1:Local.IdxControl(1)-1;
             else
-                obj.IdxControl = [];
-                obj.IdxBaseline = 1:obj.time2idx(0)-1;
+                Local.IdxControl  = [];
+                Local.IdxBaseline = 1:obj.time2idx(0)-1;
             end
-            obj.IdxResponse = tmp;
+            
+            % Check if object properties need updating
+            fns = {'IdxBaseline','IdxControl','IdxResponse'};
+            upd = cellfun(@(x) ~isequal(Local.(x),obj.(x)),fns);
+            for fn = fns(upd)
+                obj.(fn{:}) = Local.(fn{:});
+                obj.calculateWinMeans(fn{:});
+            end
+            
+            % Call 
         end
+    end
+
+    methods (Access = {?intrinsic})
+        new = forceWinResponse(obj,new)
     end
     
     methods (Access = private)
@@ -116,6 +133,32 @@ classdef subsystemData < subsystemGeneric
                 out = obj.P.DAQ.tTrigger(in([1 end])) + ...
                     [0 mode(diff(obj.P.DAQ.tTrigger))];
             end
+        end
+        
+        function calculateWinMeans(obj,winName)
+            if ~obj.nTrials
+                return
+            end
+            
+            calculateAll = ~exist('winName','var');
+            function calculateVal(idxName,propName)
+                if calculateAll || strcmp(winName,idxName)
+                    obj.(propName) = ...
+                        mean(obj.DataMean(:,:,1,obj.(idxName)),4);
+                end
+            end
+            
+            calculateVal('IdxBaseline','DataMeanBaseline')
+            calculateVal('IdxControl', 'DataMeanControl')
+            calculateVal('IdxResponse','DataMeanResponse')
+
+            % TODO: Calculate Variances
+            
+%             % obtain the average response (time res., baseline substracted)
+%             obj.SequenceRaw  = stack - base;
+%             obj.ImageRedBase = base;
+%             obj.ImageRedStim = stim;
+%             disp(src.Name)
         end
     end
 

@@ -200,65 +200,6 @@ classdef (Sealed) intrinsic < handle
         cbUpdatedStimulusSettings(obj,src,eventData)
         cbUpdatedTemporalWindow(obj,src,eventData)
         updateEnabled(obj,~,~)
-        
-        function new = forceWinResponse(obj,new)
-            validateattributes(new,{'numeric'},...
-                {'size',[1 2],'real','nonnan'})
-            if isempty(obj.DAQ.OutputData)
-                return
-            end
-
-            
-            changes = diff([obj.Data.WinResponse;new]);
-            tcam = obj.DAQ.tTrigger;
-            camRate = min(diff(tcam));
-            tcam = [tcam tcam(end)+camRate];
-                        
-            if any(changes)
-                changes = round(changes/camRate)*camRate;
-            else
-                new = obj.Data.WinResponse;
-                return;
-            end
-            
-            if ~diff(changes)   % if the response window was MOVED ...
-                if new(1) < 0
-                    new = obj.Data.WinResponse - obj.Data.WinResponse(1);
-                elseif new(2) > obj.h.axes.temporal.XLim(2)
-                    new = obj.h.axes.temporal.XLim(2) - ...
-                        fliplr(obj.Data.WinResponse - obj.Data.WinResponse(1));
-                end
-            else                % if the response window was RESIZED ...
-                if obj.Data.UseControl
-                    maxWidth = abs(tcam(1))/2;
-                else
-                    maxWidth = abs(tcam(1));
-                end
-                if new(1) < 0
-                    new(1) = 0;
-                end
-                if new(2) > obj.h.axes.temporal.XLim(2)
-                    new(2) = obj.h.axes.temporal.XLim(2);
-                end
-                if diff(new) < camRate
-                    if changes(1)
-                        new(1) = new(2) - camRate;
-                    else
-                        new(2) = new(1) + camRate;
-                    end
-                elseif diff(new) > maxWidth
-                    if changes(1)
-                        new(1) = new(2) - maxWidth;
-                    else
-                        new(2) = new(1) + maxWidth;
-                    end
-                end
-            end
-            
-            % snap to camera triggers
-            [~,idxNew] = arrayfun(@(x) min(abs(tcam-x)),new);
-            new = tcam(idxNew);
-        end
     end
 
     methods
