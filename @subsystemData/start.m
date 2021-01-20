@@ -24,7 +24,7 @@ obj.P.Scale.PxPerCm         = obj.Parent.Scale.PxPerCm;
 copyfile(obj.Parent.Settings.Properties.Source,fullfile(obj.DirTemp))
 
 % Just for testing
-% obj.Red = imageRed(obj);
+%imageRed(obj.Parent);
 
 disp(' ')
 dPause = obj.P.Stimulus.InterTrial;
