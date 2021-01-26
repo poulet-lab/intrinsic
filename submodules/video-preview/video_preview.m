@@ -92,8 +92,8 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
                     (obj.SettingsFields.(setting{:}){1}).DefaultValue;
             end
  
-%             % work around an issue with the QiCam minimum gain setting
-%             obj.SettingsConstraints.Gain(1) = .601;
+            % work around an issue with the QiCam minimum gain setting
+            %obj.SettingsConstraints.Gain(1) = .601;
             
             % Initialize point coordinates
             obj.PointCoords.x = NaN;
@@ -398,7 +398,7 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
                     'Tag',      obj.Settings{ii}, ...
                     'Callback', {@obj.SliderCallback},...
                     'Enable',   enable);
-                if regexpi(obj.Settings{ii},'Exposure')
+                if strcmp(obj.Settings{ii},'Exposure')
                     if obj.SettingsConstraints.(obj.Settings{ii})(2) < 0
                         set(obj.SettingsUI.(obj.Settings{ii}).Slider, ...
                             'Value',	obj.(obj.Settings{ii}), ...
@@ -521,8 +521,8 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
             for setting = obj.Settings
                 obj.SettingsUI.(setting{:}).Edit.String = ...
                     obj.(setting{:});
-                if regexpi(setting{:},'Exposure') && ...
-                        obj.SettingsUI.(setting{:}).Slider.Value > 0
+                if strcmp(setting{:},'Exposure') && ...
+                         obj.SettingsConstraints.(setting{:})(1) > 0
                     obj.SettingsUI.(setting{:}).Slider.Value = ...
                         log(obj.(setting{:}));
                 else
@@ -547,10 +547,9 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
         
         % Callback function for sliders
         function SliderCallback(obj,source,~)
-            if regexpi(source.Tag,'Exposure') && source.Value > 0
-                new_val = exp(source.Value);
-            else
-                new_val = source.Value;
+            new_val = source.Value;
+            if strcmp(source.Tag,'Exposure') && obj.SettingsConstraints.(source.Tag)(1) > 0
+                new_val = exp(new_val);
             end
             if new_val < obj.SettingsConstraints.(source.Tag)(1)
                 new_val = obj.SettingsConstraints.(source.Tag)(1);
