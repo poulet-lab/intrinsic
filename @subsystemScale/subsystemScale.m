@@ -20,6 +20,10 @@ classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
         MagnificationPriv
         Data
     end
+    
+    properties
+        UseBinning (1,:) logical = false
+    end
 
     properties (Constant = true, Access = protected)
         MatPrefix = 'scale_';
@@ -59,6 +63,9 @@ classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
         function out = get.PxPerCm(obj)
             if ~isempty(obj.Magnification)
                 out = obj.Data.(obj.DeviceString).(obj.Magnification);
+                if obj.UseBinning
+                    out = out * obj.Camera.Binning;
+                end
             else
                 out = NaN;
             end
