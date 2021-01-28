@@ -104,16 +104,16 @@ obj.h.menu.settingsGeneral = uimenu(obj.h.menu.settings, ...
     'Callback',         {@obj.settingsGeneral});
 obj.h.menu.settingsVideo = uimenu(obj.h.menu.settings, ...
     'Label',            'Camera', ...
-    'Callback',         {@cbSetupCamera});
+    'Callback',         {@(~,~,~) uiwait(obj.Camera.setup)});
 obj.h.menu.settingsDAQ = uimenu(obj.h.menu.settings, ...
     'Label',            'Data Acquisition', ...
-    'Callback',         {@cbSetupDAQ});
+    'Callback',         {@(~,~,~) uiwait(obj.DAQ.setup)});
 obj.h.menu.settingsStimulus = uimenu(obj.h.menu.settings, ...
     'Label',            'Stimulus', ...
-    'Callback',         {@cbSetupStimulus});
+    'Callback',         {@(~,~,~) uiwait(obj.Stimulus.setup)});
 obj.h.menu.settingsMagnification = uimenu(obj.h.menu.settings, ...
     'Label',            'Scale', ...
-    'Callback',         {@cbSetupScale});
+    'Callback',         {@(~,~,~) uiwait(obj.Scale.setup)});
 obj.h.menu.winPos = uimenu(obj.h.menu.settings, ...
     'Label',            'Save Window Positions', ...
     'Separator',        'on', ...
@@ -208,17 +208,14 @@ linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position','InnerPosition'
 
 % indicate temporal windows
 obj.h.patch.winBaseline = patch(obj.h.axes.temporalBg, ...
-    'XData',            obj.Data.WinBaseline([1 1 2 2]), ...
     'YData',            [1 0 0 1], ...
     'FaceColor',        c.winBaseline, ...
     'EdgeColor',        'none');
 obj.h.patch.winControl = patch(obj.h.axes.temporalBg, ...
-    'XData',            obj.Data.WinControl([1 1 2 2]), ...
     'YData',            [1 0 0 1], ...
     'FaceColor',        c.winControl, ...
     'EdgeColor',        'none');
 obj.h.patch.winResponse = patch(obj.h.axes.temporalBg, ...
-    'XData',            obj.Data.WinResponse([1 1 2 2]), ...
     'YData',            [1 0 0 1], ...
     'FaceColor',        c.winResponse, ...
     'EdgeColor',        'none', ...
@@ -299,6 +296,7 @@ obj.h.axes.colorbar.InnerPosition = obj.h.axes.spatial.InnerPosition;
 obj.restoreWindowPositions('main')
 obj.updateEnabled()
 updatedUseControl()
+updatedTemporalWindow()
 obj.h.fig.main.Visible = 'on';
 
 
@@ -407,25 +405,27 @@ obj.h.fig.main.Visible = 'on';
     end
 
     function figureResize(~,~,~)
+        persistent m hTemp hSpat hStim hClrb
+        if isempty(m)
+            m = 60;
+            hTemp = obj.h.axes.temporal;
+            hSpat = obj.h.axes.spatial;
+            hStim = obj.h.axes.stimulus;
+            hClrb = obj.h.axes.colorbar;
+        end
         
-        fSize  = obj.h.fig.main.InnerPosition;
-        margin = 60;
+        fSize = obj.h.fig.main.InnerPosition;
         
-        obj.h.axes.temporal.InnerPosition = ...
-            [margin margin fSize(3:4).*[0.5 1]-[2 2].*margin];
-        obj.h.axes.stimulus.InnerPosition = ...
-            obj.h.axes.temporal.InnerPosition ./ [1 1 1 5];
-        obj.h.axes.spatial.InnerPosition = ...
-            obj.h.axes.temporal.InnerPosition + [fSize(3)*.5 0 0 0];
+        hTemp.InnerPosition = [m m fSize(3:4).*[0.5 1]-[2 2].*m];
+        hStim.InnerPosition = hTemp.InnerPosition ./ [1 1 1 5];
+        hSpat.InnerPosition = hTemp.InnerPosition + [fSize(3)*.5 0 0 0];
         
-        obj.h.axes.colorbar.InnerPosition = obj.h.axes.spatial.InnerPosition;
-        obj.h.axes.colorbar.InnerPosition(3) = max(obj.h.axes.spatial.InnerPosition(3:4)) * obj.h.axes.spatial.TickLength(1);
-        obj.h.axes.colorbar.InnerPosition(1) = obj.h.axes.colorbar.InnerPosition(1) - obj.h.axes.colorbar.InnerPosition(3);
+        hClrb.InnerPosition    = hSpat.InnerPosition;
+        hClrb.InnerPosition(3) = max(hSpat.InnerPosition(3:4)) * hSpat.TickLength(1);
+        hClrb.InnerPosition(1) = hClrb.InnerPosition(1) - hClrb.InnerPosition(3);
     end
 
     function img = icon(filename)
-        validateattributes(filename,{'char'},{'vector'})
-
         % read image, convert to double
         iconpath = fullfile(obj.DirBase,'icons');
         [img,~,alpha] = imread(fullfile(iconpath,filename));
@@ -442,25 +442,5 @@ obj.h.fig.main.Visible = 'on';
 
         % remove completely transparent areas
         img(~alpha) = NaN;
-    end
-
-    function cbSetupDAQ(~,~,~)
-        h = obj.DAQ.setup;
-        uiwait(h)
-    end
-
-    function cbSetupCamera(~,~,~)
-        h = obj.Camera.setup;
-        uiwait(h)
-    end
-
-    function cbSetupStimulus(~,~,~)
-        h = obj.Stimulus.setup;
-        uiwait(h)
-    end
-
-    function cbSetupScale(~,~,~)
-        h = obj.Scale.setup;
-        uiwait(h)
     end
 end
