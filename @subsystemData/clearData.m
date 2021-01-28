@@ -24,5 +24,8 @@ obj.nTrials = 0;
 obj.Trials = [];
 obj.Unsaved = false;
 
+obj.DFF = nan(obj.P.Camera.ROI);
+obj.DFFcontrol = nan(obj.P.Camera.ROI);
+
 % Delete temporary files
 delete(fullfile(obj.DirTemp,'*'))

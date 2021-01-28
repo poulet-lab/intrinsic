@@ -35,7 +35,6 @@ classdef (Sealed) intrinsic < handle
 
         % new objects
         Green
-        Red
 
         StimIn
 
@@ -50,6 +49,7 @@ classdef (Sealed) intrinsic < handle
         Scale
         Stimulus
         Data
+        Red
     end
     
     properties (SetAccess = immutable, GetAccess = {?subsystemData})
@@ -57,11 +57,12 @@ classdef (Sealed) intrinsic < handle
     end
     
     properties (SetAccess = immutable, GetAccess = private)
-        ListenerStimulus;
-        ListenerCamera;
-        ListenerDAQ;
-        ListenerDataRun;
-        ListenerDataUnsaved;
+        ListenerStimulus
+        ListenerCamera
+        ListenerDAQ
+        ListenerDataRun
+        ListenerDataUnsaved
+        ListenerDFF
     end
 
     properties (Dependent = true)
@@ -130,17 +131,20 @@ classdef (Sealed) intrinsic < handle
             obj.DAQ      = subsystemDAQ(obj);
             obj.Scale    = subsystemScale(obj);
             obj.Data     = subsystemData(obj);
-
+            obj.Red      = imageRed(obj);
+            
             % Initialize listeners
             obj.ListenerStimulus = addlistener(obj.Stimulus,...
                 'Update',@obj.cbUpdatedStimulusSettings);
-            obj.ListenerCamera =   addlistener(obj.Camera,...
+            obj.ListenerCamera = addlistener(obj.Camera,...
                 'Update',@obj.cbUpdatedCameraSettings);
-            obj.ListenerDAQ =      addlistener(obj.DAQ,...
+            obj.ListenerDFF = addlistener(obj.Data,...
+                'DFF','PostSet',@obj.cbUpdatedDFF);
+            obj.ListenerDAQ = addlistener(obj.DAQ,...
                 'Update',@obj.cbUpdatedDAQSettings);
-            obj.ListenerDataRun =  addlistener(obj.Data,...
+            obj.ListenerDataRun = addlistener(obj.Data,...
                 'Running','PostSet',@obj.updateEnabled);
-            obj.ListenerDataUnsaved =  addlistener(obj.Data,...
+            obj.ListenerDataUnsaved = addlistener(obj.Data,...
                 'Unsaved','PostSet',@obj.updateEnabled);
 
             % LEGACY STUFF BELOW ------------------------------------------
@@ -199,6 +203,7 @@ classdef (Sealed) intrinsic < handle
         cbUpdatedDAQSettings(obj,src,eventData)
         cbUpdatedStimulusSettings(obj,src,eventData)
         cbUpdatedTemporalWindow(obj,src,eventData)
+        cbUpdatedDFF(obj,src,eventData)
         updateEnabled(obj,~,~)
     end
 
@@ -491,7 +496,7 @@ classdef (Sealed) intrinsic < handle
 % 
 %             imSize      = obj.Camera.ROI;
 %             val_mean    = power(2,obj.Camera.BitDepth-1);
-%             n_frames    = obj.DAQ.nTrigger;
+%             n_frames    = obj.DAQ.nFrameTrigger;
 %             n_trials    = 2;
 %             amp_noise   = 50;
 % 

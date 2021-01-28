@@ -39,6 +39,7 @@ warning('off',tmp)
 obj.Session.release;
 obj.Session.queueOutputData(outputData)
 warning('on',tmp)
+prepare(obj.Session)
 
 % Print message & fire notifier
 intrinsic.message('Queuing output data: %d samples at %d Hz (%g seconds)',...

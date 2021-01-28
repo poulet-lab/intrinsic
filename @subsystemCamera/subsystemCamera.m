@@ -165,26 +165,20 @@ classdef subsystemCamera < subsystemGeneric
     end
 
     methods (Access = {?intrinsic,?subsystemData})
-        function start(obj)
+        function start(obj,nFrames)
             if isrunning(obj.Input.Red)
                 error('Camera is already acquiring data.')
             end
 
-            obj.Parent.message('Arming image acquisition')
-
-            % TODO: move trigger configuration to setup
-            switch obj.Adaptor
-                case {'qimaging','mwqimagingimaq'}
-                    triggerconfig(obj.Input.Red,'hardware','risingEdge','TTL')
-                case 'hamamatsu'
-                    triggerconfig(obj.Input.Red,'hardware','risingEdge','EdgeTrigger')
-            end
-
+            obj.Parent.message('Arming camera for acquisition of %d frames', ...
+                nFrames)
+            
             flushdata(obj.Input.Red)
-            obj.Input.Red.TriggerRepeat = Inf;
+            obj.Input.Red.TriggerRepeat = nFrames - 1;
             obj.Input.Red.FramesPerTrigger = 1;
             obj.Input.Red.FramesAcquiredFcn = @obj.displayFrameCount;
             obj.Input.Red.FramesAcquiredFcnCount = 1;
+            pause(.25)
             start(obj.Input.Red)
         end
 
@@ -256,6 +250,8 @@ classdef subsystemCamera < subsystemGeneric
         cbOkay(obj,~,~)
         cbOVS(obj,~,~)
         cbROI(obj,~,~)
+        cbTriggerSrc(obj,~,~)
+        cbTriggerCond(obj,~,~)
         createInputs(obj)
         toggleCtrls(obj,state)
 
@@ -269,7 +265,7 @@ classdef subsystemCamera < subsystemGeneric
         function displayFrameCount(obj,~,~)
             string = sprintf('Trial %d, acquiring frame %d/%d', ...
                 obj.Parent.Data.nTrials+1,obj.Input.Red.FramesAvailable,...
-                obj.Parent.DAQ.nTrigger);
+                obj.Parent.DAQ.nFrameTrigger);
             obj.Parent.status(string)
         end
     end

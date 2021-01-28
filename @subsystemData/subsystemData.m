@@ -3,10 +3,12 @@ classdef subsystemData < subsystemGeneric
     properties (Constant = true, Access = protected)
         MatPrefix = 'data_'
         DataType = 'double'
+        MATLAB = version('-release')
     end
 
     properties (GetAccess = private, SetAccess = immutable, Transient)
         DirTemp
+        HostName
     end
 
     properties (SetAccess = private, SetObservable, Transient, NonCopyable)
@@ -16,6 +18,9 @@ classdef subsystemData < subsystemGeneric
         DataMeanBaseline
         DataMeanControl
         DataMeanResponse
+        
+        DFF
+        DFFcontrol
     end
     
     properties (SetAccess = private, SetObservable, AbortSet)
@@ -30,6 +35,14 @@ classdef subsystemData < subsystemGeneric
         IdxBaseline = [NaN NaN]
     end
     
+    properties (SetAccess = {?imageRed}, SetObservable, AbortSet)
+        Sigma = 0
+    end
+    
+    properties (Access = private)
+        SigmaPx = 0
+    end
+    
     properties (SetObservable, AbortSet)
         UseControl (1,:) logical = true;	% Bool: are we using the control window?
     end
@@ -40,6 +53,10 @@ classdef subsystemData < subsystemGeneric
         WinBaseline
     end
 
+    events
+        UpdatedIndices
+    end
+    
     properties %(Access = private)
         P
     end
@@ -54,10 +71,18 @@ classdef subsystemData < subsystemGeneric
                 mkdir(obj.DirTemp)
             end
 
+            % Set HostName
+            if ispc
+                obj.HostName = strtrim(getenv('COMPUTERNAME'));
+            else
+                obj.HostName = strtrim(getenv('HOSTNAME'));
+            end
+            
             % Create listeners
             addlistener(obj.Parent.Stimulus,'Update',@obj.getParameters);
             addlistener(obj.Parent.Camera,'Update',@obj.getParameters);
             addlistener(obj.Parent.DAQ,'Update',@obj.getParameters);
+            %addlistener(obj.Parent.Red,'Update',@obj.updateROI);
             %addlistener(obj,'UseControl','PostSet',@updatedUseControl);
 
             % Get Parameters from subsystems
@@ -94,7 +119,7 @@ classdef subsystemData < subsystemGeneric
                 Local.IdxBaseline = 1:obj.time2idx(0)-1;
             end
             
-            % Check if object properties need updating
+            % Check if the object's actual properties need updating
             fns = {'IdxBaseline','IdxControl','IdxResponse'};
             upd = cellfun(@(x) ~isequal(Local.(x),obj.(x)),fns);
             for fn = fns(upd)
@@ -102,12 +127,21 @@ classdef subsystemData < subsystemGeneric
                 obj.calculateWinMeans(fn{:});
             end
             
-            % Call 
+            % Fire notifier / run dependencies
+            if any(upd)
+                notify(obj,'UpdatedIndices')
+                obj.calculateDFF()
+            end
+        end
+        
+        function set.Sigma(obj,in)
+            obj.Sigma = in;
+            obj.calculateDFF();
         end
     end
 
     methods (Access = {?intrinsic})
-        new = forceWinResponse(obj,new)
+        out = forceWinResponse(obj,in)
     end
     
     methods (Access = private)
@@ -118,8 +152,8 @@ classdef subsystemData < subsystemGeneric
         
         function out = time2idx(obj,in)
             if numel(in) == 1
-                tmp = [obj.P.DAQ.tTrigger obj.P.DAQ.tTrigger(end) + ...
-                    mode(diff(obj.P.DAQ.tTrigger))];
+                tmp = [obj.P.DAQ.tFrameTrigger obj.P.DAQ.tFrameTrigger(end) + ...
+                    mode(diff(obj.P.DAQ.tFrameTrigger))];
                 [~,out] = min(abs(tmp-in));
             elseif numel(in) == 2
                 out = obj.time2idx(in(1)):obj.time2idx(in(2))-1;
@@ -130,8 +164,8 @@ classdef subsystemData < subsystemGeneric
             if isempty(in) || any(isnan(in))
                 out = [NaN NaN];
             else
-                out = obj.P.DAQ.tTrigger(in([1 end])) + ...
-                    [0 mode(diff(obj.P.DAQ.tTrigger))];
+                out = obj.P.DAQ.tFrameTrigger(in([1 end])) + ...
+                    [0 mode(diff(obj.P.DAQ.tFrameTrigger))];
             end
         end
         
@@ -141,10 +175,12 @@ classdef subsystemData < subsystemGeneric
             end
             
             calculateAll = ~exist('winName','var');
+            calculateAny = false;
             function calculateVal(idxName,propName)
-                if calculateAll || strcmp(winName,idxName)
+                if calculateAll || isempty(obj.(propName)) || strcmp(winName,idxName)
                     obj.(propName) = ...
                         mean(obj.DataMean(:,:,1,obj.(idxName)),4);
+                    calculateAny = true;
                 end
             end
             
@@ -154,11 +190,32 @@ classdef subsystemData < subsystemGeneric
 
             % TODO: Calculate Variances
             
-%             % obtain the average response (time res., baseline substracted)
-%             obj.SequenceRaw  = stack - base;
-%             obj.ImageRedBase = base;
-%             obj.ImageRedStim = stim;
-%             disp(src.Name)
+            if calculateAny
+                obj.calculateDFF();
+            end
+        end
+        
+        function calculateDFF(obj)
+            if ~obj.nTrials
+                return
+            end
+            
+            control  = (obj.DataMeanControl - obj.DataMeanBaseline) ./ ...
+                obj.DataMeanBaseline;
+            response = (obj.DataMeanResponse - obj.DataMeanBaseline) ./ ...
+                obj.DataMeanBaseline;
+            
+            if obj.Sigma
+                control  = imgaussfilt(control,obj.Sigma);
+                response = imgaussfilt(response,obj.Sigma);
+            end
+            
+            obj.DFFcontrol = control;
+            obj.DFF = response;
+            
+            
+%             obj.Parent.Red.setCData(obj.DFF);
+%             obj.Parent.Red.Visible = 'on';
         end
     end
 

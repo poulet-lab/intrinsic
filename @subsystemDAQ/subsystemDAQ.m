@@ -48,9 +48,13 @@ classdef subsystemDAQ < subsystemGeneric
         DeviceName
         DeviceID
         SamplingRate
-        nTrigger
-        tTrigger
-        pTrigger
+        nFrameTrigger
+        tFrameTrigger
+        pFrameTrigger
+    end
+    
+    properties (Access = {?subsystemData})
+        tStartTrigger = []
     end
 
     methods
@@ -153,23 +157,23 @@ classdef subsystemDAQ < subsystemGeneric
             end
         end
         
-        function out = get.pTrigger(obj)
+        function out = get.pFrameTrigger(obj)
             if obj.Available
-                out = mode(diff(obj.tTrigger));
+                out = mode(diff(obj.tFrameTrigger));
             else
                 out = NaN;
             end
         end
         
-        function out = get.nTrigger(obj)
+        function out = get.nFrameTrigger(obj)
             if obj.Available
-                out = numel(obj.tTrigger);
+                out = numel(obj.tFrameTrigger);
             else
                 out = NaN;
             end
         end
 
-        function out = get.tTrigger(obj)
+        function out = get.tFrameTrigger(obj)
             if obj.Available
                 out = obj.OutputData.Trigger.Time(...
                     diff([0; obj.OutputData.Trigger.Data])>0)';
@@ -187,7 +191,23 @@ classdef subsystemDAQ < subsystemGeneric
         function start(obj)
             pause(.5)
             intrinsic.message('Starting DAQ session')
-            [data,~,~] = obj.Session.startForeground;
+            try
+                [data,~,obj.tStartTrigger] = obj.Session.startForeground;
+            catch ME
+                % NOTE: nidaq:ni:DataMissedOutput keeps occuring on a
+                % regular basis, for some reason. This only seems to affect
+                % the input scans.
+                if strcmp(ME.identifier,'nidaq:ni:DataMissedOutput') && ...
+                    (obj.Session.ScansOutputByHardware == ...
+                    obj.OutputData.Stimulus.Length)
+                
+                    data = nan(size(obj.OutputData.Stimulus.Time));
+                    warning(ME.identifier,[ME.message '\nDAQ input ' ...
+                        'data was lost. Output was complete.'])
+                else
+                    rethrow(ME)
+                end
+            end
             pause(.5)
             intrinsic.message('Releasing DAQ session')
             release(obj.Session)

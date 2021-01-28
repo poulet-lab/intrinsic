@@ -66,4 +66,11 @@ if ~isequal({adaptor,deviceID,mode,ROI(3:4)},{obj.Adaptor,obj.DeviceID, ...
     obj.Adaptor     = adaptor;
     obj.DeviceID    = deviceID;
     obj.Mode        = mode;
+    
+	% configure hardware trigger for red channel
+    triggerCond = obj.loadVar('triggerCondition','');
+    triggerSrc  = obj.loadVar('triggerSource','');
+    if ~any(cellfun(@isempty,{triggerCond, triggerSrc}))
+        triggerconfig(obj.Input.Red,'hardware',triggerCond,triggerSrc)
+    end
 end

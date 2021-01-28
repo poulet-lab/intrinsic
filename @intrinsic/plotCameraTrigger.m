@@ -1,6 +1,6 @@
 function plotCameraTrigger(obj)
 
-gridx = repmat(obj.DAQ.tTrigger,3,1);
+gridx = repmat(obj.DAQ.tFrameTrigger,3,1);
 gridx(3,:) = NaN;
 gridx = gridx(:);
 gridy = repmat([0 .01 NaN]',length(gridx)/3,1);

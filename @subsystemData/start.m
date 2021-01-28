@@ -24,6 +24,7 @@ obj.P.Scale.PxPerCm         = obj.Parent.Scale.PxPerCm;
 copyfile(obj.Parent.Settings.Properties.Source,fullfile(obj.DirTemp))
 
 % Just for testing
+obj.Parent.Red.setScale()
 %imageRed(obj.Parent);
 
 disp(' ')
@@ -35,7 +36,7 @@ while true
     % Acquire data
     intrinsic.message('Starting trial %d',ii)
     obj.Parent.DAQ.queueData()
-    obj.Parent.Camera.start()
+    obj.Parent.Camera.start(obj.Parent.DAQ.nFrameTrigger)
     obj.Parent.DAQ.start()
     obj.Parent.Camera.stop()
     if obj.Running

@@ -54,4 +54,24 @@ else
     end
 end
 
+% manage UI control for trigger configuration
+if isempty(value)
+    ctrl.triggerSrc.Enable = 'off';
+    ctrl.triggerSrc.String = {''};
+    ctrl.triggerSrc.Value  = 1;
+else
+    % get trigger info & save for later use
+    triggerInfo = triggerinfo(videoinput(adaptor,deviceID),'hardware');
+    setappdata(obj.Figure,'triggerInfo',triggerInfo)
+    
+    % enable & fill triggerSrc ctrl
+    ctrl.triggerSrc.Enable = 'on';
+    ctrl.triggerSrc.String = unique({triggerInfo.TriggerSource});
+    
+    % select previously used settings
+    ctrl.triggerSrc.Value = ...
+        max([find(strcmp(modes,obj.loadVar('triggerSource',''))) 1]);
+end
+
 obj.cbMode(ctrl.mode)
+obj.cbTriggerSrc()

@@ -1,13 +1,13 @@
 function out = forceWinResponse(obj,in)
 
 validateattributes(in,{'numeric'},{'size',[1 2],'real','nonnan'})
-if isempty(obj.P.DAQ.tTrigger)
+if isempty(obj.P.DAQ.tFrameTrigger)
     out = in;
     return
 end
 
-pCam    = obj.P.DAQ.pTrigger;
-tCam    = [obj.P.DAQ.tTrigger obj.P.DAQ.tTrigger(end) + pCam];
+pCam    = obj.P.DAQ.pFrameTrigger;
+tCam    = [obj.P.DAQ.tFrameTrigger obj.P.DAQ.tFrameTrigger(end) + pCam];
 if any(isnan(obj.WinResponse))
     changes = [0 1];
 else
