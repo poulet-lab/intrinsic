@@ -441,6 +441,7 @@ classdef (Sealed) intrinsic < handle
             obj.VideoPreview.Preview = false;
             pause(.1)
             structfun(@delete,obj.h.fig)
+            delete(obj.Red)
             diary off
         end
 
@@ -546,133 +547,6 @@ classdef (Sealed) intrinsic < handle
 %             obj.TimeStamp = now;
 %         end
 
-        % Process image stack (averaging, spatial filtering)
-        function processStack(obj)
-%             % create red GUI if necessary
-%             if ~isfield(obj.h.fig,'red')
-%                 obj.GUIred
-%             end
-
-%             % reduce size of stack to recorded data
-%             if size(obj.Stack,2) > 1
-%                 %%
-%                 tic
-%                 stack = mean(cat(4,obj.Stack{:}),4);
-%                 tmp = var(double(cat(4,obj.Stack{:})),0,4);
-%                 toc
-%             else
-%                 stack = double(obj.Stack{1});
-%             end
-% 
-%             obj.Time = obj.DAQ.OutputData.Trigger.Time([1; find(diff(obj.DAQ.OutputData.Trigger.Data)>0)+1])';
-% 
-%             
-%             %%
-%             myclass = 'double';
-%             mymean = cast(obj.Stack{1},myclass);
-%             myvar  = zeros(size(mymean),myclass);
-%             
-%             tic
-%             data   = cast(obj.Stack{2},myclass);
-%             
-%             w = 0;
-%             n = 2;
-%             mean1  = mymean + (data - mymean) / n;
-%             norm   = n - ~w;
-%             myvar  = (var0 .* (norm - 1) + (data - mymean) .* (data - mean1)) / norm;
-%             mymean = mean1;
-%             clear mean1
-%             
-%             toc
-%             %%
-%             
-%             
-%             
-%             
-            % obtain baseline & stimulus
-            base = mean(stack(:,:,obj.Time<0),3);
-            stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
-
-            % obtain the average response (time res., baseline substracted)
-            obj.SequenceRaw  = stack - base;
-            obj.ImageRedBase = base;
-            obj.ImageRedStim = stim;
-% 
-%             % apply temporal/spatial smoothing
-%             obj.update_redImage
-%             obj.processSubStack
-%             obj.update_stimDisp
-%             obj.redView(obj.h.popup.redView);
-%             figure(obj.h.fig.red)
-        end
-
-        function processSubStack(obj,~,~)
-            % This function extracts a sub-volume from obj.StackAverage
-            % which is centered on the currently selected XY-position.
-            % Instead of processing the whole image stack, temporal and
-            % spatial filtering will be applied to the sub-volume only.
-            % Doing so significantly reduces processing time.
-
-            %% we can take a shortcut if no XY-position is selected
-            if any(isnan(obj.Point))
-                obj.ResponseTemporal.x = [];
-                obj.ResponseTemporal.y = [];
-                return
-            end
-
-            %% get sigma values from text fields
-            sigma = struct;                           	% preallocate
-            for id = {'Spatial','Temporal'}
-                hUI = obj.h.edit.(['redSigma' id{:}]);  % UI handle
-                sigma.(id{:}) = str2double(hUI.String); % set sigma value
-            end
-
-            %% obtain sub-volume & center coordinates
-            % Perhaps a bit cumbersome, this section ensures correct
-            % sub-volumes even for XY-positions close to the border.
-
-            tmp     = ceil(2*sigma.Spatial);
-            c1      = obj.Point(2)+(-tmp:tmp); 	% row indices of sub-volume
-            c2      = obj.Point(1)+(-tmp:tmp); 	% col indices of sub-volume
-
-            sz      = size(obj.SequenceRaw);
-            b1      = ismember(c1,1:sz(1));  	% bool: valid row indices
-            b2      = ismember(c2,1:sz(2));   	% bool: valid col indices
-
-            mask    = false(2*tmp+1,2*tmp+1);   % preallocate logical mask
-            mask(tmp+1,tmp+1) = true;           % logical: X/Y center
-            mask    = mask(b1,b2);              % trim mask to valid values
-            [c3,c4] = find(mask);               % indices of X/Y center
-
-            c1      = c1(b1);                 	% keep valid row indices
-            c2      = c2(b2);                 	% keep valid col indices
-
-            subVol  = obj.SequenceRaw(c1,c2,:);
-            if regexp(obj.redMode,'dF/F')
-                subVol = subVol ./ obj.ImageRedBase(c1,c2,:);
-            end
-
-            %% spatial filtering
-            % 2D Gaussian filtering of the sub-volume's 1st two dimensions
-            if sigma.Spatial > 0
-                subVol = imgaussfilt(subVol,sigma.Spatial);
-            end
-
-            %% temporal filtering
-            % Gaussian filtering along the sub-volume's 3rd dimension
-            if sigma.Temporal > 0
-                s       = sigma.Temporal*obj.RateCam/obj.Oversampling/1000;
-                sz      = floor(size(subVol,3)/3);
-                x       = (0:sz-1)-floor(sz/2);
-                gf      = exp(-x.^2/(2*s^2));      	% the Gaussian kernel
-                gf      = gf/sum(gf);              	% normalize Gaussian
-                subVol	= FiltFiltM(gf,1,subVol,3);
-            end
-
-            %% define X and Y values for temporal plot
-            obj.ResponseTemporal.x = obj.Time';
-            obj.ResponseTemporal.y = squeeze(subVol(c3,c4,:));
-        end
 
         %% Dependent Properties (GET)
         function out = get.Line(obj)
@@ -695,83 +569,7 @@ classdef (Sealed) intrinsic < handle
         end
 
         function fileOpen(obj,~,~)
-% 
-%             % Let the user pick a directory to load data from
-%             dn_data = uigetdir(obj.DirSave,'Select folder');
-%             fn_data = fullfile(dn_data,'data.mat');
-%             if isempty(dn_data)
-%                 return
-%             elseif ~exist(fn_data,'file') || isempty(dir(fullfile(dn_data,'stack*.tiff')))
-%                 errordlg('This doesn''t seem to be a valid data directory!',...
-%                     'Hold on!','modal')
-%                 return
-%             else
-%                 obj.clearData
-%                 if isfield(obj.h.fig,'green')
-%                     delete(obj.h.fig.green)
-%                     obj.h.fig = rmfield(obj.h.fig,'green');
-%                 end
-%                 obj.DirLoad = dn_data;
-%             end
-% 
-%             % Load the image stack
-%             for ii = 1:100
-%                 % define name of TIFF and check if it exists
-%                 fn = sprintf('stack%03d.tiff',ii);
-%                 if ~exist(fullfile(obj.DirLoad,fn),'file')
-%                     break
-%                 end
-% 
-%                 % load TIFF to stack
-%                 obj.status(sprintf('Loading "%s" ... ',fn))
-%                 fprintf('Loading "%s" ... ',fn)
-%                 obj.Stack{ii} = loadtiff(fullfile(obj.DirLoad,fn));
-%             end
-%             obj.status
-% 
-%             % Load green image
-%             fn = fullfile(obj.DirLoad,'green.png');
-%             if exist(fn,'file')
-%                 obj.GUIgreen
-%                 obj.ImageGreen          = imread(fn);
-%             else
-%                 warning('Could not find green image')
-%             end
-% 
-%             % Load all remaining vars
-%             tmp = load(fn_data);
-%             for field = fieldnames(tmp)'
-%                 if ~isempty(tmp.(field{:}))
-%                     obj.(field{:}) = tmp.(field{:});
-%                 end
-%             end
-%             obj.DirLoad = dn_data;
-%             figure(obj.h.fig.green)
-%             obj.greenContrast
-% 
-%             % Process stack
-%             obj.status('Processing ...')
-%             obj.processStack
-%             obj.updateEnabled
-%             obj.status
-        end
 
-        function clearData(obj,~,~)
-            %obj.togglePlots('off')
-            obj.PointCoords	= nan(1,2);
-            obj.LineCoords  = nan(1,2);
-            if isfield(obj.h.fig,'red')
-                delete(obj.h.fig.red)
-                obj.h.fig = rmfield(obj.h.fig,'red');
-            end
-            obj.Stack           = cell(1,0);
-            obj.SequenceRaw     = [];
-            obj.SequenceFilt    = [];
-            obj.h.image.red     = [];
-            obj.StimIn          = [];
-            obj.DirLoad         = [];
-            obj.update_stimDisp
-            obj.update_plots
         end
 
         %% check availability of needed toolboxes

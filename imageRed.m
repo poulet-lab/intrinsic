@@ -55,7 +55,9 @@ classdef imageRed < imageGeneric
             obj.Figure.Name = 'Red Image';
             obj.ROI = roi_intrinsic(obj.Axes);
             obj.ROI.Outline.Visible = 'off';
+            
             addlistener(obj.ROI,'Update',@obj.cbUpdateROI);
+            addlistener(obj.ROI,'UpdateCenter',@obj.cbUpdateROIcenter);
             
             % pointer manager for ROI visibility
             pb.enterFcn = @pointerEnter;
@@ -139,6 +141,11 @@ classdef imageRed < imageGeneric
                 obj.Parent.h.plot.spatialControl.XData = x;
                 obj.Parent.h.plot.spatialControl.YData = y;
             end
+        end
+        
+        function cbUpdateROIcenter(obj,~,~)
+            obj.Parent.Data.Point = round(obj.ROI.coordsCenter);
+            obj.Parent.Data.calculateTemporal()
         end
         
         function cbSigma(obj,ctrl,~)

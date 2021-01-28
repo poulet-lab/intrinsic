@@ -31,12 +31,13 @@ classdef subsystemData < subsystemGeneric
         Unsaved    (1,:) logical = false;	% Bool: is there unsaved data?
         
         IdxResponse = [NaN NaN]
-        IdxControl = [NaN NaN]
+        IdxControl  = [NaN NaN]
         IdxBaseline = [NaN NaN]
     end
     
     properties (SetAccess = {?imageRed}, SetObservable, AbortSet)
         Sigma = 0
+        Point
     end
     
     properties (Access = private)
@@ -137,6 +138,7 @@ classdef subsystemData < subsystemGeneric
         function set.Sigma(obj,in)
             obj.Sigma = in;
             obj.calculateDFF();
+            obj.calculateTemporal()
         end
     end
 
@@ -213,9 +215,54 @@ classdef subsystemData < subsystemGeneric
             obj.DFFcontrol = control;
             obj.DFF = response;
             
-            
 %             obj.Parent.Red.setCData(obj.DFF);
 %             obj.Parent.Red.Visible = 'on';
+        end
+    end
+    
+    methods (Access = {?imageRed})
+        function calculateTemporal(obj)
+                        
+            % We can take a shortcut if no XY-position is selected
+            if isempty(obj.Point) || any(isnan(obj.Point))
+                obj.Parent.h.plot.temporal.XData = [];
+                obj.Parent.h.plot.temporal.YData = [];
+                return
+            end
+            
+            %% obtain sub-volume & center coordinates
+            % Perhaps a bit cumbersome, this section ensures correct
+            % sub-volumes even for XY-positions close to the border.
+
+            tmp     = ceil(2*obj.Sigma);
+            c1      = obj.Point(2)+(-tmp:tmp); 	% row indices of sub-volume
+            c2      = obj.Point(1)+(-tmp:tmp); 	% col indices of sub-volume
+
+            sz      = size(obj.DataMean);
+            b1      = ismember(c1,1:sz(1));  	% bool: valid row indices
+            b2      = ismember(c2,1:sz(2));   	% bool: valid col indices
+
+            mask    = false(2*tmp+1,2*tmp+1);   % preallocate logical mask
+            mask(tmp+1,tmp+1) = true;           % logical: X/Y center
+            mask    = mask(b1,b2);              % trim mask to valid values
+            [c3,c4] = find(mask);               % indices of X/Y center
+
+            c1      = c1(b1);                 	% keep valid row indices
+            c2      = c2(b2);                 	% keep valid col indices
+
+            subVol  = (obj.DataMean(c1,c2,:) - obj.DataMeanBaseline(c1,c2)) ...
+                ./ obj.DataMeanBaseline(c1,c2);
+
+            %% spatial filtering
+            % 2D Gaussian filtering of the sub-volume's 1st two dimensions
+            if obj.Sigma > 0
+                subVol = imgaussfilt(subVol,obj.Sigma);
+            end
+
+
+            %% define X and Y values for temporal plot
+            obj.Parent.h.plot.temporal.XData = obj.P.DAQ.tFrameTrigger;
+            obj.Parent.h.plot.temporal.YData = squeeze(subVol(c3,c4,:));            
         end
     end
 

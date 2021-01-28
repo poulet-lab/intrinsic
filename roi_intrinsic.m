@@ -22,23 +22,30 @@ classdef roi_intrinsic < handle
         pt1_rel
     end
     
+    properties (GetAccess = private, SetAccess = immutable)
+        Axes
+    end
+    
     events
         Update
+        UpdateCenter
     end
     
     methods
         function obj = roi_intrinsic(hax)
+            
             % create objects
-            XYLim = [hax.XLim; hax.YLim];
-            obj.Center = images.roi.Point(hax, ...
+            obj.Axes = hax;
+            XYLim = [obj.Axes.XLim; obj.Axes.YLim];
+            obj.Center = images.roi.Point(obj.Axes, ...
                 'Position',	XYLim(:,1)' + .5*diff(XYLim,[],2)',...
                 'Color',  	'r', ...
                 'Deletable', false);
-            obj.Extent = images.roi.Point(hax, ...
+            obj.Extent = images.roi.Point(obj.Axes, ...
                 'Position',	XYLim(:,1)' + [1/3 .5] .* diff(XYLim,[],2)',...
                 'Color', 	'c', ...
                 'Deletable', false);
-            obj.Line = line(hax,...
+            obj.Line = line(obj.Axes,...
                 'LineWidth',            2,...
                 'Color',                'k',...
                 'LineStyle',            '-',...
@@ -46,7 +53,7 @@ classdef roi_intrinsic < handle
                 'HitTest',              'off',...
                 'PickableParts',        'none',...
                 'HandleVisibility',     'off');
-            obj.Outline = patch(hax,NaN,NaN,'w',...
+            obj.Outline = patch(obj.Axes,NaN,NaN,'w',...
                 'EdgeColor',            'k',...
                 'FaceAlpha',            0,...
                 'LineStyle',            '-',...
@@ -57,6 +64,7 @@ classdef roi_intrinsic < handle
                 'HandleVisibility',     'off');
 
             % create listeners
+            obj.Center.addlistener('ROIMoved',@(~,~) notify(obj,'UpdateCenter'));
             obj.Center.addlistener('MovingROI',@obj.translate);
             obj.Extent.addlistener('MovingROI',@obj.reshape);
             
@@ -79,7 +87,7 @@ classdef roi_intrinsic < handle
 
         function set.Radius(obj,value)
             obj.Radius = value;
-            obj.reshape()
+            obj.reshape([],[])
         end
                 
         function translate(obj,~,~)
@@ -91,7 +99,7 @@ classdef roi_intrinsic < handle
 
             obj.Outline.XData = [xy(1,1)-obj.x_rel xy(2,1)+obj.x_rel];
             obj.Outline.YData = [xy(1,2)-obj.y_rel xy(2,2)+obj.y_rel];
-            
+
             notify(obj,'Update');
         end
         
