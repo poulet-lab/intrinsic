@@ -108,6 +108,9 @@ classdef imageRed < imageGeneric
                 obj.Parent.h.axes.spatial.YLim = [-1 1];
                 return
             end
+            if ~obj.Visible
+                return
+            end
             
             [xi,yi,y] = improfile(obj.Parent.Data.DFF,...
                 obj.ROI.Line.XData,obj.ROI.Line.YData,'nearest');
@@ -155,8 +158,8 @@ classdef imageRed < imageGeneric
                 obj.cbUpdateROI();
             else
                 obj.CData = obj.Parent.Data.DFF;
-                obj.cbUpdateROI();
                 obj.Visible = true;
+                obj.cbUpdateROI();
                 obj.focus();
             end
         end
