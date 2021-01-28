@@ -134,19 +134,17 @@ classdef imageGeneric < handle
         
         function set.Visible(obj,value)
             value = matlab.lang.OnOffSwitchState(value);
-            if (isempty(obj.Figure) || ~isvalid(obj.Figure)) && ...
-                    strcmp(value,'on')
+            if (isempty(obj.Figure) || ~isvalid(obj.Figure)) && strcmp(value,'on')
                 obj.createFigure()
-                obj.Figure.Visible = value;
+            end
+            if ~(isempty(obj.Figure) || ~isvalid(obj.Figure))
+                set(obj.Figure,'Visible',value);
                 obj.Zoom = obj.Zoom;
             end
             obj.PrivateVisible = value;
         end
         
         function set.Zoom(obj,value)
-            validateattributes(value,{'numeric'},{'scalar',...
-                'real','finite'},mfilename,'Zoom')
-            
             % calculate limits of zoom value
             upper = get(0,'ScreenSize');
             upper = upper(3:4) - [0 80];
