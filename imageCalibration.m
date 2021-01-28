@@ -47,11 +47,7 @@ classdef imageCalibration < imageGeneric
     methods (Access = protected)
         function createFigure(obj)
             createFigure@imageGeneric(obj)
-            
-            % JUST FOR TESTING
-            tmp = imread('2.0x.png');
-            obj.CData = tmp(:,:,1);
-            
+                        
             colormap(obj.Figure,'gray')
             obj.Figure.Name = 'Calibration';
             obj.Figure.WindowStyle = 'modal';
