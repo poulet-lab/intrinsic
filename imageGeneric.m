@@ -66,12 +66,12 @@ classdef imageGeneric < handle
             obj.Parent          = parent;
             obj.Scale           = parent.Scale;
             obj.Camera          = parent.Camera;
-            obj.Adaptor         = parent.Camera.Adaptor;
-            obj.DeviceName      = parent.Camera.DeviceName;
+%             obj.Adaptor         = parent.Camera.Adaptor;
+%             obj.DeviceName      = parent.Camera.DeviceName;
             
-            obj.ScaleListener   = ...
+            obj.ScaleListener = ...
                 event.listener(parent.Scale,'Update',@obj.scaleChanged);
-            obj.CDataListener   = ...
+            obj.CDataListener = ...
                 addlistener(obj,'CData','PostSet',@obj.scaleChanged);
             
             obj.dummyCData;
@@ -115,6 +115,9 @@ classdef imageGeneric < handle
         end
         
         function set.CLim(obj,value)
+            if ~diff(value)
+                value = value(1) + [-1 1];
+            end
             obj.Axes.CLim = value;
         end
         
@@ -130,13 +133,14 @@ classdef imageGeneric < handle
         end
         
         function set.Visible(obj,value)
-            validatestring(value,{'on','off'},mfilename,'Visible');
+            value = matlab.lang.OnOffSwitchState(value);
             if (isempty(obj.Figure) || ~isvalid(obj.Figure)) && ...
                     strcmp(value,'on')
                 obj.createFigure()
+                obj.Figure.Visible = value;
+                obj.Zoom = obj.Zoom;
             end
             obj.PrivateVisible = value;
-            obj.Figure.Visible = value;
         end
         
         function set.Zoom(obj,value)
@@ -162,6 +166,7 @@ classdef imageGeneric < handle
         end
         
         function focus(obj)
+            obj.Visible = 'on';
             figure(obj.Figure)
         end
     end
@@ -180,11 +185,13 @@ classdef imageGeneric < handle
                 'CloseRequestFcn',  @obj.closeFigure);
             obj.PanelAxes = uipanel(obj.Figure, ...
                 'Units',            'Pixels', ...
-                'BorderType',       'beveledin');
+                'BorderType',       'beveledin', ...
+                'HandleVisibility', 'off');
             obj.Axes = axes(obj.PanelAxes,...
                 'DataAspectRatio',  [1 1 1], ...
                 'Position',         [0 0 1 1], ...
                 'Visible',          'off', ...
+                'HandleVisibility', 'off', ...
                 'YDir',             'reverse', ...
                 'View',             [0 90]);
             obj.Image = image(obj.Axes,...
@@ -247,7 +254,6 @@ classdef imageGeneric < handle
         function closeFigure(obj,~,~)
             obj.Visible = 'off';
             obj.PrivatePosition = obj.Position;
-            delete(obj.Figure)
         end
         
         function dummyCData(obj)
