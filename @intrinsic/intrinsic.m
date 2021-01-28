@@ -185,8 +185,6 @@ classdef (Sealed) intrinsic < handle
 
         GUImain(obj)                    % Create MAIN GUI
         GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
-        GUIgreen(obj)                	% Create GREEN GUI
-        GUIred(obj)                    	% Create RED GUI
         welcome(obj)
         settingsStimulus(obj,~,~)      	% Stimulus Settings
         settingsVideo(obj,~,~)
