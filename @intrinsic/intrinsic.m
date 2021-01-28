@@ -5,37 +5,12 @@ classdef (Sealed) intrinsic < handle
     end
 
     properties %(Access = private)
-        Flags
-
-        h               = [] 	% handles
-
+        h = []
         VideoPreview
-
-        PointCoords     = nan(1,2)
-        LineCoords      = nan(1,2)
-
-        Stack           % raw data
-        SequenceRaw     % relative response (averaged across trials, raw)
-        SequenceFilt    % relative response (averaged across trials, filtered)
-        Time            % time vector
-        IdxStimROI
-
-        ImageRedDiff    % relative response (averaged across trials & time)
-        ImageRedBase    %
-        ImageRedStim    %
-        ImageRedDFF
-        ImageGreen      % snapshot of anatomical details
-        TimeStamp       = NaN;
-
         Toolbox
-
-        % new objects
         Green
-
         StimIn
-
         ResponseTemporal
-
         PxPerCm
     end
 
@@ -62,7 +37,6 @@ classdef (Sealed) intrinsic < handle
     end
 
     properties (Dependent = true)
-        nTrials
         Figure
     end
 
@@ -140,25 +114,11 @@ classdef (Sealed) intrinsic < handle
             obj.ListenerDataUnsaved = addlistener(obj.Data,...
                 'Unsaved','PostSet',@obj.updateEnabled);
 
-            % LEGACY STUFF BELOW ------------------------------------------
-
-            % Initialize some variables
-            obj.h.image.green       = [];
-            obj.h.image.red         = [];
-            obj.Flags.Running       = false;
-            obj.Flags.Saved         = false;
-            obj.Flags.Loaded        = false;
-            obj.Flags.FakeDat       = false;
-            obj.ResponseTemporal.x  = [];
-            obj.ResponseTemporal.y  = [];
-
-            %obj.generateStimulus
-
             % Fire up GUI
             obj.notify('Ready');
+            obj.GUImain()
             intrinsic.message('Startup complete')
-            obj.GUImain             % Create main window
-
+            
             figure(obj.h.fig.main)
             if ~nargout
                 clearvars
@@ -173,7 +133,6 @@ classdef (Sealed) intrinsic < handle
 
     methods %(Access = private)
         plotCameraTrigger(obj)
-
         GUImain(obj)                    % Create MAIN GUI
         GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
         welcome(obj)
@@ -181,176 +140,19 @@ classdef (Sealed) intrinsic < handle
         settingsVideo(obj,~,~)
         settingsGeneral(obj,~,~)
         fileNew(obj,~,~)
+        fileOpen(obj,~,~)
         fileSave(obj,~,~)
-
         greenCapture(obj,~,~)           % Capture reference ("GREEN IMAGE")
-        greenContrast(obj,~,~)          % Modify contrast of "GREEN IMAGE"
-        
-        %varargout = generateStimulus(obj,varargin)
-        
         cbUpdatedCameraSettings(obj,src,eventData)
         cbUpdatedDAQSettings(obj,src,eventData)
         cbUpdatedStimulusSettings(obj,src,eventData)
         cbUpdatedTemporalWindow(obj,src,eventData)
         cbUpdatedDFF(obj,src,eventData)
         updateEnabled(obj,~,~)
-    end
-
-    methods
-%         function set.WinResponse(obj,in)
-%             obj.WinResponse = obj.forceWinResponse(in);
-%             obj.WinControl  = [0 -diff(obj.WinResponse)];
-%         end
-        
-        update_plots(obj)
+        generateTestData(obj,~,~)
     end
 
     methods %(Access = private)
-
-
-
-
-        %% all things related to the RED image stack
-
-%         function redClick(obj,h,~)
-%             hfig    = h.Parent.Parent.Parent;
-%             coord   = round(h.Parent.CurrentPoint(1,1:2));
-%            	switch get(hfig,'SelectionType')
-% 
-%                 % define point of interest
-%                 case 'normal'
-%                     obj.Point = coord;
-% 
-%                 % define spatial cross/section
-%                 case 'alt'
-%                     obj.Line  = coord;
-% 
-%                 % optimize contrast to region of interest
-%                 case 'extend'
-%                     % get coordinates of ROI
-%                     c(1,:) = round(obj.h.axes.red.CurrentPoint(1,1:2));
-%                     rbbox; pause(.1)
-%                     c(2,:) = round(obj.h.axes.red.CurrentPoint(1,1:2));
-% 
-%                     % sanitize & sort coordinates
-%                     c(c<1) = 1;
-%                     c(1,:) = min([c(1,:); obj.ROISize]);
-%                     c(2,:) = min([c(2,:); obj.ROISize]);
-%                     c      = [sort(c(:,1)) sort(c(:,2))];
-% 
-%                     % select image data depending on view mode
-%                     if regexpi(obj.redMode,'dF/F')
-%                         im  = obj.ImageRedDFF;
-%                     else
-%                         im  = obj.ImageRedDiff;
-%                     end
-% 
-%                     % find intensity maximum within ROI
-%                     tmp = im(c(1,2):c(2,2),c(1,1):c(2,1));
-%                     tmp = max(abs(tmp(:)));
-% 
-%                     % update figure
-%                     obj.h.axes.red.UserData = ...
-%                         sum(abs(im(:))<=tmp) / length(im(:));
-%                     redView(obj,obj.h.popup.redView)
-%                     figure(obj.h.fig.red)
-%                 otherwise
-%                     return
-%             end
-%         end
-
-%         function redView(obj,~,~)
-%             modus = obj.redMode;                % get current image mode
-%             ptile = obj.h.axes.red.UserData;    % scaling percentile
-%             bit   = 8;                          % bit depth of the image
-% 
-%             if regexpi(modus,'(diff)|(dF/F)')
-%                 obj.h.edit.redSigmaSpatial.Enable  = 'on';
-%                 obj.h.edit.redSigmaTemporal.Enable = 'on';
-%                 obj.h.edit.redRange.Enable         = 'on';
-%                 cmap = flipud(brewermap(2^bit,'PuOr'));
-% 
-%                 if regexpi(modus,'dF/F')
-%                     im = obj.ImageRedDFF;
-%                 else
-%                     im = obj.ImageRedDiff;
-%                 end
-%                 tmp  = sort(abs(im(:)));
-%                 scal = tmp(ceil(length(tmp) * ptile));
-%                 im   = floor(im ./ scal .* 2^(bit-1) + 2^(bit-1));
-%                 im(im>2^bit) = 2^bit;
-%                 im(im<1)     = 1;
-%             else
-%                 obj.h.edit.redSigmaSpatial.Enable  = 'off';
-%                 obj.h.edit.redSigmaTemporal.Enable = 'off';
-%                 obj.h.edit.redRange.Enable         = 'off';
-%                 cmap = gray(2^bit);
-%             end
-% 
-%             if regexpi(modus,'neg')         % negative deflections
-%                 im(im>2^(bit-1)) = 2^(bit-1);
-%             elseif regexpi(modus,'pos')     % positive deflections
-%                 im(im<2^(bit-1)) = 2^(bit-1);
-%             elseif regexpi(modus,'(base)|(stim)')    % baseline
-% 
-%                 if regexpi(modus,'log')
-%                     base = log(obj.ImageRedBase);
-%                     stim = log(obj.ImageRedStim);
-%                     tmp  = [base(:); stim(:)];
-%                     tmp1 = min(tmp);
-%                     tmp2 = max(tmp-tmp1);
-%                     base = floor((base-tmp1)./tmp2*(2^bit-1))+1;
-%                     stim = floor((stim-tmp1)./tmp2*(2^bit-1))+1;
-%                 else
-%                     base  = obj.ImageRedBase;
-%                     stim  = obj.ImageRedStim;
-%                     tmp	  = [base(:); stim(:)];
-% 
-%                     quant = [.01 .99];
-%                     tmp   = sort(tmp(:));
-%                     tmp   = tmp(round(length(tmp)*quant));
-% 
-%                     base(base<tmp(1)) = tmp(1);
-%                     base(base>tmp(2)) = tmp(2);
-%                     stim(stim<tmp(1)) = tmp(1);
-%                     stim(stim>tmp(2)) = tmp(2);
-% 
-%                     base = round((base-tmp(1)) ./ diff(tmp) * (2^bit-1) + 1);
-%                     stim = round((stim-tmp(1)) ./ diff(tmp) * (2^bit-1) + 1);
-%                 end
-% 
-%                 if regexpi(modus,'base')
-%                     im = base;
-%                 elseif regexpi(modus,'stim')
-%                     im = stim;
-%                 end
-%             end
-% 
-%             obj.processSubStack
-%             obj.h.image.red.CData = ind2rgb(im,cmap);
-%             obj.update_plots;
-%         end
-% 
-%         function out = get.nTrials(obj)
-%             out = length(obj.Stack);
-%         end
-% 
-%         % Return data directory
-%         function out = get.DirSave(obj)
-% 
-%             % Load from settings file
-%             out = obj.loadVar('DirSave',[]);
-%             if isfolder(out)
-%                 return
-%             end
-% 
-%             % Let user pick directory
-%             out = uigetdir('/','Select Data Directory');
-%             if isfolder(out)
-%                 obj.Settings.DirSave = out;
-%             end
-% 
-%         end
 
         % Update checkmarks in the VIEW menu
         function updateMenuView(obj,h,~)
@@ -479,68 +281,7 @@ classdef (Sealed) intrinsic < handle
             obj.h.axes.stimulus.YTick = range;
         end
 
-%         % Generate Test Data
-%         function test_data(obj,~,~)
-% 
-%             %obj.clearData
-% 
-%             imSize      = obj.Camera.ROI;
-%             val_mean    = power(2,obj.Camera.BitDepth-1);
-%             n_frames    = obj.DAQ.nFrameTrigger;
-%             n_trials    = 2;
-%             amp_noise   = 50;
-% 
-%             sigma   = 150;
-%             s       = sigma / imSize(1);
-%             X0      = ((1:imSize(2))/ imSize(1))-.5;
-%             Y0      = ((1:imSize(1))/ imSize(1))-.5;
-%             [Xm,Ym] = meshgrid(X0, Y0);
-%             gauss   = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
-% 
-%             sigma   = 300;
-%             s       = sigma / imSize(1)*2;
-%             X0      = ((1:imSize(1)*2)/ imSize(1)*2)-.5;
-%             Y0      = ((1:imSize(2)*2)/ imSize(2)*2)-.5;
-%             [Xm,Ym] = meshgrid(X0, Y0);
-%             gauss2  = exp( -(((Xm.^2)+(Ym.^2)) ./ (2* s^2)) );
-%             gauss2  = gauss2(1:imSize(1),(1:imSize(2))+round(imSize(2)/5))./4;
-% 
-%             %data_nostim = uint16(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
-%             tmp = ceil(gcd(imSize(1),imSize(2))/2);
-%             tmp = checkerboard(tmp,1,1)>0.5;
-%             tmp = int32(tmp * 20);
-% 
-%             noise_stim  = int32(val_mean+randn(imSize(1),imSize(2),n_frames,n_trials)*amp_noise);
-%             noise_stim  = noise_stim + repmat(tmp,1,1,n_frames,n_trials);
-% 
-%             data_stim = repmat((gauss-gauss2)./3,1,1,n_frames);
-%             lambda    = 3;
-%             mu        = 3;
-%             tmp       = obj.DAQ.OutputData.Trigger.Time([1; find(diff(obj.DAQ.OutputData.Trigger.Data)>0)+1])';
-%             %tmp       = obj.DAQ.OutputData.Trigger.Time(obj.DAQ.OutputData.Trigger.Data>0)';
-%             x         = tmp(tmp>0);
-%             amp_stim  = (lambda./(2*pi*x.^3)).^.5 .* exp((-lambda*(x-mu).^2)./(2*mu^2*x));
-%             amp_stim  = -[zeros(size(tmp(tmp<=0))) amp_stim] * 50;
-%             for ii = 1:size(data_stim,3)
-%                 data_stim(:,:,ii) = data_stim(:,:,ii) * amp_stim(ii);
-%             end
-%             data_stim = int32(data_stim * 3);
-% 
-%             data_stim = repmat(data_stim,1,1,1,n_trials);
-%             data_stim = uint16(data_stim + noise_stim);
-%             clear noise_stim
-% 
-%             for ii = 1:size(data_stim,4)
-%                 obj.Stack{ii} = data_stim(:,:,:,ii);
-%             end
-% 
-%             obj.processStack
-%             obj.TimeStamp = now;
-%         end
 
-        function fileOpen(obj,~,~)
-            % TODO
-        end
 
         %% check availability of needed toolboxes
         function out = get.Toolbox(~)

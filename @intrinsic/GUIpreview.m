@@ -23,13 +23,13 @@ if regexpi(hbutton.TooltipString,'green')
         video_preview(obj.Camera.Input.Green,.5,true);
     obj.VideoPreview.Figure.Name    = ...
         [obj.VideoPreview.Figure.Name ' Green'];
-    obj.VideoPreview.Point = obj.PointCoords * obj.Camera.Binning;
+    %obj.VideoPreview.Point = obj.PointCoords * obj.Camera.Binning;
 else
     obj.VideoPreview = ...
         video_preview(obj.Camera.Input.Red,.5,true);
     obj.VideoPreview.Figure.Name    = ...
         [obj.VideoPreview.Figure.Name ' Red'];
-    obj.VideoPreview.Point = obj.PointCoords;
+    %obj.VideoPreview.Point = obj.PointCoords;
 end
 
 obj.h.fig.preview       	= obj.VideoPreview.Figure;
