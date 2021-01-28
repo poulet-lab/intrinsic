@@ -110,6 +110,11 @@ classdef imageCalibration < imageGeneric
             obj.Zoom = 1;
         end
         
+        function closeFigure(obj,~,~)
+            closeFigure@imageGeneric(obj);
+            delete(obj.Figure)
+        end
+        
         function takeImage(obj)
             % Snap a picture
             [frame, meta] = getsnapshot(obj.Camera.Input.Green);
