@@ -36,7 +36,7 @@ classdef imageGreen < imageGeneric
             obj.Scale = copy(obj.Parent.Scale);
             %obj.scaleChanged();
             
-            % save image data / scale to 16 bit
+            % Save image data / scale to 16 bit
             if obj.Camera.BitDepth == 12
                 obj.CData    = frame(:,:,1) .* 16;
                 obj.BitDepth = 16;
