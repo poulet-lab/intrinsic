@@ -9,10 +9,6 @@ classdef (Sealed) intrinsic < handle
 
         h               = [] 	% handles
 
-%         DirSave
-%         DirLoad         = [];
-%         DirData
-
         VideoPreview
 
         PointCoords     = nan(1,2)
@@ -66,11 +62,8 @@ classdef (Sealed) intrinsic < handle
     end
 
     properties (Dependent = true)
-        redMode
         nTrials
         Figure
-        Point
-        Line
     end
 
     events
@@ -180,8 +173,6 @@ classdef (Sealed) intrinsic < handle
 
     methods %(Access = private)
         plotCameraTrigger(obj)
-        togglePlots(obj,visible)
-
 
         GUImain(obj)                    % Create MAIN GUI
         GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
@@ -547,29 +538,8 @@ classdef (Sealed) intrinsic < handle
 %             obj.TimeStamp = now;
 %         end
 
-
-        %% Dependent Properties (GET)
-        function out = get.Line(obj)
-            if ~any(obj.LineCoords)
-                out.x = [NaN NaN];
-                out.y = [NaN NaN];
-            else
-                out.x = obj.LineCoords(1)*[1 -1]+obj.Point(1);
-                out.y = obj.LineCoords(2)*[1 -1]+obj.Point(2);
-            end
-        end
-
-        function out = get.Point(obj)
-            out = obj.PointCoords;
-        end
-
-        function out = get.redMode(obj)
-            tmp = obj.h.popup.redView;
-            out = tmp.String{tmp.Value};
-        end
-
         function fileOpen(obj,~,~)
-
+            % TODO
         end
 
         %% check availability of needed toolboxes
@@ -597,65 +567,6 @@ classdef (Sealed) intrinsic < handle
                 out.(fns{ii}).licensed  = licensed(ii);
                 out.(fns{ii}).available = installed(ii) & licensed(ii);
             end
-        end
-
-        %% Dependent Properties (SET)
-        function set.Point(obj,value)
-            % Process and validate input
-            if isempty(value)
-                value = nan(1,2);
-            end
-            validateattributes(value,{'numeric'},{'2d',...
-                'numel',2,'positive','row'})
-            if any(value>obj.ROISize)
-                error('Point coordinates must be within ROI')
-            end
-            obj.PointCoords	= value;
-
-            % Update Position of Points (red and green images)
-            if isfield(obj.h,'point')
-                for fn = fieldnames(obj.h.point)'
-                    if ~ishandle(obj.h.point.(fn{:}))
-                        continue
-                    end
-                    tmp = strcmp(fn{:},'green') * (obj.Binning-1) + 1;
-                    set(obj.h.point.(fn{:}), ...
-                        'XData',    value(1) * tmp, ...
-                        'YData',    value(2) * tmp);
-                end
-            end
-
-            % Update Position of Line (red image)
-            if isfield(obj.h,'line')
-                if ishandle(obj.h.line)
-                    set(obj.h.line, ...
-                        'XData',    obj.Line.x, ...
-                        'YData',    obj.Line.y);
-                end
-            end
-
-            % Update Position of Point (live preview)
-            if isa(obj.VideoPreview,'video_preview')
-                tmp = ~isempty(regexpi(obj.VideoPreview.Figure.Name,...
-                    'green','once')) * (obj.Binning-1) + 1;
-                obj.VideoPreview.Point = obj.Point * tmp;
-            end
-
-            % Update Images
-            obj.processSubStack
-            obj.update_plots
-        end
-
-        function set.Line(obj,value)
-            obj.LineCoords = value-obj.Point;
-            if isfield(obj.h,'line')
-                if ishandle(obj.h.line)
-                    set(obj.h.line, ...
-                        'XData',    obj.Line.x, ...
-                        'YData',    obj.Line.y);
-                end
-            end
-            obj.update_plots
         end
 
         function status(obj,in)
