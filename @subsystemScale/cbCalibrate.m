@@ -9,7 +9,7 @@ listener    = addlistener(imCal,'Calibrate',@done);
         magnification = ...
             controls.magnification.String{controls.magnification.Value};
         controls.pxpercm.String = sprintf('%0.1f',imCal.PxPerCm);
-        deviceData.(genvarname(magnification)) = imCal.PxPerCm;
+        deviceData(strcmp({deviceData.Name},magnification)).PxPerCm = imCal.PxPerCm;
         setappdata(obj.Figure,'deviceData',deviceData)
         delete(listener)
     end

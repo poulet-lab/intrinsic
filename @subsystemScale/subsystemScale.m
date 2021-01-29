@@ -1,15 +1,12 @@
 classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
 
-    properties (Access = private)
-        Magnifications
-    end
-
     properties (Dependent)
         Magnification
         PxPerCm
     end
 
     properties (Dependent, Access = private)
+        Magnifications
         DeviceData
         DeviceString
     end
@@ -32,37 +29,35 @@ classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
     methods
         function obj = subsystemScale(varargin)
             obj = obj@subsystemGeneric(varargin{:});
-            
             obj.Camera         = obj.Parent.Camera;
             obj.Data           = obj.loadVar('Data',struct);
-            obj.Magnifications = obj.loadVar('Magnifications',{''});
             obj.Magnification  = obj.loadVar('Magnification','');
-
-            % create data structure
-            if ~isfield(obj.Data,obj.DeviceString)
-                tmp = [genvarname(obj.Magnifications) ...
-                    repmat({NaN},size(obj.Magnifications))]';
-                obj.DeviceData = struct(tmp{:});
-            end
         end
 
         varargout = setup(obj)
     end
 
     methods
+        function out = get.Magnifications(obj)
+            out = {obj.DeviceData.Name};
+        end
+        
         function out = get.Magnification(obj)
             out = obj.MagnificationPriv;
         end
 
         function set.Magnification(obj,magnification)
-            obj.MagnificationPriv = ...
-                validatestring(magnification,obj.Magnifications);
-            notify(obj,'Update')
+            if isfield(obj.Data,obj.DeviceString)
+                obj.MagnificationPriv = ...
+                    validatestring(magnification,obj.Magnifications);
+                notify(obj,'Update')
+            end
         end
 
         function out = get.PxPerCm(obj)
-            if ~isempty(obj.Magnification)
-                out = obj.Data.(obj.DeviceString).(obj.Magnification);
+            tmp = find(strcmp(obj.Magnification,{obj.DeviceData.Name}),1);
+            if ~isempty(tmp)
+                out = obj.DeviceData(tmp).PxPerCm;
                 if obj.UseBinning
                     out = out * obj.Camera.Binning;
                 end
@@ -72,11 +67,14 @@ classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
         end
 
         function out = get.DeviceData(obj)
-            out = obj.Data.(obj.DeviceString);
+            if isfield(obj.Data,obj.DeviceString)
+                out = obj.Data.(obj.DeviceString);
+            else
+                out = struct('Name',{},'PxPerCm',{});
+            end
         end
 
         function set.DeviceData(obj,in)
-            validateattributes(in,{'struct'},{'scalar'})
             obj.Data.(obj.DeviceString) = in;
         end
 
