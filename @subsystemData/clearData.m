@@ -1,7 +1,8 @@
 function clearData(obj,force)
 
 % Double check with user
-if ~(nargin==2 && force)
+tmp = dir(obj.DirTemp);
+if (obj.Unsaved || any(~[tmp.isdir])) && ~(nargin==2 && force)
     answer = questdlg('This will clear all unsaved data. Are you sure?',...
         'Warning!','Yes','Cancel','Cancel');
     if isempty(answer) || strcmp(answer,'Cancel')

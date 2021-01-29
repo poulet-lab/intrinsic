@@ -4,16 +4,12 @@ classdef (Sealed) intrinsic < handle
         DirBase	= fileparts(fileparts(mfilename('fullpath')));
     end
 
-    properties %(Access = private)
-        h = []
-        VideoPreview
-        Toolbox
-        Green
-        StimIn
-        ResponseTemporal
-        PxPerCm
+    properties (GetAccess = {?subsystemData}, Dependent)
+        DirHome
+        DirData
+        Username
     end
-
+    
     properties (SetAccess = immutable)
         Camera
         DAQ
@@ -26,6 +22,13 @@ classdef (Sealed) intrinsic < handle
     properties (SetAccess = immutable, GetAccess = {?subsystemData})
         Settings
     end
+
+    properties %(Access = private)
+        h = []
+        VideoPreview
+        Toolbox
+        Green
+    end
     
     properties (SetAccess = immutable, GetAccess = private)
         ListenerStimulus
@@ -34,10 +37,6 @@ classdef (Sealed) intrinsic < handle
         ListenerDataRun
         ListenerDataUnsaved
         ListenerDFF
-    end
-
-    properties (Dependent = true)
-        Figure
     end
 
     events
@@ -91,7 +90,7 @@ classdef (Sealed) intrinsic < handle
             % Settings are loaded from / saved to disk
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
                 'Writable', true);
-
+            
             % Initalize subsystems
             obj.Stimulus = subsystemStimulus(obj);
             obj.Camera   = subsystemCamera(obj);
@@ -282,6 +281,22 @@ classdef (Sealed) intrinsic < handle
         end
 
 
+        function out = get.DirHome(~)
+            if ispc
+                out = getenv('USERPROFILE');
+            else
+                out = char(java.lang.System.getProperty('user.home'));
+            end
+        end
+        
+        function out = get.DirData(obj)
+            out = obj.loadVar('DirData',...
+                fullfile(obj.DirHome,'Documents','IntrinsicData'));
+        end
+        
+        function out = get.Username(obj)
+            out = obj.loadVar('Username','Unknown');
+        end
 
         %% check availability of needed toolboxes
         function out = get.Toolbox(~)

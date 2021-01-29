@@ -145,6 +145,10 @@ classdef subsystemData < subsystemGeneric
     methods (Access = {?intrinsic})
         out = forceWinResponse(obj,in)
     end
+
+    methods (Access = {?intrinsic})
+        saveData(obj)
+    end
     
     methods (Access = private)
         checkDirTemp(obj)

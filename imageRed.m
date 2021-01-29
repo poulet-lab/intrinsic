@@ -4,7 +4,6 @@ classdef imageRed < imageGeneric
         CDataControl
         ROI
         ButtonControl
-        EditSigma
     end
 
     methods
@@ -25,6 +24,10 @@ classdef imageRed < imageGeneric
             
             createFigure@imageGeneric(obj)
             colormap(obj.Figure,flipud(brewermap(256,'PuOr')))
+
+            obj.Figure.Name = 'Red Image';
+            obj.ROI = roi_intrinsic(obj.Axes);
+            obj.ROI.Outline.Visible = 'off';
             
             obj.ButtonControl = uicontrol(obj.Toolbar, ...
                 'Style',        'togglebutton', ...
@@ -39,23 +42,36 @@ classdef imageRed < imageGeneric
                 'String',    	'Sigma:', ...
                 'Position',    	[sum(obj.ButtonControl.Position([1 3]))+10 0 35 18], ...
                 'Horizontal',  	'left');
-            obj.EditSigma = uicontrol(obj.Toolbar, ...
+            editSigma = uicontrol(obj.Toolbar, ...
                 'Style',       	'Edit', ...
-                'String',     	'0', ...
+                'String',     	obj.Parent.Data.Sigma, ...
                 'Position',   	[sum(tmp.Position([1 3])) 1 30 20], ...
                 'Horizontal', 	'right', ...
                 'Callback',    	@obj.cbSigma, ...
                 'Tooltip',    	'Width of spatial Gaussian filter');
+            tmp = uicontrol(obj.Toolbar, ...
+                'Style',       	'Text', ...
+                'String',    	'µm', ...
+                'Position',    	[sum(editSigma.Position([1 3])) 0 20 18], ...
+                'Horizontal',  	'left');
+            tmp = uicontrol(obj.Toolbar, ...
+                'Style',       	'Text', ...
+                'String',    	'Radius:', ...
+                'Position',    	[sum(tmp.Position([1 3]))+5 0 35 18], ...
+                'Horizontal',  	'left');
+            editRadius = uicontrol(obj.Toolbar, ...
+                'Style',       	'Edit', ...
+                'String',     	50, ...
+                'Position',   	[sum(tmp.Position([1 3])) 1 30 20], ...
+                'Horizontal', 	'right', ...
+                'Callback',    	@obj.cbRadius, ...
+                'Tooltip',    	'Radius for Auto-Contrast');
             uicontrol(obj.Toolbar, ...
                 'Style',       	'Text', ...
                 'String',    	'µm', ...
-                'Position',    	[sum(obj.EditSigma.Position([1 3])) 0 20 18], ...
+                'Position',    	[sum(editRadius.Position([1 3])) 0 20 18], ...
                 'Horizontal',  	'left');
-            
-            obj.Figure.Name = 'Red Image';
-            obj.ROI = roi_intrinsic(obj.Axes);
-            obj.ROI.Outline.Visible = 'off';
-            
+
             addlistener(obj.ROI,'Update',@obj.cbUpdateROI);
             addlistener(obj.ROI,'UpdateCenter',@obj.cbUpdateROIcenter);
             
@@ -69,6 +85,10 @@ classdef imageRed < imageGeneric
             % mouse up/down for control toggle
             obj.Figure.WindowButtonDownFcn = @mouseDown;
             obj.Figure.WindowButtonUpFcn = @mouseUp;
+            
+            % run some callbacks
+            obj.cbSigma(editSigma);
+            obj.cbRadius(editRadius);
             
             function pointerEnter(~,~)
                 obj.ROI.Outline.Visible = 'on';
@@ -120,20 +140,26 @@ classdef imageRed < imageGeneric
                 (yi-obj.ROI.Center.Position(2)).^2);
             tmp       = 1:floor(length(x)/2);
             x(tmp)    = -x(tmp);
-            x         = x / obj.Scale.PxPerCm;
+            x         = x / (obj.Scale.PxPerCm / 1E4);
             obj.Parent.h.plot.spatialAverage.XData = x;
             obj.Parent.h.plot.spatialAverage.YData = y;
 
+%             % Percentile:
+%             tmp = obj.CData(obj.ROI.mask(obj.Size));
+%             tmp = sort(abs(tmp(isfinite(tmp))));
+%             obj.CLim = tmp(ceil(numel(tmp)*.999)) * [-1 1];
+            
             tmp = obj.CData(obj.ROI.mask(obj.Size));
             obj.CLim = max(abs(tmp(isfinite(tmp)))) * [-1 1];
             obj.Parent.h.image.colorbar.YData = linspace(obj.CLim(1),obj.CLim(2),256);
 
             obj.Parent.h.axes.spatial.XLim = x([1 end]);
-            if any(diff(y(:)))
-                obj.Parent.h.axes.spatial.YLim = [min(y) max(y)];
-            else
-                obj.Parent.h.axes.spatial.YLim = [-1 1];
-            end
+            obj.Parent.h.axes.spatial.YLim = obj.CLim;
+%             if any(diff(y(:)))
+%                 obj.Parent.h.axes.spatial.YLim = [min(y) max(y)];
+%             else
+%                 obj.Parent.h.axes.spatial.YLim = [-1 1];
+%             end
             
             if ~isempty(obj.Parent.Data.DFFcontrol)
                 [~,~,y] = improfile(obj.Parent.Data.DFFcontrol,...
@@ -156,6 +182,16 @@ classdef imageRed < imageGeneric
             ctrl.String  = sprintf('%0.5g',value);
             value = str2double(ctrl.String);
             obj.Parent.Data.Sigma = value * (obj.Scale.PxPerCm/1E4);
+        end
+        
+        function cbRadius(obj,ctrl,~)
+            value = str2double(ctrl.String);
+            if isempty(value) || value<=0 || isnan(value)
+                value        = 0;
+            end
+            ctrl.String = sprintf('%0.5g',value);
+            value = str2double(ctrl.String);
+            obj.ROI.Radius = value * (obj.Scale.PxPerCm/1E4);
         end
 
         function updateCData(obj,~,~)

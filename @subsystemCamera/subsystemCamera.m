@@ -5,10 +5,13 @@ classdef subsystemCamera < subsystemGeneric
         DeviceName   = '';                          % Name of selected device
         DeviceID     = NaN;                         % ID of selected device
         Mode         = '';                          % Selected video mode
-        Input        = struct('Green',[],'Red',[]); % Video input objects
         FrameRate    = NaN                          % Frame rate
     end
 
+    properties (SetAccess = private, GetAccess = {?intrinsic,?subsystemGeneric,?imageGeneric})
+        Input        = struct('Green',[],'Red',[]); % Video input objects        
+    end
+    
     properties (Dependent = true)
         Properties  % Property characteristics of image acquisition objects
         DataType    % Data type returned by the imaging adaptor

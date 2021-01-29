@@ -1,33 +1,40 @@
 function settingsGeneral(obj,~,~)
 
-% create settings window & panels
+Usernames = obj.loadVar('Usernames',{''});
+Username  = obj.Username;
+DirData   = obj.DirData;
+
 window = settingsWindow(...
     'Name',  	'General Settings', ...
-    'Width',	350);
-
-% create UI controls
+    'Width',	400);
 window.addDirectory( ...
     'Label',  	'Data Directory', ...
-    'String',  	pwd, ...
-    'Callback',	@cbDirectory);
+    'String',   DirData, ...
+    'Callback', @cbDirData);
 window.addPopupEdit( ...
     'Label',  	'Usernames / Initials', ...
-    'String',  	{'A','B'});
+    'String',  	Usernames, ...
+    'Value',    find(ismember(Usernames,Username),1), ...
+    'Callback', @cbUsername);
 [controls.okay,controls.cancel] = window.addOKCancel(...
-    'Callback',	@obj.cbOkay);
+    'Callback',	@cbOkay);
 
-% % save appdata & initialize
-% cbType(Controls.Type,[])
-% setappdata(obj.Figure,'controls',Controls);
-% setappdata(obj.Figure,'parameters',Parameters);
 window.Visible = 'on';
 
+    function cbDirData(src,~)
+        DirData = src.Directory;
+    end
 
+    function cbUsername(src,~)
+        Usernames = src.String;
+        Username = src.String{src.Value};
+    end
 
-
-
-    function cbDirectory(src,~)
-        %keyboard
+    function cbOkay(~,~)
+        obj.saveVar('Usernames',Usernames)
+        obj.saveVar('Username',Username)
+        obj.saveVar('DirData',DirData)
+        close(window.Handle)
     end
 
 end
