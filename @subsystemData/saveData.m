@@ -18,7 +18,9 @@ if ~status
 end
 
 % Save anatomical reference
-obj.Parent.Green.saveTIFF(DirSave)
+if ~isempty(obj.Parent.Green)
+    obj.Parent.Green.saveTIFF(DirSave)
+end
 
 % Save some extra information
 copyfile(fullfile(obj.Parent.DirBase,'diary.txt'),DirSave);
