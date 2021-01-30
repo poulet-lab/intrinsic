@@ -149,9 +149,17 @@ classdef imageRed < imageGeneric
 %             tmp = sort(abs(tmp(isfinite(tmp))));
 %             obj.CLim = tmp(ceil(numel(tmp)*.999)) * [-1 1];
             
-            tmp = obj.CData(obj.ROI.mask(obj.Size));
-            obj.CLim = max(abs(tmp(isfinite(tmp)))) * [-1 1];
-            obj.Parent.h.image.colorbar.YData = linspace(obj.CLim(1),obj.CLim(2),256);
+            tmp = double.empty;
+            if obj.ROI.Radius
+                tmp = reshape(obj.CData(obj.ROI.mask(obj.Size)),[],1);
+            end
+            if isempty(tmp)
+                tmp = y(isfinite(y));
+            end
+            obj.CLim = max(abs(tmp)) * [-1 1];
+            
+            obj.Parent.h.image.colorbar.YData = ...
+                linspace(obj.CLim(1),obj.CLim(2),256);
 
             obj.Parent.h.axes.spatial.XLim = x([1 end]);
             obj.Parent.h.axes.spatial.YLim = obj.CLim;
