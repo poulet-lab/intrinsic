@@ -2,10 +2,12 @@ function saveData(obj)
 
 % Create output directory
 DirSave = fullfile(obj.Parent.DirData,obj.Parent.Username,...
-    datestr(obj.Trials(1).TimestampDAQ,'yymmdd_HHMMSS'));
-status = mkdir(DirSave);
-if ~status
-    errordlg({'Error creating output directory:',DirSave},'Error')
+    datestr(obj.Trials(1).TimestampsCamera(1),'yymmdd_HHMMSS'));
+if ~exist('DirSave','dir')
+    status = mkdir(DirSave);
+    if ~status
+        errordlg({'Error creating output directory:',DirSave},'Error')
+    end
 end
 
 % Copy contents of DirTemp
