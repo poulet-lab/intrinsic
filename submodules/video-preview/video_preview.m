@@ -153,27 +153,23 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
             obj.hFigure = value;
         end
         
-        % Get/set visibility of GUI
         function out = get.Visible(obj)
-            if ~isempty(obj.Figure)
-                out = obj.Figure.Visible;
-            else
-                out = 'off';
+            % Get visibility of GUI
+            if isempty(obj.Figure)
+                out = matlab.lang.OnOffSwitchState(0);
+                return
             end
+            out = obj.Figure.Visible;
         end
-        function set.Visible(obj,visible)
-            validatestring(visible,{'on','off'});
-            if strcmp(visible,'on')
-                if isempty(obj.Figure)
-                    obj.createFigure
-                else
-                    obj.Figure.Visible = 'on';
-                end
-                obj.Preview = true;
-            else
-                obj.Figure.Visible  = 'off';
-                obj.Preview         = false;
+        
+        function set.Visible(obj,value)
+            % Set visibility of GUI
+            value = matlab.lang.OnOffSwitchState(value);
+            if isempty(obj.Figure) && value
+                obj.createFigure()
             end
+            obj.Figure.Visible = value;
+            obj.Preview = value;
         end
         
         % Get/set enabled state of UI controls
@@ -648,6 +644,9 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
                 'WindowStyle',  'modal', ...
                 'WindowState',  'fullscreen')
             
+            % save old position
+            position = obj.Figure.Position;
+            
             % wait for user interaction
             waitforbuttonpress
             
@@ -660,7 +659,8 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
                 'Visible',      'on')
             set(obj.Figure,...
                 'WindowStyle',  'normal', ...
-                'WindowState',  'normal')
+                'WindowState',  'normal', ...
+                'Position',     position)
         end
         
         % Close the app
