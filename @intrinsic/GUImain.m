@@ -260,7 +260,7 @@ obj.plotStimulus()
 % response plot
 title(obj.h.axes.temporal,'Temporal Response')
 xlabel(obj.h.axes.temporal,'Time (s)')
-ylabel(obj.h.axes.temporal,'\DeltaF/F')
+ylabel(obj.h.axes.temporal,'\DeltaF/F (%)')
 obj.h.plot.temporal = plot(obj.h.axes.temporal,NaN,NaN,'k', ...
     'LineWidth',        1, ...
     'PickableParts',    'none');
@@ -283,7 +283,7 @@ obj.h.plot.spatialControl = plot(obj.h.axes.spatial,NaN,NaN,...
 
 title(obj.h.axes.spatial,'Spatial Cross-Section')
 xlabel(obj.h.axes.spatial,'Distance (µm)')
-ylabel(obj.h.axes.spatial,'\DeltaF/F')
+ylabel(obj.h.axes.spatial,'\DeltaF/F (%)')
 
 obj.h.image.colorbar = imagesc(obj.h.axes.colorbar,...
     'CData',ind2rgb(rot90(1:256),brewermap(256,'PuOr')),'XData',[0 1],'YData',linspace(-1,1,256),'Visible',0);
@@ -398,7 +398,7 @@ obj.h.fig.main.Visible = 'on';
         hObj = [obj.h.plot.temporal obj.h.plot.stimulus ...
             obj.h.patch.winBaseline obj.h.patch.winControl ...
             obj.h.patch.winResponse];
-        str = {'Intrinsic Signal', 'Stimulus', 'Baseline Window', ...
+        str = {'Signal', 'Stimulus', 'Baseline Window', ...
             'Control Window', 'Response Window'};
         if ~obj.Data.UseControl
             hObj(4) = [];

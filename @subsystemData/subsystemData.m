@@ -207,9 +207,9 @@ classdef subsystemData < subsystemGeneric
             end
             
             control  = (obj.DataMeanControl - obj.DataMeanBaseline) ./ ...
-                obj.DataMeanBaseline;
+                obj.DataMeanBaseline .* 100;
             response = (obj.DataMeanResponse - obj.DataMeanBaseline) ./ ...
-                obj.DataMeanBaseline;
+                obj.DataMeanBaseline .* 100;
             
             if obj.Sigma
                 control  = imgaussfilt(control,obj.Sigma);
@@ -218,9 +218,6 @@ classdef subsystemData < subsystemGeneric
             
             obj.DFFcontrol = control;
             obj.DFF = response;
-            
-%             obj.Parent.Red.setCData(obj.DFF);
-%             obj.Parent.Red.Visible = 'on';
         end
     end
     
@@ -266,7 +263,7 @@ classdef subsystemData < subsystemGeneric
 
             %% define X and Y values for temporal plot
             obj.Parent.h.plot.temporal.XData = obj.P.DAQ.tFrameTrigger;
-            obj.Parent.h.plot.temporal.YData = squeeze(subVol(c3,c4,:));            
+            obj.Parent.h.plot.temporal.YData = squeeze(subVol(c3,c4,:)) * 100;            
         end
     end
 
