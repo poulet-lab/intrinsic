@@ -201,7 +201,7 @@ obj.h.axes.spatial = axes(obj.h.fig.main, ...
     'PickableParts',    'none');
 
 linkaxes([obj.h.axes.temporal obj.h.axes.stimulus obj.h.axes.temporalBg],'x')
-linkaxes([obj.h.axes.spatial obj.h.axes.colorbar],'y')
+linkaxes([obj.h.axes.temporal obj.h.axes.spatial obj.h.axes.colorbar],'y')
 linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position','InnerPosition'});
 
 %% Temporal Response
