@@ -50,7 +50,7 @@ classdef subsystemData < subsystemGeneric
         UseControl (1,:) logical = true;	% Bool: are we using the control window?
     end
     
-    properties (Dependent, SetObservable, AbortSet)
+    properties (Dependent)
         WinResponse
         WinControl
         WinBaseline

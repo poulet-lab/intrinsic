@@ -10,6 +10,10 @@ classdef imageGreen < imageGeneric
         DeviceProperties
     end
     
+    properties (Access = private)
+        PopupMagnification
+    end
+    
     methods
         function obj = imageGreen(varargin)
             % check arguments
@@ -26,6 +30,9 @@ classdef imageGreen < imageGeneric
             
             % Create GUI
             obj.Visible = 'on';
+            
+            % Listen for unsaved changes
+            addlistener(obj.Parent.Data,'Unsaved','PostSet',@obj.callbackUnsaved);
         end
 
         function takeImage(obj)
@@ -33,8 +40,9 @@ classdef imageGreen < imageGeneric
             [frame, meta] = getsnapshot(obj.Camera.Input.Green);
 
             % Copy scale from parent
-            obj.Scale = copy(obj.Parent.Scale);
-            %obj.scaleChanged();
+            %obj.Scale = copy(obj.Parent.Scale);
+            obj.Scale = obj.Parent.Scale;
+            obj.scaleChanged();
             
             % Save image data / scale to 16 bit
             if obj.Camera.BitDepth == 12
@@ -114,23 +122,52 @@ classdef imageGreen < imageGeneric
         function createFigure(obj)
             createFigure@imageGeneric(obj)
             colormap(obj.Figure,'gray')
-            uicontrol(obj.Toolbar, ...
-                'Style', 	'Checkbox', ...
+            tmp = uicontrol(obj.Toolbar, ...
+                'Style', 	'checkbox', ...
                 'Value',  	1, ...
-                'Position',	[0 3 100 18], ...
+                'Position',	[0 2 90 20], ...
                 'String',  	'Auto Contrast', ...
-                'Callback',	@obj.callbackCheckContrast);
+                'Callback',	@callbackCheckContrast);
+            tmp = uicontrol(obj.Toolbar, ...
+                'Style',       	'Text', ...
+                'String',    	'Magnification:', ...
+                'Position',    	[sum(tmp.Position([1 3]))+10 -1 0 0], ...
+                'Horizontal',  	'right');
+            tmp.Position(3:4) = tmp.Extent(3:4);
+            obj.PopupMagnification = uicontrol(obj.Toolbar, ...
+                'Style', 	'popupmenu', ...
+                'Value',  	find(ismember(obj.Scale.Magnifications,obj.Scale.Magnification)), ...
+                'String',  	obj.Scale.Magnifications, ...    
+                'Position',	[sum(tmp.Position([1 3]))+3 3 50 20], ...
+                'Callback',	@callbackPopupScale);
             obj.Figure.Name = 'Green Image';
-        end
-    end
-    
-    methods (Access = private)
-        function callbackCheckContrast(obj,hCtrl,~)
-            if hCtrl.Value
-                obj.CLim = [min(obj.CData(:))-1 max(obj.CData(:))+1];
-            else
-                obj.CLim = [0 2^obj.BitDepth-1];
+            
+            function callbackCheckContrast(hCtrl,~)
+                if hCtrl.Value
+                    obj.CLim = [min(obj.CData(:))-1 max(obj.CData(:))+1];
+                else
+                    obj.CLim = [0 2^obj.BitDepth-1];
+                end
             end
+            
+            function callbackPopupScale(hCtrl,~)
+                obj.Scale.Magnification = hCtrl.String{hCtrl.Value};
+            end
+        end
+        
+        function callbackUnsaved(obj,~,~)
+            if obj.Parent.Data.Unsaved
+                obj.PopupMagnification.Enable = 'off';
+            else
+                obj.PopupMagnification.Enable = 'on';
+            end
+        end
+        
+        function scaleChanged(obj,~,~)
+            scaleChanged@imageGeneric(obj)
+            obj.PopupMagnification.String = obj.Scale.Magnifications;
+            obj.PopupMagnification.Value = ...
+                find(ismember(obj.Scale.Magnifications,obj.Scale.Magnification));
         end
     end
     

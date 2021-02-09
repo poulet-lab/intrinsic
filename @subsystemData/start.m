@@ -8,6 +8,7 @@ if obj.Unsaved
     warndlg('Unsaved data!')
     return
 end
+obj.Unsaved = true;
 
 % Check for ongoing acquisition
 if obj.Running

@@ -24,7 +24,7 @@ classdef imageGeneric < handle
     properties (Transient, Access = private)
         PanelAxes
         PanelZoom
-        BottomPx = 20
+        BottomPx = 22
         EditZoom
         LabelZoom
     end
@@ -54,7 +54,7 @@ classdef imageGeneric < handle
     end
     
     properties (Access = protected)
-        Scale
+        Scale (1,:) subsystemScale
     end
     
     methods
@@ -70,7 +70,7 @@ classdef imageGeneric < handle
 %             obj.DeviceName      = parent.Camera.DeviceName;
             
             obj.ScaleListener = ...
-                event.listener(parent.Scale,'Update',@obj.scaleChanged);
+                addlistener(parent.Scale,'Update',@obj.scaleChanged);
             obj.CDataListener = ...
                 addlistener(obj,'CData','PostSet',@obj.scaleChanged);
             

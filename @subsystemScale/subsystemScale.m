@@ -5,8 +5,11 @@ classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
         PxPerCm
     end
 
-    properties (Dependent, Access = private)
+    properties (Dependent, Access = {?imageGeneric})
         Magnifications
+    end
+    
+    properties (Dependent, Access = private)
         DeviceData
         DeviceString
     end
