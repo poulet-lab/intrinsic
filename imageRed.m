@@ -196,6 +196,14 @@ classdef imageRed < imageGeneric
         end
         
         function cbUpdateROIcenter(obj,~,~)
+%             % snap to peak?
+%             [row,col] = find(imregionalmax(abs(obj.Parent.Data.DFF),8));
+%             tmp = zeros(size(obj.Parent.Data.DFF));
+%             tmp(row,col) = 1;
+%             [~,idx] = min(sqrt(power(row - obj.ROI.Center.Position(1),2) + ...
+%                 power(col - obj.ROI.Center.Position(2),2)));
+%             obj.ROI.Center.Position = [row(idx) col(idx)];
+            
             obj.Parent.Data.Point = round(obj.ROI.coordsCenter);
             obj.Parent.Data.calculateTemporal()
         end
