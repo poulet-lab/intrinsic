@@ -30,6 +30,7 @@ obj.h.fig.main = figure( ...
 addlistener(obj.Data,{'IdxResponse','UseControl'},'PostSet',...
     @updatedTemporalWindow);
 addlistener(obj.Data,'UseControl','PostSet',@updatedUseControl);
+addlistener(obj.DAQ,'tLive','PostSet',@updatedtLive);
 
 %% Toolbar
 obj.h.toolbar = uitoolbar(obj.h.fig.main);
@@ -242,6 +243,9 @@ iptPointerManager(obj.h.fig.main,'enable')
 obj.h.xline.tZero = xline(obj.h.axes.temporalBg,0, ...
     'Color',            [.8 .8 .8], ...
     'PickableParts',  	'none');
+obj.h.xline.timeCursor = xline(obj.h.axes.temporal,0, ...
+    'PickableParts',  	'none', ...
+    'Visible',          'off');
 
 % indicate camera triggers
 obj.h.plot.grid = plot(obj.h.axes.temporalBg,NaN,NaN,'k',...
@@ -407,6 +411,17 @@ obj.h.fig.main.Visible = 'on';
         obj.h.legend.temporal = legend(obj.h.axes.temporal,hObj,str,...
             'Color',        'w', ...
             'PickableParts','none');
+    end
+
+    function updatedtLive(~,~)
+        tmp = obj.DAQ.tLive;
+        if ~isnan(tmp)
+            obj.h.xline.timeCursor.Value = obj.DAQ.tLive;
+            obj.h.xline.timeCursor.Visible = 'on';
+        else
+            obj.h.xline.timeCursor.Visible = 'off';
+            obj.h.xline.timeCursor.Value = 0;
+        end
     end
 
     function figureResize(~,~,~)

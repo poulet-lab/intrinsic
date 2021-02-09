@@ -53,6 +53,10 @@ classdef subsystemDAQ < subsystemGeneric
         pFrameTrigger
     end
     
+    properties (SetAccess = private, GetAccess = {?intrinsic}, SetObservable)
+        tLive = NaN
+    end
+    
     properties (Access = {?subsystemData})
         tStartTrigger = []
     end
@@ -189,32 +193,31 @@ classdef subsystemDAQ < subsystemGeneric
         queueData(obj)
         
         function start(obj)
-            pause(.5)
             intrinsic.message('Starting DAQ session')
-            try
-                [data,~,obj.tStartTrigger] = obj.Session.startForeground;
-            catch ME
-                % NOTE: nidaq:ni:DataMissedOutput keeps occuring on a
-                % regular basis, for some reason. This only seems to affect
-                % the input scans.
-                if strcmp(ME.identifier,'nidaq:ni:DataMissedOutput') && ...
-                    (obj.Session.ScansOutputByHardware == ...
-                    obj.OutputData.Stimulus.Length)
-                
-                    data = nan(size(obj.OutputData.Stimulus.Time));
-                    warning(ME.identifier,[ME.message '\nDAQ input ' ...
-                        'data was lost. Output was complete.'])
-                else
-                    rethrow(ME)
-                end
-            end
-            pause(.5)
+            el = addlistener(obj.Session,'DataAvailable',@dataAvailable); 
+            data = NaN(obj.Session.ScansQueued,1);
+            idx  = 0;
+            t0   = obj.OutputData.Time(1);
+            obj.Session.startBackground;
+            wait(obj.Session)
+            obj.tLive = NaN;
+            delete(el)
+
             intrinsic.message('Releasing DAQ session')
             release(obj.Session)
-            pause(.5)
             obj.InputData = ...
                 timeseries(data,obj.OutputData.Stimulus.Time, ...
                 'Name','Camera Sync');
+            
+            function dataAvailable(~,event)
+                if idx==0
+                    obj.tStartTrigger = event.TriggerTime;
+                end
+                nSamples = numel(event.Data);
+                data(idx + (1:nSamples)) = event.Data;
+                idx = idx + nSamples;
+                obj.tLive = event.TimeStamps(nSamples) + t0;
+            end
         end
         
         function stop(obj)
