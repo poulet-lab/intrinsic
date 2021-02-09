@@ -1,3 +1,3 @@
 function cbUpdatedDFF(obj,~,~)
 
-obj.h.image.colorbar.Visible = ~isempty(obj.Data.DataMean);
+obj.h.image.colorbar.Visible = ~all(isnan(obj.Data.DFF(:)));
