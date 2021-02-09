@@ -71,9 +71,18 @@ classdef (Sealed) intrinsic < handle
                 error('Invalid version string: "%s".', obj.version)
             end
 
-            % Clear command window, close all figures & say hi
+            % Clear command window, close all figures
             clc
             close all
+            
+            % Add submodules to path
+            addpath(genpath(fullfile(obj.DirBase,'submodules')))
+
+            % Settings are loaded from / saved to disk
+            obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
+                'Writable', true);
+            
+            % Say hi
             fprintf('<strong>Intrinsic Imaging, v%s</strong>\n\n',obj.version)
             obj.welcome();
 
@@ -84,13 +93,6 @@ classdef (Sealed) intrinsic < handle
                 end
             end
 
-            % Add submodules to path
-            addpath(genpath(fullfile(obj.DirBase,'submodules')))
-
-            % Settings are loaded from / saved to disk
-            obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
-                'Writable', true);
-            
             % Initalize subsystems
             obj.Stimulus = subsystemStimulus(obj);
             obj.Camera   = subsystemCamera(obj);
@@ -139,8 +141,6 @@ classdef (Sealed) intrinsic < handle
         settingsVideo(obj,~,~)
         settingsGeneral(obj,~,~)
         fileNew(obj,~,~)
-        fileOpen(obj,~,~)
-        fileSave(obj,~,~)
         greenCapture(obj,~,~)           % Capture reference ("GREEN IMAGE")
         cbUpdatedCameraSettings(obj,src,eventData)
         cbUpdatedDAQSettings(obj,src,eventData)
