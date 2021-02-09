@@ -44,20 +44,23 @@ else
         (data-obj.DataMean)) / norm;
 end
 
+% Implement the above for median?
+% https://changyaochen.github.io/welford/#how-about-median
+
 % Calculate window means
 obj.calculateWinMeans
 
-% hand over to separate function!
-obj.Parent.message('Calculating baseline mean & variance')
-idxBase = obj.Parent.DAQ.tFrameTrigger < 0;
-meanBase = mean(obj.DataMean(:,:,1,idxBase),4);
-%stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
-if obj.nTrials == 1
-    varBase = zeros(size(meanBase),obj.DataType);
-else
-    % the variance of the total group is equal to the mean of
-    % the variances of the subgroups, plus the variance of the
-    % means of the subgroups
-    varBase = mean(obj.DataVar(:,:,1,idxBase),4) + ...
-        var(obj.DataMean(:,:,1,idxBase),[],4);
-end
+% % hand over to separate function!
+% obj.Parent.message('Calculating baseline mean & variance')
+% idxBase = obj.Parent.DAQ.tFrameTrigger < 0;
+% meanBase = mean(obj.DataMean(:,:,1,idxBase),4);
+% %stim = mean(stack(:,:,obj.Time>=0 & obj.Time < obj.WinResponse(2)),3);
+% if obj.nTrials == 1
+%     varBase = zeros(size(meanBase),obj.DataType);
+% else
+%     % the variance of the total group is equal to the mean of
+%     % the variances of the subgroups, plus the variance of the
+%     % means of the subgroups
+%     varBase = mean(obj.DataVar(:,:,1,idxBase),4) + ...
+%         var(obj.DataMean(:,:,1,idxBase),[],4);
+% end
