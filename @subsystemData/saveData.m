@@ -25,6 +25,9 @@ end
 % Save some extra information
 copyfile(fullfile(obj.Parent.DirBase,'diary.txt'),DirSave);
 tmp = obj.P;
+tmp.Data = struct(obj);
+tmp.Data = rmfield(tmp.Data,{'IdxResponse','IdxBaseline','P'...
+    'Running','Unsaved','DFF','DFFcontrol'});
 save(fullfile(DirSave,'data.mat'),'-struct','tmp')
 
 intrinsic.message('Done.')
