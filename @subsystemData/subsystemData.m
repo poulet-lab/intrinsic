@@ -3,12 +3,18 @@ classdef subsystemData < subsystemGeneric
     properties (Constant = true, Access = protected)
         MatPrefix = 'data_'
         DataType = 'double'
+    end
+        
+    properties (Constant = true)
         MATLAB = version('-release')
     end
 
+    properties (SetAccess = immutable)
+        HostName
+    end
+    
     properties (GetAccess = private, SetAccess = immutable, Transient)
         DirTemp
-        HostName
     end
 
     properties (Access = private, SetObservable, Transient, NonCopyable)
@@ -55,13 +61,13 @@ classdef subsystemData < subsystemGeneric
         WinControl
         WinBaseline
     end
-
-    events
-        UpdatedIndices
+    
+    properties (Access = private)
+        P
     end
     
-    properties %(Access = private)
-        P
+    events
+        UpdatedIndices
     end
 
     methods
