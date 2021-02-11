@@ -211,7 +211,8 @@ linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position','InnerPosition'
 obj.h.patch.winBaseline = patch(obj.h.axes.temporalBg, ...
     'YData',            [1 0 0 1], ...
     'FaceColor',        c.winBaseline, ...
-    'EdgeColor',        'none');
+    'EdgeColor',        'none', ...
+    'ButtonDownFcn',	@useControl);
 obj.h.patch.winControl = patch(obj.h.axes.temporalBg, ...
     'YData',            [1 0 0 1], ...
     'FaceColor',        c.winControl, ...
@@ -231,13 +232,17 @@ set(obj.h.xline.winResponse, ...
 % pointer manager for temporal windows
 pb(1).enterFcn    = @pointerEnterTemporalROIborder;
 pb(2).enterFcn    = @pointerEnterTemporalROIarea;
+pb(4).enterFcn    = @pointerEnterTemporalBaselineROI;
 pb(1).exitFcn     = @pointerExitTemporalROI;
 pb(2).exitFcn     = @pointerExitTemporalROI;
+pb(4).exitFcn     = @pointerExitTemporalBaselineROI;
 pb(2).traverseFcn = @pointerEnterTemporalROIarea;
 pb(3).traverseFcn = @pointerExitTemporalROI;
+pb(4).enterFcn    = @pointerEnterTemporalBaselineROI;
 iptSetPointerBehavior(obj.h.xline.winResponse,pb(1));
 iptSetPointerBehavior(obj.h.patch.winResponse,pb(2));
 iptSetPointerBehavior(obj.h.fig.main,pb(3));
+iptSetPointerBehavior(obj.h.patch.winBaseline,pb(4));
 iptPointerManager(obj.h.fig.main,'enable')
 
 % indicate t=0
@@ -312,6 +317,19 @@ obj.h.fig.main.Visible = 'on';
 
 
 
+    function useControl(~,~)
+        obj.Data.UseControl  = ~obj.Data.UseControl;
+        obj.Data.WinResponse = obj.Data.WinResponse;
+        updatedTemporalWindow()
+    end
+
+    function pointerEnterTemporalBaselineROI(~,~)
+        set(obj.h.fig.main,'Pointer','hand')
+    end
+
+    function pointerExitTemporalBaselineROI(~,~)
+        set(obj.h.fig.main,'Pointer','arrow')
+    end
 
     %% Local functions for controlling drag & drop of temporal ROI
     function pointerEnterTemporalROIborder(~,~)
