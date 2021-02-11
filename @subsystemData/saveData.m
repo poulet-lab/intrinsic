@@ -15,7 +15,8 @@ drawnow
 
 try
     % Create output directory
-    DirSave = fullfile(obj.Parent.DirData,obj.Parent.Username,...
+    DirSave = fullfile(obj.Parent.DirData,obj.Parent.Username, ...
+        datestr(obj.Trials(1).TimestampsCamera(1),'yymmdd'), ...
         datestr(obj.Trials(1).TimestampsCamera(1),'yymmdd_HHMMSS'));
     if ~exist('DirSave','dir')
         [status,msg] = mkdir(DirSave);
