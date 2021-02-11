@@ -46,6 +46,7 @@ classdef subsystemData < subsystemGeneric
     properties (SetAccess = {?imageRed}, SetObservable, AbortSet)
         Sigma = 0
         Point
+        P
     end
     
     properties (Access = private)
@@ -60,10 +61,6 @@ classdef subsystemData < subsystemGeneric
         WinResponse
         WinControl
         WinBaseline
-    end
-    
-    properties (Access = private)
-        P
     end
     
     events
@@ -161,6 +158,7 @@ classdef subsystemData < subsystemGeneric
     
     methods (Access = private)
         checkDirTemp(obj)
+        runMean(obj,data)
         getDataFromCamera(obj)
         getParameters(obj,~,~)
         save2tiff(obj,filename,data,timestamp)

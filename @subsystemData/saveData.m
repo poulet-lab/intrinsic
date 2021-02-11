@@ -45,7 +45,6 @@ try
         'Unsaved','IdxResponse','IdxBaseline','DFF','DFFcontrol'}));
     save(fullfile(DirSave,'data.mat'),'-struct','tmp')
 
-    intrinsic.message('Done.')
     delete(d)
     
 catch E

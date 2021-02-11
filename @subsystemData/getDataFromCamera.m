@@ -26,26 +26,9 @@ obj.Trials(obj.nTrials).Filename = fn;
 obj.Trials(obj.nTrials).TimestampsCamera = datenum(vertcat(metadata.AbsTime));
 obj.Trials(obj.nTrials).TimestampDAQ = obj.Parent.DAQ.tStartTrigger;
 
-% Cast data to desired class
-data = cast(data,obj.DataType);
-
 % Calculate running mean and variance
 obj.Parent.message('Calculating running mean & variance')
-if obj.nTrials == 1
-    % Initialize Mean and Var
-    obj.DataMean = data;
-    obj.DataVar  = zeros(size(data),obj.DataType);
-else
-    % Update Mean and Var using Welford's online algorithm
-    norm  = obj.nTrials - 1;
-    mean0 = obj.DataMean;
-    obj.DataMean = mean0 + (data - mean0) / obj.nTrials;
-    obj.DataVar  = (obj.DataVar .* (norm-1) + (data-mean0) .* ...
-        (data-obj.DataMean)) / norm;
-end
-
-% Implement the above for median?
-% https://changyaochen.github.io/welford/#how-about-median
+obj.runMean(data)
 
 % Calculate window means
 obj.calculateWinMeans
