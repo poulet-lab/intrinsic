@@ -42,8 +42,8 @@ try
     fns = fullfile(DirLoad,{obj.P.Data.Trials.Filename});
     for ii = 1:numel(fns)
         obj.nTrials = ii;
-        intrinsic.message('Reading %s',obj.P.Data.Trials(ii).Filename)
-        ds.String{3} = sprintf('Reading image %d/%d',ii,numel(fns));
+        intrinsic.message('Loading %s',obj.P.Data.Trials(ii).Filename)
+        ds.String{3} = sprintf('Loading trial %d/%d',ii,numel(fns));
         ds.String{4} = obj.P.Data.Trials(ii).Filename;
         drawnow
         if ~exist(fns{ii},'file')
