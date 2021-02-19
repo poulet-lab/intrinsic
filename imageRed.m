@@ -5,6 +5,7 @@ classdef imageRed < imageGeneric
         ROI
         ButtonControl
         Minimum
+        Snap = false
     end
 
     methods
@@ -79,16 +80,22 @@ classdef imageRed < imageGeneric
                 'Horizontal',  	'right');
             editMinimum = uicontrol(obj.Toolbar, ...
                 'Style',       	'Edit', ...
-                'String',     	.5, ...
+                'String',     	obj.Minimum, ...
                 'Position',   	[sum(tmp.Position([1 3])) 1 30 20], ...
                 'Horizontal', 	'right', ...
-                'Callback',    	@obj.cbMinimum, ...
+                'Callback',    	@cbMinimum, ...
                 'Tooltip',    	'Minimum Color Scale');
-            uicontrol(obj.Toolbar, ...
+            tmp = uicontrol(obj.Toolbar, ...
                 'Style',       	'Text', ...
                 'String',    	'%', ...
                 'Position',    	[sum(editMinimum.Position([1 3])) 0 20 18], ...
                 'Horizontal',  	'left');
+            uicontrol(obj.Toolbar, ...
+                'Style',        'checkbox', ...
+                'String',       'Snap to peaks', ...
+                'Value',        obj.Snap, ...
+                'Callback',     @cbSnap, ...
+                'Position',    	[sum(tmp.Position([1 3])) 1 85 20])
 
             addlistener(obj.ROI,'Update',@obj.cbUpdateROI);
             addlistener(obj.ROI,'UpdateCenter',@obj.cbUpdateROIcenter);
@@ -112,10 +119,12 @@ classdef imageRed < imageGeneric
                 obj.ROI.Outline.Visible = 'on';
                 obj.ROI.Extent.Visible  = 'on';
             end
+            
             function pointerExit(~,~)
                 obj.ROI.Outline.Visible = 'off';
                 obj.ROI.Extent.Visible  = 'off';
             end
+            
             function mouseDown(~,~)
                 cObj = obj.Figure.CurrentObject;
                 if isa(cObj,'matlab.ui.control.UIControl') && ...
@@ -127,6 +136,7 @@ classdef imageRed < imageGeneric
                 end
                 
             end
+            
             function mouseUp(~,~)
                 cObj = obj.Figure.CurrentObject;
                 if isa(cObj,'matlab.ui.control.UIControl') && ...
@@ -135,6 +145,24 @@ classdef imageRed < imageGeneric
                 
                     cObj.Value = 0;
                     obj.CData  = obj.Parent.Data.DFF;
+                end
+            end
+            
+            function cbMinimum(ctrl,~)
+                value = str2double(ctrl.String);
+                if isempty(value) || value<=0 || isnan(value)
+                    value        = 0;
+                end
+                ctrl.String = sprintf('%0.5g',value);
+                value = str2double(ctrl.String);
+                obj.Minimum = value;
+                obj.cbUpdateROI()
+            end
+            
+           	function cbSnap(ctrl,~)
+                obj.Snap = ctrl.Value;
+                if obj.Snap
+                    obj.cbUpdateROIcenter()
                 end
             end
         end
@@ -196,12 +224,13 @@ classdef imageRed < imageGeneric
         end
         
         function cbUpdateROIcenter(obj,~,~)
-            % snap to peak?
-            [row,col,~] = find(imregionalmax(abs(obj.Parent.Data.DFF),8));
-            [~,idx] = min(sqrt(power(col - obj.ROI.Center.Position(1),2) + ...
-                power(row - obj.ROI.Center.Position(2),2)));
-            obj.ROI.Center.Position = [col(idx) row(idx)];
-            obj.ROI.translate();
+            if obj.Snap
+                [row,col,~] = find(imregionalmax(abs(obj.Parent.Data.DFF),8));
+                [~,idx] = min(sqrt(power(col - obj.ROI.Center.Position(1),2) + ...
+                    power(row - obj.ROI.Center.Position(2),2)));
+                obj.ROI.Center.Position = [col(idx) row(idx)];
+                obj.ROI.translate();
+            end
             
             obj.Parent.Data.Point = round(obj.ROI.coordsCenter);
             obj.Parent.Data.calculateTemporal()
@@ -225,18 +254,6 @@ classdef imageRed < imageGeneric
             ctrl.String = sprintf('%0.5g',value);
             value = str2double(ctrl.String);
             obj.ROI.Radius = value * (obj.Scale.PxPerCm/1E4);
-        end
-        
-        
-        function cbMinimum(obj,ctrl,~)
-            value = str2double(ctrl.String);
-            if isempty(value) || value<=0 || isnan(value)
-                value        = 0;
-            end
-            ctrl.String = sprintf('%0.5g',value);
-            value = str2double(ctrl.String);
-            obj.Minimum = value;
-            obj.cbUpdateROI()
         end
 
         function updateCData(obj,~,~)
