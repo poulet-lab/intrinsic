@@ -7,6 +7,10 @@ classdef imageRed < imageGeneric
         Minimum
         Snap = false
     end
+    
+    properties (Dependent, SetObservable, AbortSet)
+        Center
+    end
 
     methods
         function obj = imageRed(varargin)
@@ -30,7 +34,7 @@ classdef imageRed < imageGeneric
             obj.Figure.Name = 'Red Image';
             obj.ROI = roi_intrinsic(obj.Axes);
             obj.ROI.Outline.Visible = 'off';
-            
+
             obj.ButtonControl = uicontrol(obj.Toolbar, ...
                 'Style',        'togglebutton', ...
                 'Value',        0, ...
@@ -134,7 +138,6 @@ classdef imageRed < imageGeneric
                     cObj.Value = 1;
                     obj.CData  = obj.Parent.Data.DFFcontrol;
                 end
-                
             end
             
             function mouseUp(~,~)
@@ -145,6 +148,8 @@ classdef imageRed < imageGeneric
                 
                     cObj.Value = 0;
                     obj.CData  = obj.Parent.Data.DFF;
+            	elseif isa(cObj,'matlab.graphics.primitive.Image')
+                    obj.Center = obj.Axes.CurrentPoint(2,1:2);
                 end
             end
             
@@ -281,6 +286,17 @@ classdef imageRed < imageGeneric
         function setScale(obj)
             obj.Scale = copy(obj.Parent.Scale);
             obj.Scale.UseBinning = true;
+        end
+    end
+    
+    methods
+        function set.Center(obj,in)
+            obj.ROI.coordsCenter = in;
+            obj.cbUpdateROIcenter
+        end
+        
+        function out = get.Center(obj)
+            out = obj.ROI.coordsCenter;
         end
     end
     

@@ -11,7 +11,7 @@ classdef roi_intrinsic < handle
         Radius
     end
     
-    properties (Dependent, SetAccess = private)
+    properties (Dependent)
         coordsCenter
         coordsLine
     end
@@ -83,6 +83,11 @@ classdef roi_intrinsic < handle
         
         function out = get.coordsCenter(obj)
             out = obj.Center.Position;
+        end
+        
+        function set.coordsCenter(obj,in)
+            obj.Center.Position = in;
+            obj.translate()
         end
 
         function set.Radius(obj,value)
