@@ -31,6 +31,8 @@ addlistener(obj.Data,{'IdxResponse','UseControl'},'PostSet',...
     @updatedTemporalWindow);
 addlistener(obj.Data,'UseControl','PostSet',@updatedUseControl);
 addlistener(obj.DAQ,'tLive','PostSet',@updatedtLive);
+addlistener(obj.Red,{'TransectResponse','CLim'},...
+    'PostSet',@updatedSpatial);
 
 %% Toolbar
 obj.h.toolbar = uitoolbar(obj.h.fig.main);
@@ -202,7 +204,7 @@ obj.h.axes.spatial = axes(obj.h.fig.main, ...
     'PickableParts',    'none');
 
 linkaxes([obj.h.axes.temporal obj.h.axes.stimulus obj.h.axes.temporalBg],'x')
-linkaxes([obj.h.axes.temporal obj.h.axes.spatial obj.h.axes.colorbar],'y')
+linkaxes([obj.h.axes.spatial obj.h.axes.colorbar],'y')
 linkprop([obj.h.axes.temporal obj.h.axes.temporalBg],{'Position','InnerPosition'});
 
 %% Temporal Response
@@ -441,6 +443,23 @@ obj.h.fig.main.Visible = 'on';
             obj.h.xline.timeCursor.Visible = 'off';
             obj.h.xline.timeCursor.Value = 0;
         end
+    end
+
+    function updatedSpatial(~,~)
+        obj.h.plot.spatialAverage.XData = obj.Red.TransectResponse.XData;
+        obj.h.plot.spatialAverage.YData = obj.Red.TransectResponse.YData;
+        obj.h.plot.spatialControl.XData = obj.Red.TransectControl.XData;
+        obj.h.plot.spatialControl.YData = obj.Red.TransectControl.YData;
+        if ~isempty(obj.Red.TransectResponse.XData)
+            obj.h.axes.spatial.XLim = obj.h.plot.spatialAverage.XData([1 end]);
+            obj.h.axes.spatial.YLim = obj.Red.CLim;
+            obj.h.image.colorbar.YData = ...
+                linspace(obj.Red.CLim(1),obj.Red.CLim(2),256);
+        else
+            obj.h.axes.spatial.XLim = [-1000 1000];
+            obj.h.axes.spatial.YLim = [-1 1];
+        end
+        
     end
 
     function figureResize(~,~,~)

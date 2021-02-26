@@ -8,6 +8,11 @@ classdef imageRed < imageGeneric
         Snap = false
     end
     
+    properties (SetAccess = private, SetObservable, AbortSet)
+        TransectResponse = struct('XData',[],'YData',[]);
+        TransectControl  = struct('XData',[],'YData',[]);
+    end
+    
     properties (Dependent, SetObservable, AbortSet)
         Center
     end
@@ -173,59 +178,46 @@ classdef imageRed < imageGeneric
         end
         
         function cbUpdateROI(obj,~,~)
+            % Possible short-cuts
             if ~obj.Parent.Data.nTrials
-                obj.Parent.h.plot.spatialAverage.XData = [];
-                obj.Parent.h.plot.spatialAverage.YData = [];
-                obj.Parent.h.plot.spatialControl.XData = [];
-                obj.Parent.h.plot.spatialControl.YData = [];
-                obj.Parent.h.axes.spatial.YLim = [-1 1];
+                obj.TransectControl  = struct('XData',[],'YData',[]);
+                obj.TransectResponse = struct('XData',[],'YData',[]);
                 return
             end
             if ~obj.Visible
                 return
             end
             
-            [xi,yi,y] = improfile(obj.Parent.Data.DFF,...
+            % Response
+            [xi,yi,yResponse] = improfile(obj.Parent.Data.DFF,...
                 obj.ROI.Line.XData,obj.ROI.Line.YData,'nearest');
-            x         = sqrt((xi-obj.ROI.Center.Position(1)).^2+ ...
+            xResponse = sqrt((xi-obj.ROI.Center.Position(1)).^2+ ...
                 (yi-obj.ROI.Center.Position(2)).^2);
-            tmp       = 1:floor(length(x)/2);
-            x(tmp)    = -x(tmp);
-            x         = x / (obj.Scale.PxPerCm / 1E4);
-            obj.Parent.h.plot.spatialAverage.XData = x;
-            obj.Parent.h.plot.spatialAverage.YData = y;
+            tmp = 1:floor(length(xResponse)/2);
+            xResponse(tmp) = -xResponse(tmp);
+            xResponse = xResponse / (obj.Scale.PxPerCm / 1E4);
 
-%             % Percentile:
-%             tmp = obj.CData(obj.ROI.mask(obj.Size));
-%             tmp = sort(abs(tmp(isfinite(tmp))));
-%             obj.CLim = tmp(ceil(numel(tmp)*.999)) * [-1 1];
+            % Control
+            if ~isempty(obj.Parent.Data.DFFcontrol)
+                [~,~,yControl] = improfile(obj.Parent.Data.DFFcontrol,...
+                    obj.ROI.Line.XData,obj.ROI.Line.YData,'nearest');
+                obj.TransectControl.XData = xResponse;
+                obj.TransectControl.YData = yControl;
+            end
             
+            % CLim
             tmp = double.empty;
             if obj.ROI.Radius
                 tmp = reshape(obj.CData(obj.ROI.mask(obj.Size)),[],1);
             end
             if isempty(tmp)
-                tmp = y(isfinite(y));
+                tmp = yResponse(isfinite(yResponse));
             end
             obj.CLim = max([obj.Minimum; abs(tmp)]) * [-1 1];
             
-            obj.Parent.h.image.colorbar.YData = ...
-                linspace(obj.CLim(1),obj.CLim(2),256);
-
-            obj.Parent.h.axes.spatial.XLim = x([1 end]);
-            obj.Parent.h.axes.spatial.YLim = obj.CLim;
-%             if any(diff(y(:)))
-%                 obj.Parent.h.axes.spatial.YLim = [min(y) max(y)];
-%             else
-%                 obj.Parent.h.axes.spatial.YLim = [-1 1];
-%             end
-            
-            if ~isempty(obj.Parent.Data.DFFcontrol)
-                [~,~,y] = improfile(obj.Parent.Data.DFFcontrol,...
-                    obj.ROI.Line.XData,obj.ROI.Line.YData,'nearest');
-                obj.Parent.h.plot.spatialControl.XData = x;
-                obj.Parent.h.plot.spatialControl.YData = y;
-            end
+            % Set object properties (at the very end - for listeners)
+            obj.TransectResponse.XData = xResponse;
+            obj.TransectResponse.YData = yResponse;
         end
         
         function cbUpdateROIcenter(obj,~,~)
