@@ -270,12 +270,12 @@ classdef subsystemData < subsystemGeneric
             obj.Parent.h.plot.temporal.YData = squeeze(subVol(c3,c4,:)) * 100;
             
             % indicate STD
-            tmp1 = std(obj.Parent.h.plot.temporal.YData(...
+            tmp1 = [-3 3] * std(obj.Parent.h.plot.temporal.YData(...
                 obj.P.DAQ.tFrameTrigger<=obj.WinBaseline(2)));
-            tmp2 = [-3 -2 -1 1 2 3];
-            for ii = 1:6
-                obj.Parent.h.yline.stdTemporal(ii).Value = tmp2(ii) * tmp1;
-            end
+            obj.Parent.h.yline.stdTemporal(1).Value = tmp1(1);
+            obj.Parent.h.yline.stdTemporal(2).Value = tmp1(2);
+            tmp = [-1 1] .* max(abs(obj.Parent.h.plot.temporal.YData));
+            obj.Parent.h.axes.temporal.YLim = 1.1*tmp;
         end
     end
 
