@@ -16,6 +16,10 @@ classdef imageRed < imageGeneric
     properties (Dependent, SetObservable, AbortSet)
         Center
     end
+    
+    events
+        NewCenter
+    end
 
     methods
         function obj = imageRed(varargin)
@@ -230,6 +234,7 @@ classdef imageRed < imageGeneric
             end
             
             obj.Parent.Data.Point = round(obj.ROI.coordsCenter);
+            notify(obj,'NewCenter')
             obj.Parent.Data.calculateTemporal()
         end
         
@@ -284,6 +289,7 @@ classdef imageRed < imageGeneric
     methods
         function set.Center(obj,in)
             obj.ROI.coordsCenter = in;
+            notify(obj,'NewCenter')
             obj.cbUpdateROIcenter
         end
         

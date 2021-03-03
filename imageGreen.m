@@ -10,8 +10,9 @@ classdef imageGreen < imageGeneric
         DeviceProperties
     end
     
-    properties (Access = private)
+    properties %(Access = private)
         PopupMagnification
+        Center
     end
     
     methods
@@ -28,11 +29,17 @@ classdef imageGreen < imageGeneric
             % Take picture
             obj.takeImage()
             
+            % Create Center marker
+            obj.Center = images.roi.Point(obj.Axes, ...
+                'Color',  	'r', ...
+                'Deletable', false);
+            
             % Create GUI
             obj.Visible = 'on';
             
             % Listen for unsaved changes
             addlistener(obj.Parent.Data,'Unsaved','PostSet',@obj.callbackUnsaved);
+            addlistener(obj.Parent.Red,'NewCenter',@obj.callbackCenter);
         end
 
         function takeImage(obj)
@@ -161,6 +168,10 @@ classdef imageGreen < imageGeneric
             else
                 obj.PopupMagnification.Enable = 'on';
             end
+        end
+        
+        function callbackCenter(obj,~,~)
+            obj.Center.Position = obj.Parent.Red.Center;
         end
         
         function scaleChanged(obj,~,~)
