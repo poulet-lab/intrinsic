@@ -91,9 +91,6 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
                     obj.VideoSource.propinfo ...
                     (obj.SettingsFields.(setting{:}){1}).DefaultValue;
             end
- 
-            % work around an issue with the QiCam minimum gain setting
-            %obj.SettingsConstraints.Gain(1) = .601;
             
             % Initialize point coordinates
             obj.PointCoords.x = NaN;
@@ -253,14 +250,21 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
             out = obj.VideoSource.(obj.SettingsFields.Exposure{1});
         end
         function set_Exposure(obj,~,value)
-            validateattributes(value,{'numeric'},{'scalar',...
-                '>=',obj.SettingsConstraints.Exposure(1),...
-                '<=',obj.SettingsConstraints.Exposure(2)})
+            % floor/round/ceil value to 3 significant digits
+            value = double(value);
+            value = round(value,3,'significant');
+            if value < obj.SettingsConstraints.Exposure(1)
+                value   = obj.SettingsConstraints.Exposure(1);
+                D       = 10^(3-ceil(log10(abs(value))));
+                value   = ceil(value*D)/D;
+            end
+            if value > obj.SettingsConstraints.Exposure(2)
+                value   = obj.SettingsConstraints.Exposure(2);
+                D       = 10^(3-ceil(log10(abs(value))));
+                value   = floor(value*D)/D;
+            end
             
-            value   = double(value);
-            D       = 10^(3-ceil(log10(abs(value))));  % round to three ...
-            value	= round(value*D)/D;                % significant digits
-            
+            % set value & update UI
             for ii = 1:length(obj.SettingsFields.Exposure)
                 obj.VideoSource.(obj.SettingsFields.Exposure{ii}) = value;
             end
@@ -272,14 +276,21 @@ classdef video_preview < handle & matlab.mixin.CustomDisplay & dynamicprops
             out = obj.VideoSource.(obj.SettingsFields.Gain{1});
         end
         function set_Gain(obj,~,value)
-            validateattributes(value,{'numeric'},{'scalar',...
-                '>=',obj.SettingsConstraints.Gain(1),...
-                '<=',obj.SettingsConstraints.Gain(2)})
+            % floor/round/ceil value to 3 significant digits
+            value = double(value);
+            value = round(value,3,'significant');
+            if value < obj.SettingsConstraints.Gain(1)
+                value   = obj.SettingsConstraints.Gain(1);
+                D       = 10^(3-ceil(log10(abs(value))));
+                value   = ceil(value*D)/D;
+            end
+            if value > obj.SettingsConstraints.Gain(2)
+                value   = obj.SettingsConstraints.Gain(2);
+                D       = 10^(3-ceil(log10(abs(value))));
+                value   = floor(value*D)/D;
+            end
             
-            value   = double(value);
-            D       = 10^(3-ceil(log10(abs(value))));  % round to three ...
-            value   = round(value*D)/D;                % significant digits
-                
+            % set value & update UI
             obj.VideoSource.(obj.SettingsFields.Gain{1}) = value;
             obj.updateUI
         end
