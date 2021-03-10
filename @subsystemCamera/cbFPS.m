@@ -9,17 +9,9 @@ deviceName = getappdata(obj.Figure,'deviceName');
 
 % limit rates for qimaging QICam B
 if ismember(adaptor,{'qimaging','mwqimagingimaq'}) && strcmpi(deviceName,'QICam B')
-    res = getappdata(obj.Figure,'resolution');
-    switch res(2)
-        case 130
-            lims = [1 59];
-        case 260
-            lims = [1 36];
-        case 520
-            lims = [1 19];
-        case 1040
-            lims = [1 6];
-    end
+    roi      = getappdata(obj.Figure,'roi');
+    bitdepth = getappdata(obj.Figure,'bitdepth');
+    lims     = [1 floor(100/(bitdepth * prod(roi) / 1E6))];
 else
     lims = [1 60];
 end

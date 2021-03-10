@@ -18,6 +18,7 @@ if isempty(mode)
     ctrl.ROI(1).String = '';
     ctrl.ROI(2).String = '';
     resolution = [NaN NaN];
+    bitdepth   = NaN;
 else
     % Try to get the resolution of the selected mode via regex. In case of
     % a non-standard name create a temporary video input object and get the
@@ -38,8 +39,18 @@ else
         ctrl.ROI(1).String = num2str(resolution(1));
         ctrl.ROI(2).String = num2str(resolution(2));
     end
+
+    % try to obtain bitdepth from mode name
+    if ~isempty(regexpi(mode,'^MONO(\d+)_.*'))
+        bitdepth = str2double(regexpi(mode,'^MONO(\d+)_.*','tokens','once'));
+    elseif ~isempty(regexpi(mode,'^YUY2_.*'))
+        bitdepth = 8;
+    else
+        bitdepth = NaN;
+    end
 end
 setappdata(obj.Figure,'resolution',resolution);
+setappdata(obj.Figure,'bitdepth',bitdepth);
 
 % fill binning (only on supported cameras)
 if ~isempty(mode)
