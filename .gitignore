@@ -1,5 +1,5 @@
 tempdata/*
-settings.mat
+settings*.mat
 diary.txt
 *.asv
 *.lnk
