@@ -117,6 +117,12 @@ classdef (Sealed) intrinsic < handle
 
             % Fire up GUI
             obj.notify('Ready');
+            if ~obj.userSelect
+                delete(obj)
+                clearvars
+                intrinsic.message('Startup aborted')
+                return
+            end
             obj.GUImain()
             intrinsic.message('Startup complete')
             
@@ -133,6 +139,7 @@ classdef (Sealed) intrinsic < handle
     end
 
     methods %(Access = private)
+        out = userSelect(obj)
         plotCameraTrigger(obj)
         GUImain(obj)                    % Create MAIN GUI
         GUIpreview(obj,hbutton,~)     	% Create PREVIEW GUI
