@@ -95,7 +95,9 @@ classdef (Sealed) intrinsic < handle
             
             % Say hi
             fprintf('<strong>Intrinsic Imaging, v%s</strong>\n\n',obj.version)
-            intrinsic.message('Hi %s!',obj.Username)
+            if ~strcmp(obj.Username,'Unknown')
+                intrinsic.message('Hi %s!',obj.Username)
+            end
             obj.welcome();
 
             % Warn if necessary toolboxes are unavailable
@@ -314,10 +316,14 @@ classdef (Sealed) intrinsic < handle
             % returns a matfile object for storing user settings. The
             % filename is constructed from the sanitized username and a
             % checksum (to guarantee unique filenames)
-            san = regexprep(obj.Settings.Username,'[^-\wÀ-ž]','');
-            crc = CRC16(obj.Settings.Username);
-            fn  = sprintf('settings_%s_%s.mat',san,crc);
-            out = matfile(fullfile(obj.DirBase,fn),'Writable', true);
+            if ~isempty(who(obj.Settings,'Username'))
+                san = regexprep(obj.Settings.Username,'[^-\wÀ-ž]','');
+                crc = CRC16(obj.Settings.Username);
+                fn  = sprintf('settings_%s_%s.mat',san,crc);
+                out = matfile(fullfile(obj.DirBase,fn),'Writable', true);
+            else
+                out = [];
+            end
         end
 
         %% check availability of needed toolboxes
@@ -371,7 +377,9 @@ classdef (Sealed) intrinsic < handle
                 if ~exist('useGeneral','var')
                     useGeneral = false;
                 end
-                if ~isempty(who(obj.UserSettings,variableName)) && ~useGeneral
+                if ~isempty(obj.UserSettings) && ...
+                        ~isempty(who(obj.UserSettings,variableName)) && ...
+                        ~useGeneral
                     out = obj.UserSettings.(variableName);
                 elseif ~isempty(who(obj.Settings,variableName))
                     out = obj.Settings.(variableName);
@@ -383,12 +391,18 @@ classdef (Sealed) intrinsic < handle
             % Save variable to file. Values are written to, both, a general
             % and a user-specific settings file.
             obj.Settings.(variableName) = data;
-            obj.UserSettings.(variableName) = data;
+            if ~isempty(obj.UserSettings)
+                obj.UserSettings.(variableName) = data;
+            end
         end
         
         function out = who(obj,in)
             % Run who on, both, obj.Settings and obj.UserSettings
-            out = union(who(obj.Settings,in),who(obj.UserSettings,in));
+            if ~isempty(obj.UserSettings)
+                out = union(who(obj.Settings,in),who(obj.UserSettings,in));
+            else
+                out = who(obj.Settings,in);
+            end
         end
     end
 

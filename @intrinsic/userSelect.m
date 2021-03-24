@@ -2,14 +2,20 @@ function out = userSelect(obj)
 
 out = false;
 
-Usernames = obj.loadVar('Usernames',{''});
+Usernames = obj.loadVar('Usernames',{''},true);
 Username  = obj.Username;
 DirData   = obj.DirData;
+
+% No need to show the user selection if there is only one user
+if numel(Usernames)==1
+    out = true;
+    return
+end
 
 window = settingsWindow(...
     'Name',  	'Select User');
 window.addPopupEdit( ...
-    'Label',  	'Usernames / Initials', ...
+    'Label',  	'Username', ...
     'String',  	Usernames, ...
     'Value',    find(ismember(Usernames,Username),1), ...
     'Callback', @cbUsername);
@@ -18,6 +24,7 @@ window.addPopupEdit( ...
 
 window.Visible = 'on';
 uiwait(window.Handle)
+
 
     function cbUsername(src,~)
         Usernames = src.String;
@@ -31,5 +38,4 @@ uiwait(window.Handle)
         obj.saveVar('DirData',DirData)
         close(window.Handle)
     end
-
 end

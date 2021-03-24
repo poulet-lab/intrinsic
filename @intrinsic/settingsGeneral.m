@@ -4,6 +4,10 @@ Usernames = obj.loadVar('Usernames',{''},true);
 Username  = obj.Username;
 DirData   = obj.DirData;
 
+if ~exist(DirData,'dir')
+    mkdir(DirData)
+end
+
 window = settingsWindow(...
     'Name',  	'General Settings', ...
     'Width',	400);
@@ -14,7 +18,7 @@ window.addDirectory( ...
 window.addPopupEdit( ...
     'Label',  	'Usernames / Initials', ...
     'String',  	Usernames, ...
-    'Value',    find(ismember(Usernames,Username),1), ...
+    'Value',    max([1 find(ismember(Usernames,Username),1)]), ...
     'Callback', @cbUsername);
 [controls.okay,controls.cancel] = window.addOKCancel(...
     'Callback',	@cbOkay);
@@ -31,8 +35,10 @@ window.Visible = 'on';
     end
 
     function cbOkay(~,~)
-        obj.saveVar('Usernames',Usernames)
-        obj.saveVar('Username',Username)
+        if ~isequal(Usernames,{''})
+            obj.saveVar('Usernames',Usernames)
+            obj.saveVar('Username',Username)
+        end
         obj.saveVar('DirData',DirData)
         close(window.Handle)
     end
