@@ -62,7 +62,7 @@ classdef subsystemScale < subsystemGeneric & matlab.mixin.Copyable
             if ~isempty(tmp)
                 out = obj.DeviceData(tmp).PxPerCm;
                 if obj.UseBinning
-                    out = out * obj.Camera.Binning;
+                    out = out / obj.Camera.Binning;
                 end
             else
                 out = NaN;
