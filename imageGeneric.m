@@ -86,7 +86,7 @@ classdef imageGeneric < handle
         
         function set.CData(obj,value)
             obj.CData = value(:,:,1);
-            obj.Size  = size(obj.CData);
+            obj.Size  = fliplr(size(obj.CData));
             if ~isempty(obj.Image) && isvalid(obj.Image)
                 obj.Image.CData = obj.CData;
                 obj.resizeFigure();
