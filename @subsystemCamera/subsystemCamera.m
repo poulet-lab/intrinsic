@@ -71,12 +71,12 @@ classdef subsystemCamera < subsystemGeneric
         end
 
         function out = get.Binning(obj)
-            % return binning factor (only supported devices)
+            % return binning factor
             out = NaN;
-            if obj.Available && strcmp(obj.DeviceName,'QICam B')
-                tmp = imaqhwinfo(obj.Adaptor,obj.DeviceID).SupportedFormats;
-                tmp = regexpi(tmp,'^\w*_(\d)*x\d*$','tokens','once');
-                out = max(cellfun(@str2double,[tmp{:}]))/obj.Resolution(1);
+            if obj.Available
+                rezG = obj.Input.Green.VideoResolution;
+                rezR = obj.Input.Red.VideoResolution;
+                out  = rezG(1) / rezR(1);
             end
         end
 
