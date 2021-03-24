@@ -95,6 +95,7 @@ classdef (Sealed) intrinsic < handle
             
             % Say hi
             fprintf('<strong>Intrinsic Imaging, v%s</strong>\n\n',obj.version)
+            intrinsic.message('Hi %s!',obj.Username)
             obj.welcome();
 
             % Warn if necessary toolboxes are unavailable
