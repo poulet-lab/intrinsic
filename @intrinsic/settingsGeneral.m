@@ -1,6 +1,6 @@
 function settingsGeneral(obj,~,~)
 
-Usernames = obj.loadVar('Usernames',{''});
+Usernames = obj.loadVar('Usernames',{''},true);
 Username  = obj.Username;
 DirData   = obj.DirData;
 
