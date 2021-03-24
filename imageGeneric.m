@@ -165,7 +165,12 @@ classdef imageGeneric < handle
             % enforce limits
             value = min([value floor(calc(upper)*100)/100]);
             value = max([value ceil(calc(lower)*100)/100]);
-                        
+            
+            % take shortcut
+            if isequal(obj.PrivateZoom,value)
+                return
+            end
+            
             obj.PrivateZoom = value;
             if ~isempty(obj.EditZoom) && isvalid(obj.EditZoom)
                 obj.EditZoom.String = sprintf('%d%%',round(value*100));
