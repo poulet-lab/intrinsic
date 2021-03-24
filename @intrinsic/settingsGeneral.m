@@ -35,11 +35,11 @@ window.Visible = 'on';
     end
 
     function cbOkay(~,~)
-        if ~isequal(Usernames,{''})
-            obj.saveVar('Usernames',Usernames)
-            obj.saveVar('Username',Username)
-        end
         obj.saveVar('DirData',DirData)
+        obj.saveVar('Usernames',Usernames)
+        obj.saveVar('Username',Username)
+        obj.Username = Username;
+        obj.UserSettings = obj.getUserSettings();
         close(window.Handle)
     end
 

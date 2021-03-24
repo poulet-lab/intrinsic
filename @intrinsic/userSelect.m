@@ -3,11 +3,13 @@ function out = userSelect(obj)
 out = false;
 
 Usernames = obj.loadVar('Usernames',{''},true);
-Username  = obj.Username;
+Username  = obj.loadVar('Username',{''},true);
 DirData   = obj.DirData;
 
 % No need to show the user selection if there is only one user
 if numel(Usernames)==1
+    obj.Username = Username;
+    obj.UserSettings = obj.getUserSettings();
     out = true;
     return
 end
@@ -32,10 +34,12 @@ uiwait(window.Handle)
     end
 
     function cbOkay(~,~)
-        out = true;
+        obj.saveVar('DirData',DirData)
         obj.saveVar('Usernames',Usernames)
         obj.saveVar('Username',Username)
-        obj.saveVar('DirData',DirData)
+        obj.Username = Username;
+        obj.UserSettings = obj.getUserSettings();
+        out = true;
         close(window.Handle)
     end
 end
