@@ -202,7 +202,7 @@ classdef (Sealed) intrinsic < handle
         % Save window positions
         function saveWindowPositions(obj,~,~)
             for fn = fieldnames(obj.h.fig)'
-                obj.Settings.(['WinPos_' fn{:}]) = obj.h.fig.(fn{:}).Position;
+                obj.saveVar(['WinPos_' fn{:}],obj.h.fig.(fn{:}).Position);
             end
         end
 
@@ -212,11 +212,11 @@ classdef (Sealed) intrinsic < handle
             % Get available window positions
             if ~isempty(varargin)
                 tmp = cellfun(@(x) ['WinPos_' x],varargin,'uni',0);
-                fns = whos(obj.Settings,tmp{:});
+                fns = obj.who(tmp{:});
             else
-                fns = whos(obj.Settings,'WinPos_*');
+                fns = obj.who('WinPos_*');
             end
-            fns = cellfun(@(x) x(8:end),{fns.name},'uni',0);
+            fns = regexprep(fns,'^WinPos_','');
 
             % Limit list of windows to restore positions for
             fns = intersect(fns,fieldnames(obj.h.fig));
@@ -224,13 +224,12 @@ classdef (Sealed) intrinsic < handle
 
             % Restore positions
             for ii = 1:length(fns)
+                currPos = obj.h.fig.(fns{ii}).Position;
+                loadPos = obj.loadVar(['WinPos_' fns{ii}],currPos);
                 if strcmp(fns{ii},'main')
-                    obj.h.fig.(fns{ii}).Position = ...
-                        obj.Settings.(['WinPos_' fns{ii}]);
+                    obj.h.fig.(fns{ii}).Position = loadPos;
                 else
-                    obj.h.fig.(fns{ii}).Position = [...
-                        obj.Settings.(['WinPos_' fns{ii}])(1,1:2) ...
-                        obj.h.fig.(fns{ii}).Position(3:4)];
+                    obj.h.fig.(fns{ii}).Position = [loadPos(1:2) currPos(3:4)];
                 end
                 %movegui(obj.h.fig.(fns{ii}),'onscreen')
             end
