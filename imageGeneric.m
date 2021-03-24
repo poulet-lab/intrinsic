@@ -144,6 +144,16 @@ classdef imageGeneric < handle
             obj.PrivateVisible = value;
         end
         
+        function out = RGB(obj)
+            cmap = obj.Figure.Colormap;
+            clim = obj.CLim;
+            out  = obj.CData;
+            out  = round((out-clim(1)) ./ (diff(clim)/(size(cmap,1)-1)));
+            out(out<0) = 0;
+            out(out>(size(cmap,1)-1)) = (size(cmap,1)-1);
+            out  = ind2rgb(out,cmap);
+        end
+        
         function set.Zoom(obj,value)
             % calculate limits of zoom value
             upper = get(0,'ScreenSize');
