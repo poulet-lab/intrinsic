@@ -15,6 +15,7 @@ classdef imageRed < imageGeneric
     
     properties (Dependent, SetObservable, AbortSet)
         Center
+        Extent
     end
     
     events
@@ -158,7 +159,11 @@ classdef imageRed < imageGeneric
                     cObj.Value = 0;
                     obj.CData  = obj.Parent.Data.DFF;
             	elseif isa(cObj,'matlab.graphics.primitive.Image')
-                    obj.Center = obj.Axes.CurrentPoint(2,1:2);
+                    if strcmp(obj.Figure.SelectionType,'normal')
+                        obj.Center = obj.Axes.CurrentPoint(2,1:2);
+                    elseif strcmp(obj.Figure.SelectionType,'alt')
+                        obj.Extent = obj.Axes.CurrentPoint(2,1:2); 
+                    end
                 end
             end
             
@@ -295,6 +300,15 @@ classdef imageRed < imageGeneric
         
         function out = get.Center(obj)
             out = obj.ROI.coordsCenter;
+        end
+        
+        function set.Extent(obj,in)
+            obj.ROI.Extent.Position = in;
+            obj.ROI.reshape()
+        end
+        
+        function out = get.Extent(obj)
+            out = obj.ROI.Extent.Position;
         end
     end
     
