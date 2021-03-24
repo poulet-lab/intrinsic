@@ -386,6 +386,11 @@ classdef (Sealed) intrinsic < handle
             obj.Settings.(variableName) = data;
             obj.UserSettings.(variableName) = data;
         end
+        
+        function out = who(obj,in)
+            % Run who on, both, obj.Settings and obj.UserSettings
+            out = union(who(obj.Settings,in),who(obj.UserSettings,in));
+        end
     end
 
     methods (Static)
