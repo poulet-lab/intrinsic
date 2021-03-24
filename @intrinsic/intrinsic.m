@@ -365,17 +365,13 @@ classdef (Sealed) intrinsic < handle
             % UserSettings have precedence over general settings, except if
             % USEGENERAL is true.
             out = defaultValue;
-            if ~exist(obj.Settings.Properties.Source,'file')
-                return
-            else
-                if ~exist('useGeneral','var')
-                    useGeneral = false;
-                end
-                if ~isempty(who(obj.UserSettings,variableName)) && ~useGeneral
-                    out = obj.UserSettings.(variableName);
-                elseif ~isempty(who(obj.Settings,variableName))
-                    out = obj.Settings.(variableName);
-                end
+            if ~exist('useGeneral','var')
+                useGeneral = false;
+            end
+            if ~isempty(who(obj.UserSettings,variableName)) && ~useGeneral
+                out = obj.UserSettings.(variableName);
+            elseif ~isempty(who(obj.Settings,variableName))
+                out = obj.Settings.(variableName);
             end
         end
         
