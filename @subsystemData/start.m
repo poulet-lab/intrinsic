@@ -21,8 +21,9 @@ obj.getParameters()
 obj.P.Scale.Magnification	= obj.Parent.Scale.Magnification;
 obj.P.Scale.PxPerCm         = obj.Parent.Scale.PxPerCm;
 
-% Copy settings file to tempdata
+% Copy settings files to tempdata
 copyfile(obj.Parent.Settings.Properties.Source,fullfile(obj.DirTemp))
+copyfile(obj.Parent.UserSettings.Properties.Source,fullfile(obj.DirTemp))
 
 % Just for testing
 obj.Parent.Red.setScale()

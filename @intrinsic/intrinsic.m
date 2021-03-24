@@ -22,6 +22,10 @@ classdef (Sealed) intrinsic < handle
     properties (SetAccess = immutable, GetAccess = {?subsystemData})
         Settings
     end
+    
+    properties (Dependent, GetAccess = {?subsystemData})
+        UserSettings
+    end
 
     properties %(Access = private)
         h = []
@@ -82,6 +86,13 @@ classdef (Sealed) intrinsic < handle
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
                 'Writable', true);
             
+            % Select user
+            if ~obj.userSelect
+                delete(obj)
+                clearvars
+                return
+            end
+            
             % Say hi
             fprintf('<strong>Intrinsic Imaging, v%s</strong>\n\n',obj.version)
             obj.welcome();
@@ -117,12 +128,6 @@ classdef (Sealed) intrinsic < handle
 
             % Fire up GUI
             obj.notify('Ready');
-            if ~obj.userSelect
-                delete(obj)
-                clearvars
-                intrinsic.message('Startup aborted')
-                return
-            end
             obj.GUImain()
             intrinsic.message('Startup complete')
             
@@ -159,7 +164,7 @@ classdef (Sealed) intrinsic < handle
     end
 
     methods %(Access = private)
-
+        
         % Update checkmarks in the VIEW menu
         function updateMenuView(obj,h,~)
             delete(h.Children)
@@ -304,6 +309,16 @@ classdef (Sealed) intrinsic < handle
         function out = get.Username(obj)
             out = obj.loadVar('Username','Unknown');
         end
+        
+        function out = get.UserSettings(obj)
+            % returns a matfile object for storing user settings. The
+            % filename is constructed from the sanitized username and a
+            % checksum (to guarantee unique filenames)
+            san = regexprep(obj.Settings.Username,'[^-\wÀ-ž]','');
+            crc = CRC16(obj.Settings.Username);
+            fn  = sprintf('settings_%s_%s.mat',san,crc);
+            out = matfile(fullfile(obj.DirBase,fn),'Writable', true);
+        end
 
         %% check availability of needed toolboxes
         function out = get.Toolbox(~)
@@ -346,20 +361,25 @@ classdef (Sealed) intrinsic < handle
 
     methods (Access = {?subsystemGeneric})
         function out = loadVar(obj,variableName,defaultValue)
-            % Load variable from file, return defaults if not found
+            % Load variable from file, return defaults if not found.
+            % UserSettings have precedence over general settings.
             out = defaultValue;
             if ~exist(obj.Settings.Properties.Source,'file')
                 return
             else
-                if ~isempty(who(obj.Settings,variableName))
+                if ~isempty(who(obj.UserSettings,variableName))
+                    out = obj.UserSettings.(variableName);
+                elseif ~isempty(who(obj.Settings,variableName))
                     out = obj.Settings.(variableName);
                 end
             end
         end
         
         function saveVar(obj,variableName,data)
-            % Save variable to file
+            % Save variable to file. Values are written to, both, a general
+            % and a user-specific settings file.
             obj.Settings.(variableName) = data;
+            obj.UserSettings.(variableName) = data;
         end
     end
 
