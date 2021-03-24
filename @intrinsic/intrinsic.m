@@ -126,7 +126,7 @@ classdef (Sealed) intrinsic < handle
             obj.ListenerDAQ = addlistener(obj.DAQ,...
                 'Update',@obj.cbUpdatedDAQSettings);
             obj.ListenerDataRun = addlistener(obj.Data,...
-                'Running','PostSet',@obj.updateEnabled);
+                {'Unsaved','Running'},'PostSet',@obj.updateEnabled);
 
             % Fire up GUI
             obj.notify('Ready');
