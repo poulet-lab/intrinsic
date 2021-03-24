@@ -1,9 +1,16 @@
-classdef scalebar < handle
+classdef scalebar < handle & matlab.mixin.SetGet
     
     properties
         Scale = 1
     end
 
+    properties (SetObservable, AbortSet)
+        Padding = 2
+        Margin = 12
+        FontSize
+        BarSize = [120 5]
+    end
+    
     properties (SetAccess = immutable)
         Parent
     end
@@ -30,6 +37,7 @@ classdef scalebar < handle
     methods
         function obj = scalebar(axes,scale)
             obj.Parent = axes;
+            obj.FontSize = obj.Parent.FontSize;
             obj.Background = rectangle(obj.Parent, ...
                 'LineStyle',            'none', ...
                 'FaceColor',            'w', ...
@@ -46,6 +54,8 @@ classdef scalebar < handle
             obj.Scale = scale;
             obj.Listener = ...
                 addlistener(obj.Parent.Parent,'SizeChanged',@obj.update);
+            addlistener(obj,{'Padding','Margin','FontSize','BarSize'},...
+                'PostSet',@obj.update);
         end
 
         function set.Scale(obj,value)
@@ -109,11 +119,10 @@ classdef scalebar < handle
                 min([diff(obj.Parent.XLim) diff(obj.Parent.YLim)]);
             obj.Parent.Units = tmp;
             
-            padding  = 2 / zoom;
-            margin   = 12 / zoom;
-            wBarPx   = 5 / zoom;
-            MinBarPx = 120 / zoom;
-            hBack    = 18 / zoom;
+            padding  = obj.Padding / zoom;
+            margin   = obj.Margin / zoom;
+            hBarPx   = obj.BarSize(2) / zoom;
+            MinBarPx = obj.BarSize(1) / zoom;
             
             if ~isnan(obj.Scale)
                 pxPerUnit = obj.Scale ./ power(10,-2-obj.SIexp);
@@ -130,14 +139,20 @@ classdef scalebar < handle
             
             set(obj.Bar,'Position',[ ...
                 obj.Parent.XLim(2)-lBarPx-margin ...
-                    obj.Parent.YLim(2)-wBarPx-margin lBarPx wBarPx]);
-            set(obj.Background, ...
-                'Position',     obj.Bar.Position+[-padding -hBack+padding 2*padding hBack]);
+                    obj.Parent.YLim(2)-hBarPx-margin lBarPx hBarPx]);
             set(obj.Label, ...
                 'Position',     [obj.Bar.Position(1)+obj.Bar.Position(3)/2 ...
                 obj.Bar.Position(2)-0 0], ...
                 'Interpreter',  'tex', ...
-                'String',       lString);
+                'String',       lString, ...
+                'FontSize',     obj.FontSize);
+
+            obj.Label.Units = 'pixels';
+            hBack = 0.75*obj.Label.Extent(4)/zoom+2*padding;
+            obj.Label.Units = 'data';
+            
+            set(obj.Background, ...
+                'Position',     obj.Bar.Position+[-padding -hBack+padding 2*padding hBack]);
         end
         
         function validateColor(~,in)
