@@ -29,6 +29,9 @@ else
         video_preview(obj.Camera.Input.Red,.5,true);
     obj.VideoPreview.Figure.Name    = ...
         [obj.VideoPreview.Figure.Name ' Red'];
+    if strcmp(obj.Camera.DeviceName,'QICam B')
+    	obj.VideoPreview.Gain = -Inf;
+    end
     %obj.VideoPreview.Point = obj.PointCoords;
 end
 
