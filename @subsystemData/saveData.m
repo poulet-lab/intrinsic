@@ -31,6 +31,10 @@ try
     if ~status
         error('Error moving files to output directory:\n%s',msg)
     end
+    
+    % Store snapshots of image axes
+    obj.Parent.Green.savePNG(fullfile(DirSave,'snapshot_green.png'))
+    obj.Parent.Red.savePNG(fullfile(DirSave,'snapshot_red.png'))
 
     % Save anatomical reference
     if ~isempty(obj.Parent.Green)
