@@ -292,6 +292,12 @@ classdef imageRed < imageGeneric
     end
     
     methods
+        function savePNG(obj,fn)
+            obj.ROI.Outline.Visible = 'off';
+            obj.ROI.Extent.Visible  = 'off';
+            savePNG@imageGeneric(obj,fn)
+        end
+        
         function set.Center(obj,in)
             obj.ROI.coordsCenter = in;
             notify(obj,'NewCenter')

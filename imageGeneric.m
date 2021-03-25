@@ -154,6 +154,11 @@ classdef imageGeneric < handle
             out  = ind2rgb(out,cmap);
         end
         
+        function savePNG(obj,fn)
+            F = getframe(obj.Axes);
+            imwrite(F.cdata,fn,'png')
+        end
+        
         function set.Zoom(obj,value)
             % calculate limits of zoom value
             upper = get(0,'ScreenSize');
