@@ -16,6 +16,7 @@ classdef imageRed < imageGeneric
     properties (Dependent, SetObservable, AbortSet)
         Center
         Extent
+        Line
     end
     
     events
@@ -315,6 +316,11 @@ classdef imageRed < imageGeneric
         
         function out = get.Extent(obj)
             out = obj.ROI.Extent.Position;
+        end
+        
+        function out = get.Line(obj)
+            out.XData = obj.ROI.coordsLine(:,1);
+            out.YData = obj.ROI.coordsLine(:,2);
         end
     end
     
