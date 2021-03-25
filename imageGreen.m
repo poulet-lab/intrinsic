@@ -171,7 +171,7 @@ classdef imageGreen < imageGeneric
         end
         
         function callbackCenter(obj,~,~)
-            obj.Center.Position = obj.Parent.Red.Center;
+            obj.Center.Position = obj.Parent.Red.Center * obj.Parent.Data.P.Camera.Binning;
         end
         
         function scaleChanged(obj,~,~)
