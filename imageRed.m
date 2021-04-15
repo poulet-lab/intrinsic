@@ -273,7 +273,6 @@ classdef imageRed < imageGeneric
                 obj.CData = obj.Parent.Data.DFF;
                 obj.Visible = true;
                 obj.cbUpdateROI();
-                obj.focus();
             end
         end
     end

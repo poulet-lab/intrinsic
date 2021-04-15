@@ -24,7 +24,8 @@ obj.h.fig.main = figure( ...
     'CloseRequestFcn',      @obj.close, ...
     'SizeChangedFcn',       @figureResize, ...
     'WindowButtonUpFcn',    @temporalDrop, ...
-    'WindowButtonMotionFcn',@temporalMove);
+    'WindowButtonMotionFcn',@temporalMove, ...
+    'KeyPressFcn',          @keypress);
 
 %% Listen for changes in temporal windows
 addlistener(obj.Data,{'IdxResponse','UseControl'},'PostSet',...
@@ -503,6 +504,24 @@ end
             obj.h.axes.spatial.YLim = [-1 1];
         end
         
+    end
+
+    function keypress(~,data)
+        if strcmp(data.Key,'rightarrow')
+            obj.Data.WinResponse = obj.Data.WinResponse + ...
+                obj.Data.P.DAQ.pFrameTrigger;
+        elseif strcmp(data.Key,'leftarrow')
+            obj.Data.WinResponse = obj.Data.WinResponse - ...
+                obj.Data.P.DAQ.pFrameTrigger;
+        elseif strcmp(data.Key,'uparrow')
+            obj.Data.WinResponse(2) = obj.Data.WinResponse(2) + ...
+                obj.Data.P.DAQ.pFrameTrigger;
+        elseif strcmp(data.Key,'downarrow')
+            obj.Data.WinResponse(2) = obj.Data.WinResponse(2) - ...
+                obj.Data.P.DAQ.pFrameTrigger;
+        else
+            return
+        end
     end
 
     function figureResize(~,~,~)
