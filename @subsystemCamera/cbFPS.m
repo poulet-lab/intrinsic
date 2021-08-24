@@ -11,7 +11,7 @@ deviceName = getappdata(obj.Figure,'deviceName');
 if ismember(adaptor,{'qimaging','mwqimagingimaq'}) && strcmpi(deviceName,'QICam B')
     roi      = getappdata(obj.Figure,'roi');
     bitdepth = getappdata(obj.Figure,'bitdepth');
-    lims     = [1 floor(100/(bitdepth * prod(roi) / 1E6))];
+    lims     = [1 min([110 floor(100/(bitdepth * prod(roi) / 1E6))])];
 else
     lims = [1 60];
 end

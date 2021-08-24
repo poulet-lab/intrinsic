@@ -95,11 +95,11 @@ classdef (Sealed) intrinsic < handle
             end
             
             % Say hi
+            obj.welcome();
             fprintf('<strong>Intrinsic Imaging, v%s</strong>\n\n',obj.version)
             if ~isempty(obj.Username)
                 intrinsic.message('Hi %s!',obj.Username)
             end
-            obj.welcome();
 
             % Warn if necessary toolboxes are unavailable
             for tmp = struct2cell(obj.Toolbox)'

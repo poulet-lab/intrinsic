@@ -24,6 +24,9 @@ classdef subsystemData < subsystemGeneric
         DataMeanBaseline
         DataMeanControl
         DataMeanResponse
+        
+        StdBaseline
+        StdBaselineFiltered
     end
     
     properties (SetAccess = private, SetObservable, Transient, NonCopyable)
@@ -152,6 +155,7 @@ classdef subsystemData < subsystemGeneric
     end
 
     methods (Access = {?intrinsic})
+        createPDF(obj)
         saveData(obj)
         loadData(obj)
     end
@@ -192,6 +196,10 @@ classdef subsystemData < subsystemGeneric
                 if calculateAll || isempty(obj.(propName)) || strcmp(winName,idxName)
                     obj.(propName) = ...
                         mean(obj.DataMean(:,:,1,obj.(idxName)),4);
+                    
+                    if strcmp(idxName,'IdxBaseline')
+                        obj.StdBaseline = std((obj.DataMean(:,:,1,obj.(idxName))-obj.DataMeanBaseline)./obj.DataMeanBaseline*100,[],4);
+                    end
                 end
             end
             
@@ -223,6 +231,14 @@ classdef subsystemData < subsystemGeneric
                 response = imgaussfilt(response,obj.Sigma);
             end
             
+            % Estimate map for baseline standard deviations
+            obj.StdBaselineFiltered = obj.StdBaseline;
+            if obj.Sigma>0
+                obj.StdBaselineFiltered = ...
+                    imgaussfilt(obj.StdBaselineFiltered,obj.Sigma) ./ ...
+                    (2*obj.Sigma*sqrt(pi));
+            end
+
             % Set object properties
             obj.DFFcontrol = control;
             obj.DFF = response;
@@ -270,12 +286,17 @@ classdef subsystemData < subsystemGeneric
             obj.Parent.h.plot.temporal.YData = squeeze(subVol(c3,c4,:)) * 100;
             
             % indicate STD
-            tmp1 = [-3 3] * std(obj.Parent.h.plot.temporal.YData(...
-                obj.P.DAQ.tFrameTrigger<=obj.WinBaseline(2)));
+            tmp1 = [-3 3] * std(obj.Parent.h.plot.temporal.YData(obj.IdxBaseline));
             obj.Parent.h.yline.stdTemporal(1).Value = tmp1(1);
             obj.Parent.h.yline.stdTemporal(2).Value = tmp1(2);
             tmp = [-1 1] .* max(abs(obj.Parent.h.plot.temporal.YData));
             obj.Parent.h.axes.temporal.YLim = 1.1*tmp;
+            
+%             % Just a test
+%             a = std(obj.Parent.h.plot.temporal.YData(obj.IdxBaseline));
+%             b = obj.StdBaselineFiltered(obj.Point(2),obj.Point(1));
+%             fprintf('source: %0.5f, real: %0.5f, estimated: %0.5f, difference: %0.5f, factor: %0.5f, sigma: %0.5f\n',obj.StdBaseline(obj.Point(2),obj.Point(1)),a,b,a-b,a/b,obj.Sigma)
+%             
         end
     end
 
