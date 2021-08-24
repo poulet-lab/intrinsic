@@ -86,6 +86,7 @@ classdef (Sealed) intrinsic < handle
             % Settings are loaded from / saved to disk
             obj.Settings = matfile(fullfile(obj.DirBase,'settings.mat'),...
                 'Writable', true);
+            obj.Settings.LastStart = now;
             
             % Select user
             if ~obj.userSelect
