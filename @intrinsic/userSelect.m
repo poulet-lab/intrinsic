@@ -3,7 +3,7 @@ function out = userSelect(obj)
 out = false;
 
 Usernames = obj.loadVar('Usernames',{''},true);
-Username  = obj.loadVar('Username',{''},true);
+Username  = obj.loadVar('Username','',true);
 DirData   = obj.DirData;
 
 % No need to show the user selection if there is only one user
